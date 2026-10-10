@@ -85,6 +85,35 @@ constexpr char kPopoutScript[] = R"JS(
   el.setAttribute('data-openp41ge-popout', '');
   doc.body.append(el);
 
+  // Complete each event's journey. Events inside the pop-out bubble up to the
+  // pop-out's document and window, but the page's own document-level
+  // listeners (drags, press-and-hold, keyboard shortcuts) live on the main
+  // document. Once an event has bubbled through the pop-out unhandled, send a
+  // copy on to the main document so those listeners see it as if the element
+  // had never moved. Coordinates still line up: the element is measured in
+  // the pop-out's viewport too.
+  const FORWARDED = [
+    'mousedown', 'mouseup', 'mousemove', 'click', 'dblclick', 'contextmenu', 'wheel',
+    'pointerdown', 'pointerup', 'pointermove', 'pointercancel',
+    'touchstart', 'touchmove', 'touchend', 'touchcancel',
+    'keydown', 'keyup', 'keypress',
+  ];
+  const forwarded = new WeakSet();
+  for (const type of FORWARDED) {
+    win.addEventListener(type, (event) => {
+      if (forwarded.has(event)) return;
+      const init = {};
+      for (const key in event) {
+        if (typeof event[key] !== 'function') init[key] = event[key];
+      }
+      init.view = window;
+      const Type = window[event.constructor.name] ?? window.Event;
+      const copy = new Type(event.type, init);
+      forwarded.add(copy);
+      document.dispatchEvent(copy);
+    });
+  }
+
   // Sites (YouTube included) re-measure on window resize.
   win.addEventListener('resize', () => window.dispatchEvent(new Event('resize')));
 

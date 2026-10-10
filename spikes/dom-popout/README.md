@@ -15,7 +15,11 @@ window, as part of the same page, before any browser UI is built.
 4. The script copies the page's stylesheets into the child document and
    moves the element in, leaving a placeholder. Same node, same listeners,
    same JavaScript context. It lays out at the window's size.
-5. Closing the window (or Cmd+Shift+P again) moves the element back.
+5. **Events are forwarded to the main document.** Events that bubble through
+   the pop-out unhandled are re-dispatched on the main document, so the
+   page's document-level listeners (drags such as scrubbing, press-and-hold,
+   keyboard shortcuts) still see them.
+6. Closing the window (or Cmd+Shift+P again) moves the element back.
 
 Chromium's background throttling is switched off
 (`disable-background-timer-throttling`, `disable-renderer-backgrounding`,
@@ -45,6 +49,9 @@ the macOS Keychain.
 - A real click inside the pop-out runs the page's own handler, in the page's
   original JavaScript context.
 - Closing the window moves the element back, with its state intact.
+- A main-document `mouseup` listener receives the release from a click in
+  the pop-out (once, at matching coordinates). Without forwarding, YouTube's
+  scrubbing and hold-for-2x never saw the mouse release.
 - **Known risk confirmed:** code that looks the element up in the *main*
   document (`document.getElementById`) no longer finds it while popped out.
   Code holding a reference to it keeps working.
