@@ -19,7 +19,21 @@ window, as part of the same page, before any browser UI is built.
    the pop-out unhandled are re-dispatched on the main document, so the
    page's document-level listeners (drags such as scrubbing, press-and-hold,
    keyboard shortcuts) still see them.
-6. Closing the window (or Cmd+Shift+P again) moves the element back.
+   Keys the pop-out already handled (default prevented) aren't forwarded, so
+   shortcuts don't run twice.
+6. **Playback continues.** Media that was playing resumes after each move
+   (moving between documents pauses it).
+7. **Navigating away keeps the pop-out.** While something is popped out,
+   links open as a new page in the main window and the original page stays
+   alive in the background, so the pop-out keeps playing. If the new page has
+   a player, a bar offers **Play in pop-out**: the pop-out switches to the new
+   page's player, in the same place and width. Nothing changes until the user
+   clicks it.
+8. Closing the window (or Cmd+Shift+P again) moves the element back. If its
+   page was only kept alive in the background, that page closes too.
+
+The spike has no tabs or address bar: "pages" are browsers stacked in the
+main window, only the newest shown.
 
 Chromium's background throttling is switched off
 (`disable-background-timer-throttling`, `disable-renderer-backgrounding`,
@@ -49,6 +63,9 @@ the macOS Keychain.
 - A real click inside the pop-out runs the page's own handler, in the page's
   original JavaScript context.
 - Closing the window moves the element back, with its state intact.
+- Clicking a link in the main page while popped out opens a new page; the
+  original page stays alive and still owns the pop-out. Closing the pop-out
+  then closes the background page and leaves the new one.
 - A main-document `mouseup` listener receives the release from a click in
   the pop-out (once, at matching coordinates). Without forwarding, YouTube's
   scrubbing and hold-for-2x never saw the mouse release.
@@ -67,5 +84,5 @@ the macOS Keychain.
 4. Minimize the main window (Cmd+M) or put it behind other windows:
    everything keeps working.
 5. Close the pop-out: the player returns and keeps playing.
-6. With the player popped out, click to another video in the main window.
-   What happens?
+6. With the player popped out, click another video in the main window: the
+   pop-out keeps playing and a bar offers **Play in pop-out**.

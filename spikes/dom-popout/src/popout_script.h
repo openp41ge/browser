@@ -38,6 +38,11 @@ constexpr char kPopoutScript[] = R"JS(
       left: 12px !important;
       width: calc(100% - 24px) !important;
     }
+    /* Theatre mode and fullscreen don't apply to the pop-out. */
+    [data-openp41ge-popout] .ytp-size-button,
+    [data-openp41ge-popout] .ytp-fullscreen-button {
+      display: none !important;
+    }
   `;
 
   const open = window.__openp41gePopout;
@@ -78,12 +83,23 @@ constexpr char kPopoutScript[] = R"JS(
   fit.textContent = FIT_CSS;
   doc.head.append(fit);
 
+  // Moving media between documents pauses it: remember what was playing so
+  // it can carry on after each move.
+  const playing = () =>
+    [...el.querySelectorAll('video, audio'), ...(el.matches('video, audio') ? [el] : [])]
+      .filter((media) => !media.paused);
+  const resume = (media) => {
+    for (const m of media) if (m.paused) m.play().catch(() => {});
+  };
+  const wasPlaying = playing();
+
   // Move the real element, leaving a placeholder to hold its spot.
   const placeholder = document.createElement('div');
   placeholder.style.cssText = `width:${r.width}px;height:${r.height}px;background:#000`;
   el.replaceWith(placeholder);
   el.setAttribute('data-openp41ge-popout', '');
   doc.body.append(el);
+  resume(wasPlaying);
 
   // Complete each event's journey. Events inside the pop-out bubble up to the
   // pop-out's document and window, but the page's own document-level
@@ -102,6 +118,10 @@ constexpr char kPopoutScript[] = R"JS(
   for (const type of FORWARDED) {
     win.addEventListener(type, (event) => {
       if (forwarded.has(event)) return;
+      // A key the pop-out already handled (e.g. YouTube's player toggling on
+      // Space/K) must not reach the page's shortcuts too, or it runs twice.
+      // Mouse events are always forwarded: drags depend on them.
+      if (event instanceof win.KeyboardEvent && event.defaultPrevented) return;
       const init = {};
       for (const key in event) {
         if (typeof event[key] !== 'function') init[key] = event[key];
@@ -114,14 +134,34 @@ constexpr char kPopoutScript[] = R"JS(
     });
   }
 
+  // While popped out, following a link opens it as a new page in the main
+  // window instead of navigating this page, so what's playing keeps playing.
+  // (A same-tab link inside the pop-out would otherwise navigate the pop-out.)
+  const openAsNewPage = (event) => {
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+    if (!link || (link.target && link.target !== '_self')) return;
+    const url = new URL(link.href, location.href);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.open(url.href, 'openp41ge-newpage');
+  };
+  window.addEventListener('click', openAsNewPage, true);
+  win.addEventListener('click', openAsNewPage, true);
+
   // Sites (YouTube included) re-measure on window resize.
   win.addEventListener('resize', () => window.dispatchEvent(new Event('resize')));
 
   win.addEventListener(
     'pagehide',
     () => {
+      window.removeEventListener('click', openAsNewPage, true);
       el.removeAttribute('data-openp41ge-popout');
+      const stillPlaying = playing();
       if (placeholder.isConnected) placeholder.replaceWith(el);
+      resume(stillPlaying);
       window.__openp41gePopout = null;
       window.dispatchEvent(new Event('resize'));
     },

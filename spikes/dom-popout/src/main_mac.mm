@@ -194,12 +194,7 @@ int main(int argc, char* argv[]) {
       static_cast<SpikeApplication*>(NSApp).client = client;
       NSApp.mainMenu = BuildMenu(popout);
 
-      CefWindowInfo window_info;
-      window_info.SetAsChild(CAST_NSVIEW_TO_CEF_WINDOW_HANDLE(content),
-                             CefRect(0, 0, 1280, 800));
-      window_info.runtime_style = CEF_RUNTIME_STYLE_ALLOY;
-      CefBrowserSettings browser_settings;
-      CefBrowserHost::CreateBrowser(window_info, client, url, browser_settings, nullptr, nullptr);
+      client->CreatePage(url);
 
       [window makeKeyAndOrderFront:nil];
     }));
