@@ -14,6 +14,21 @@ it stays live in its original page and responds to clicks as normal.
 
 macOS on Apple Silicon first.
 
+## Building
+
+Requirements: Xcode (command-line tools), CMake 3.21+ and Ninja
+(`brew install cmake ninja`).
+
+```sh
+scripts/fetch-cef                                    # download the pinned CEF build (see CEF_VERSION)
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+open "build/app/Release/openp41ge explorer.app"
+```
+
+Pass `--url=<url>` to the app's executable to open a specific page. The
+profile lives in `~/Library/Application Support/openp41ge explorer`.
+
 ## Releases
 
 Builds are published on [GitHub Releases](https://github.com/openp41ge/browser/releases)
@@ -26,5 +41,6 @@ commit and pull request as the `browser-tests` check.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). CEF and Chromium are distributed under their own
-licenses.
+MIT. See [LICENSE](LICENSE). Parts of `app/` are adapted from CEF's `cefsimple`
+sample (BSD-3-Clause, the CEF Authors). CEF and Chromium are distributed under
+their own licenses.

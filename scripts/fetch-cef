@@ -1,0 +1,48 @@
+#!/bin/bash
+# Downloads and unpacks the pinned CEF minimal binary distribution into
+# third_party/cef/<platform>. Skips the download if it's already present.
+#
+# Usage: scripts/fetch-cef [platform]   (default: macosarm64)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PLATFORM="${1:-macosarm64}"
+
+# shellcheck source=/dev/null
+source "$ROOT/CEF_VERSION"
+SHA1_VAR="CEF_SHA1_${PLATFORM}"
+EXPECTED_SHA1="${!SHA1_VAR:-}"
+if [ -z "$EXPECTED_SHA1" ]; then
+  echo "No pinned hash for platform '$PLATFORM' in CEF_VERSION" >&2
+  exit 1
+fi
+
+DEST="$ROOT/third_party/cef/$PLATFORM"
+STAMP="$DEST/.cef_version"
+if [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$CEF_VERSION" ]; then
+  echo "CEF $CEF_VERSION ($PLATFORM) already present"
+  exit 0
+fi
+
+NAME="cef_binary_${CEF_VERSION}_${PLATFORM}_minimal"
+URL="https://cef-builds.spotifycdn.com/${NAME//+/%2B}.tar.bz2"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+echo "Downloading $NAME"
+# Progress bar in a terminal, quiet in CI logs.
+PROGRESS="-sS"
+[ -t 2 ] && PROGRESS="--progress-bar"
+curl -fL --retry 3 "$PROGRESS" -o "$TMP/cef.tar.bz2" "$URL"
+
+ACTUAL_SHA1="$(shasum -a 1 "$TMP/cef.tar.bz2" | cut -d' ' -f1)"
+if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
+  echo "SHA-1 mismatch: expected $EXPECTED_SHA1, got $ACTUAL_SHA1" >&2
+  exit 1
+fi
+
+echo "Unpacking to third_party/cef/$PLATFORM"
+rm -rf "$DEST"
+mkdir -p "$DEST"
+tar -xjf "$TMP/cef.tar.bz2" -C "$DEST" --strip-components=1
+echo "$CEF_VERSION" > "$STAMP"
