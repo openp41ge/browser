@@ -104,7 +104,8 @@ constexpr char kPopoutScript[] = R"JS(
     }
     button.openp41ge-auto { left: 12px; }
     button.openp41ge-shorts-nav { width: 32px; height: 32px; border-radius: 16px; }
-    button.openp41ge-shorts-nav svg { width: 12px; height: 12px; }
+    button.openp41ge-shorts-nav svg { width: 22px; height: 22px; }
+    button.openp41ge-ctl svg.openp41ge-filled { fill: var(--openp41ge-fg); stroke: none; }
     .openp41ge-auto[aria-pressed='true'] { --openp41ge-bg: #0a84ff; --openp41ge-fg: #fff; }
     /* Always visible, thicker under the pointer; click or drag to seek. */
     .openp41ge-progress {
@@ -263,36 +264,64 @@ constexpr char kPopoutScript[] = R"JS(
     const navGroup = doc.createElement('div');
     navGroup.className = 'openp41ge-shorts-nav-group';
     doc.body.append(navGroup);
+    // Material Symbols icons (24px, viewBox 0 -960 960 960), filled.
+    const filledIcon = (d) => {
+      const svg = icon(d);
+      svg.setAttribute('viewBox', '0 -960 960 960');
+      svg.classList.add('openp41ge-filled');
+      return svg;
+    };
     const navControl = (parent, className, label, d, onClick) => {
       const b = doc.createElement('button');
       b.className = `openp41ge-ctl openp41ge-shorts-nav ${className}`;
       b.title = label;
       b.setAttribute('aria-label', label);
-      b.append(icon(d));
+      b.append(filledIcon(d));
       b.addEventListener('click', onClick);
       parent.append(b);
       return b;
     };
 
-    // Moves the feed with YouTube's own navigation buttons, sliding the
-    // outgoing Short away as the next one slides in.
+    // The last frame shown, kept so that whenever the Short changes it can
+    // slide away as the next one slides in. Once the page swaps the source
+    // the old frame is gone, and changes don't only come from our buttons
+    // (YouTube's own auto-scroll, keys or swipes sent to the page), so it's
+    // refreshed as the video plays rather than at the moment of the change.
+    const lastFrame = doc.createElement('canvas');
+    lastFrame.className = 'openp41ge-snap';
+    const keepFrame = () => {
+      if (!video || video.readyState < 2) return;
+      lastFrame.width = video.videoWidth;
+      lastFrame.height = video.videoHeight;
+      try {
+        lastFrame.getContext('2d').drawImage(video, 0, 0, lastFrame.width, lastFrame.height);
+      } catch {}
+    };
+    for (const type of ['loadeddata', 'timeupdate', 'seeked']) video?.addEventListener(type, keepFrame);
+    keepFrame();
+
+    // Which way the feed moved: back to a Short seen earlier is up, anything
+    // else is down.
+    const seen = [location.pathname];
+    let current = 0;
+    const directionTo = (path) => {
+      if (path === seen[current]) return null;
+      const before = seen.lastIndexOf(path, current - 1);
+      if (before >= 0) {
+        current = before;
+        return 'up';
+      }
+      seen.splice(current + 1, Infinity, path);
+      current = seen.length - 1;
+      return 'down';
+    };
+
+    // Slides the outgoing Short (its last frame) away and the new one in.
     let moving = false;
-    const go = async (direction) => {
-      const button = document.querySelector(`#navigation-button-${direction} button`);
-      if (moving || !button || button.disabled) return;
+    const slide = async (direction) => {
       moving = true;
       try {
-        // Freeze the outgoing frame.
-        const snap = doc.createElement('canvas');
-        snap.className = 'openp41ge-snap';
-        snap.width = video.videoWidth || 1;
-        snap.height = video.videoHeight || 1;
-        try {
-          snap.getContext('2d').drawImage(video, 0, 0, snap.width, snap.height);
-        } catch {}
-        doc.body.append(snap);
-
-        button.click();
+        doc.body.append(lastFrame);
         // Wait for the next Short's first frame (or give up after 2 s).
         await new Promise((resolve) => {
           const done = () => {
@@ -305,24 +334,55 @@ constexpr char kPopoutScript[] = R"JS(
           video.addEventListener('loadeddata', done);
           video.addEventListener('playing', done);
         });
-        // The user asked to move on: start the next Short if it loaded paused.
-        if (video.paused) video.play().catch(() => {});
-
+        direction = directionTo(location.pathname) ?? direction;
+        if (!direction) return;
         const sign = direction === 'down' ? 1 : -1;
         const timing = { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' };
-        snap.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${-sign * 100}%)` }], timing);
+        lastFrame.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${-sign * 100}%)` }], timing);
         await el.animate([{ transform: `translateY(${sign * 100}%)` }, { transform: 'translateY(0)' }], timing).finished;
-        snap.remove();
       } finally {
+        lastFrame.remove();
         moving = false;
+        keepFrame();
       }
     };
 
-    navControl(navGroup, 'openp41ge-prev', 'Previous Short', 'M2 6.5L5 3.5L8 6.5', () => go('up'));
-    navControl(navGroup, 'openp41ge-next', 'Next Short', 'M2 3.5L5 6.5L8 3.5', () => go('down'));
+    // Our own moves press YouTube's navigation buttons.
+    const go = async (direction) => {
+      const button = document.querySelector(`#navigation-button-${direction} button`);
+      if (moving || !button || button.disabled) return;
+      keepFrame();
+      const sliding = slide(direction);
+      button.click();
+      // The user asked to move on: start the next Short if it loaded paused.
+      await sliding;
+      if (video.paused) video.play().catch(() => {});
+    };
+
+    // Any other change of Short (the page swapping the video's source).
+    video?.addEventListener('emptied', () => {
+      if (!moving) slide(null);
+    });
+
+    // Up/down arrow keys move the feed, in the pop-out or in the page.
+    const onArrow = (event) => {
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      const t = event.target;
+      if (t instanceof Element && t.closest('input, textarea, select, [contenteditable]:not([contenteditable=false])')) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      go(event.key === 'ArrowUp' ? 'up' : 'down');
+    };
+    win.addEventListener('keydown', onArrow, true);
+    window.addEventListener('keydown', onArrow, true);
+    win.addEventListener('pagehide', () => window.removeEventListener('keydown', onArrow, true), { once: true });
+
+    navControl(navGroup, 'openp41ge-prev', 'Previous Short', 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z', () => go('up'));
+    navControl(navGroup, 'openp41ge-next', 'Next Short', 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z', () => go('down'));
 
     let autoAdvance = false;
-    const auto = navControl(doc.body, 'openp41ge-auto', 'Auto-advance', 'M1.5 2.5L5 5L1.5 7.5M5.5 2.5L9 5L5.5 7.5', () => {
+    const auto = navControl(doc.body, 'openp41ge-auto', 'Auto-advance', 'M380-300v-360l280 180-280 180ZM480-40q-108 0-202.5-49.5T120-228v108H40v-240h240v80h-98q51 75 129.5 117.5T480-120q115 0 208.5-66T820-361l78 18q-45 136-160 219.5T480-40ZM42-520q7-67 32-128.5T143-762l57 57q-32 41-52 87.5T123-520H42Zm214-241-57-57q53-44 114-69.5T440-918v80q-51 5-97 25t-87 52Zm449 0q-41-32-87.5-52T520-838v-80q67 6 128.5 31T762-818l-57 57Zm133 241q-5-51-25-97.5T761-705l57-57q44 52 69 113.5T918-520h-80Z', () => {
       autoAdvance = !autoAdvance;
       auto.setAttribute('aria-pressed', String(autoAdvance));
       auto.title = autoAdvance ? 'Auto-advance: on' : 'Auto-advance: off';
