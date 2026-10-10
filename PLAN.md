@@ -367,7 +367,13 @@ its own plan. Leaning towards a UI written in HTML/TypeScript, rendered by
 its own browser view and talking to the shell over CEF's message router, so
 it's hackable with the same web tools as Openp41ge.
 
-- **Tabs and navigation:** tab strip, address bar with search, back/forward/reload
+- **Tabs and navigation:** tab strip, address bar with search, back/forward/reload.
+  **Constraint:** CEF only lets one Chrome-style browser view be *created* in
+  a window (`browser_view_impl.cc`: "Cannot add multiple Chrome style
+  BrowserViews"). Tabs therefore need a design that fits this, e.g. creating
+  each tab's view in its own window and moving existing views between
+  windows, or one window per tab with our own tab strip across them. To be
+  decided in the Phase 3 plan.
 - **Pages:** find-in-page, zoom, popups and new windows
 - **Prompts and errors:** permission prompts, auth dialogs, certificate and
   network error pages
