@@ -5,40 +5,27 @@
 
 #include <string>
 
-#include "include/cef_browser.h"
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
 
-#include "explorer_handler.h"
-
-namespace {
-
-constexpr char kStartUrl[] = "chrome://newtab/";
-
-}  // namespace
+void ExplorerApp::OnBeforeCommandLineProcessing(const CefString& process_type,
+                                                CefRefPtr<CefCommandLine> command_line) {
+  if (!process_type.empty()) return;
+  // Pages keep running at full speed while hidden or minimized: a popped-out
+  // element's page is often in the background.
+  command_line->AppendSwitch("disable-background-timer-throttling");
+  command_line->AppendSwitch("disable-renderer-backgrounding");
+  command_line->AppendSwitch("disable-backgrounding-occluded-windows");
+}
 
 void ExplorerApp::OnContextInitialized() {
   CEF_REQUIRE_UI_THREAD();
-
-  CefRefPtr<ExplorerHandler> handler(new ExplorerHandler());
-
+  manager_ = new BrowserManager();
   // `--url=<url>` opens a specific page instead of the new tab page.
-  std::string url = CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("url");
-  if (url.empty()) {
-    url = kStartUrl;
-  }
-
-  // A Chrome-style browser without a parent view gets a full Chrome window:
-  // tab strip, toolbar, menus and settings.
-  CefWindowInfo window_info;
-  window_info.runtime_style = CEF_RUNTIME_STYLE_CHROME;
-
-  CefBrowserSettings browser_settings;
-  CefBrowserHost::CreateBrowser(window_info, handler, url, browser_settings,
-                                nullptr, nullptr);
+  manager_->OpenPageWindow(CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("url"));
 }
 
 CefRefPtr<CefClient> ExplorerApp::GetDefaultClient() {
-  // Used for browsers created by Chrome's own UI (new tabs and windows).
-  return ExplorerHandler::GetInstance();
+  // Used for browsers CEF creates itself.
+  return manager_;
 }

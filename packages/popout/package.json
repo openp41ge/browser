@@ -1,0 +1,12 @@
+{
+  "name": "@openp41ge/popout",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Element pop-out: moves a page element into its own window as real DOM.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./core": "./src/core.js",
+    "./hold-autoplay": "./src/hold-autoplay.js"
+  }
+}

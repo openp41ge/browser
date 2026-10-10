@@ -13,8 +13,8 @@
 #include "include/wrapper/cef_helpers.h"
 #include "include/wrapper/cef_library_loader.h"
 
+#include "browser_manager.h"
 #include "explorer_app.h"
-#include "explorer_handler.h"
 
 namespace {
 
@@ -35,6 +35,55 @@ std::string AppDataDir(int argc, char* argv[]) {
   return std::string(support.UTF8String) + "/" + kProductName;
 }
 
+}  // namespace
+
+// Menu actions that need the browser. Chrome commands (IDC_*) run in the
+// active page; the item's tag is the command id.
+@interface ExplorerMenuTarget : NSObject <NSMenuItemValidation>
+- (void)chromeCommand:(NSMenuItem*)sender;
+- (void)newWindow:(id)sender;
+- (void)closeWindow:(id)sender;
+- (void)togglePopout:(id)sender;
+@end
+
+@implementation ExplorerMenuTarget
+
+- (void)chromeCommand:(NSMenuItem*)sender {
+  if (BrowserManager* manager = BrowserManager::Get()) manager->ExecuteChromeCommand(static_cast<int>(sender.tag));
+}
+
+- (void)newWindow:(id)sender {
+  if (BrowserManager* manager = BrowserManager::Get()) manager->OpenPageWindow(std::string());
+}
+
+- (void)closeWindow:(id)sender {
+  if (BrowserManager* manager = BrowserManager::Get()) manager->CloseCurrentWindow();
+}
+
+- (void)togglePopout:(id)sender {
+  if (BrowserManager* manager = BrowserManager::Get()) manager->TogglePopout();
+}
+
+- (BOOL)validateMenuItem:(NSMenuItem*)item {
+  BrowserManager* manager = BrowserManager::Get();
+  if (!manager) return NO;
+  if (item.action == @selector(togglePopout:)) {
+    item.title = manager->popout()->IsOpen() ? @"Put Back Pop-out" : @"Pop Out Video";
+    return manager->popout()->IsOpen() || manager->CurrentPage() != nullptr;
+  }
+  if (item.action == @selector(chromeCommand:)) {
+    CefRefPtr<CefBrowser> page = manager->CurrentPage();
+    return page && page->GetHost()->CanExecuteChromeCommand(static_cast<int>(item.tag));
+  }
+  return YES;
+}
+
+@end
+
+namespace {
+
+ExplorerMenuTarget* g_menu_target = nil;
+
 NSMenuItem* AddItem(NSMenu* menu,
                     NSString* title,
                     SEL action,
@@ -45,15 +94,24 @@ NSMenuItem* AddItem(NSMenu* menu,
   return item;
 }
 
-// A menu item that runs a Chrome command (IDC_*) in the active browser
-// window. Chrome also looks up keyboard shortcuts in the main menu, which is
-// what makes Cmd+T and friends work while a web page has focus.
+// A menu item handled by ExplorerMenuTarget.
+NSMenuItem* AddAction(NSMenu* menu,
+                      NSString* title,
+                      SEL action,
+                      NSString* key,
+                      NSEventModifierFlags modifiers = NSEventModifierFlagCommand) {
+  NSMenuItem* item = AddItem(menu, title, action, key, modifiers);
+  item.target = g_menu_target;
+  return item;
+}
+
+// A menu item that runs a Chrome command (IDC_*) in the active page.
 NSMenuItem* AddCommand(NSMenu* menu,
                        NSString* title,
                        const char* command_name,
                        NSString* key,
                        NSEventModifierFlags modifiers = NSEventModifierFlagCommand) {
-  NSMenuItem* item = AddItem(menu, title, @selector(commandDispatch:), key, modifiers);
+  NSMenuItem* item = AddAction(menu, title, @selector(chromeCommand:), key, modifiers);
   item.tag = cef_id_for_command_id_name(command_name);
   return item;
 }
@@ -65,8 +123,10 @@ NSMenu* AddSubmenu(NSMenu* menubar, NSString* title) {
 }
 
 // Chrome-style menu bar. Edit menu items use the standard Cocoa actions so
-// text fields work; everything browser-related dispatches a Chrome command.
+// text fields work; most browser items run a Chrome command in the active
+// page. Pages have no tab strip yet, so new tabs are new windows.
 NSMenu* BuildMainMenu() {
+  g_menu_target = [[ExplorerMenuTarget alloc] init];
   constexpr auto kCmdShift = NSEventModifierFlagCommand | NSEventModifierFlagShift;
   constexpr auto kCmdOpt = NSEventModifierFlagCommand | NSEventModifierFlagOption;
   constexpr auto kCmdCtrl = NSEventModifierFlagCommand | NSEventModifierFlagControl;
@@ -84,14 +144,11 @@ NSMenu* BuildMainMenu() {
   AddItem(app, [@"Quit " stringByAppendingString:name], @selector(terminate:), @"q");
 
   NSMenu* file = AddSubmenu(menubar, @"File");
-  AddCommand(file, @"New Tab", "IDC_NEW_TAB", @"t");
-  AddCommand(file, @"New Window", "IDC_NEW_WINDOW", @"n");
-  AddCommand(file, @"New Incognito Window", "IDC_NEW_INCOGNITO_WINDOW", @"n", kCmdShift);
-  AddCommand(file, @"Reopen Closed Tab", "IDC_RESTORE_TAB", @"t", kCmdShift);
+  AddAction(file, @"New Tab", @selector(newWindow:), @"t");
+  AddAction(file, @"New Window", @selector(newWindow:), @"n");
   AddCommand(file, @"Open Location…", "IDC_FOCUS_LOCATION", @"l");
   [file addItem:[NSMenuItem separatorItem]];
-  AddCommand(file, @"Close Window", "IDC_CLOSE_WINDOW", @"w", kCmdShift);
-  AddCommand(file, @"Close Tab", "IDC_CLOSE_TAB", @"w");
+  AddAction(file, @"Close Window", @selector(closeWindow:), @"w");
   [file addItem:[NSMenuItem separatorItem]];
   AddCommand(file, @"Print…", "IDC_PRINT", @"p");
 
@@ -135,8 +192,7 @@ NSMenu* BuildMainMenu() {
   AddItem(window, @"Minimize", @selector(performMiniaturize:), @"m");
   AddItem(window, @"Zoom", @selector(performZoom:), @"", 0);
   [window addItem:[NSMenuItem separatorItem]];
-  AddCommand(window, @"Select Next Tab", "IDC_SELECT_NEXT_TAB", @"}", kCmdShift);
-  AddCommand(window, @"Select Previous Tab", "IDC_SELECT_PREVIOUS_TAB", @"{", kCmdShift);
+  AddAction(window, @"Pop Out Video", @selector(togglePopout:), @"p", kCmdShift);
   [window addItem:[NSMenuItem separatorItem]];
   AddCommand(window, @"Downloads", "IDC_SHOW_DOWNLOADS", @"j", kCmdShift);
   AddCommand(window, @"Extensions", "IDC_MANAGE_EXTENSIONS", @"", 0);
@@ -178,8 +234,8 @@ NSMenu* BuildMainMenu() {
 }
 
 // Chromium needs to leave the run loop to shut down cleanly, so quitting
-// closes all browsers instead of calling exit(). When the last browser
-// closes, ExplorerHandler ends the message loop and main() returns.
+// closes all windows instead of calling exit(). When the last one closes,
+// BrowserManager ends the message loop and main() returns.
 - (void)terminate:(id)sender {
   auto* delegate = static_cast<ExplorerAppDelegate*>([NSApp delegate]);
   [delegate tryToTerminateApplication:self];
@@ -195,9 +251,11 @@ NSMenu* BuildMainMenu() {
 }
 
 - (void)tryToTerminateApplication:(NSApplication*)app {
-  ExplorerHandler* handler = ExplorerHandler::GetInstance();
-  if (handler && !handler->IsClosing()) {
-    handler->CloseAllBrowsers(false);
+  BrowserManager* manager = BrowserManager::Get();
+  if (!manager) {
+    CefQuitMessageLoop();
+  } else if (!manager->IsClosing()) {
+    manager->CloseAll();
   }
 }
 

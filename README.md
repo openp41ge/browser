@@ -8,7 +8,21 @@ Its headline feature is **element pop-out**: show any part of a web page (a
 video player, a chat, a dashboard widget) in its own always-on-top window, while
 it stays live in its original page and responds to clicks as normal.
 
-> **Status:** planning. See [PLAN.md](PLAN.md) for the design and roadmap.
+> **Status:** early development. See [PLAN.md](PLAN.md) for the design and
+> roadmap.
+
+**Pop out:** Window → Pop Out Video (Shift+Cmd+P) moves the page's video
+into a frameless window over it; it keeps playing, and closing the window
+puts it back. Site-specific pop-outs (such as YouTube's player and Shorts)
+come from the [Internet Utility Belt](packages/web-extension) extension.
+
+## Layout
+
+```
+app/                    the browser (C++, CEF)
+packages/popout/        element pop-out, page side (shared by the browser and the extension)
+packages/web-extension/ Internet Utility Belt, a cross-browser extension
+```
 
 ## Platforms
 

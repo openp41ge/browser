@@ -11,11 +11,28 @@ add_cef_mac_app(openp41ge_explorer
   BUNDLE_ID "com.openp41ge.explorer"
   VERSION "${EXPLORER_VERSION}"
   SOURCES
+    src/browser_manager.h
+    src/browser_manager.mm
+    src/devtools_client.h
+    src/devtools_client.mm
     src/explorer_app.cc
     src/explorer_app.h
-    src/explorer_handler.cc
-    src/explorer_handler.h
     src/main_mac.mm
+    src/page_window.h
+    src/page_window.mm
+    src/popout/popout_controller.h
+    src/popout/popout_controller.mm
+    src/popout/popout_scripts.h
+    src/popout/popout_scripts.mm
   HELPER_SOURCES
     src/process_helper_mac.cc
+    src/renderer_app.cc
+    src/renderer_app.h
+  # The pop-out's page-side scripts (packages/popout).
+  RESOURCES_DIR "${CMAKE_SOURCE_DIR}/packages/popout/src"
+  RESOURCES_DEST popout
+  RESOURCES
+    core.js
+    hold-autoplay.js
 )
+target_include_directories(openp41ge_explorer PRIVATE src)

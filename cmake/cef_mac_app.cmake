@@ -4,14 +4,18 @@
 #   VERSION <version>
 #   SOURCES <files...>       main executable sources
 #   HELPER_SOURCES <files...> CEF helper process sources
-#   [LIBRARIES <libs...>])
+#   [LIBRARIES <libs...>]
+#   [RESOURCES_DIR <dir> [RESOURCES_DEST <subdir>] RESOURCES <files...>])
+#                            files under <dir>, copied to
+#                            Contents/Resources[/<subdir>] keeping their
+#                            relative paths
 #
 # Builds a macOS app bundle for CEF: the main executable, the CEF framework,
 # and the helper app per process type ("<name> Helper (Renderer)", ...) that
 # CEF requires in Contents/Frameworks. Info.plists come from app/mac/*.in.
 # Adapted from CEF's cefsimple sample (BSD-3-Clause, the CEF Authors).
 function(add_cef_mac_app target)
-  cmake_parse_arguments(ARG "" "PRODUCT_NAME;BUNDLE_ID;VERSION" "SOURCES;HELPER_SOURCES;LIBRARIES" ${ARGN})
+  cmake_parse_arguments(ARG "" "PRODUCT_NAME;BUNDLE_ID;VERSION;RESOURCES_DIR;RESOURCES_DEST" "SOURCES;HELPER_SOURCES;LIBRARIES;RESOURCES" ${ARGN})
 
   SET_CEF_TARGET_OUT_DIR()
   list(APPEND CEF_COMPILER_FLAGS -fobjc-arc)
@@ -28,7 +32,19 @@ function(add_cef_mac_app target)
   set(info_plist "${CMAKE_CURRENT_BINARY_DIR}/${target}-Info.plist")
   configure_file("${templates}/Info.plist.in" "${info_plist}")
 
-  add_executable(${target} MACOSX_BUNDLE ${ARG_SOURCES})
+  set(resources "")
+  foreach(resource ${ARG_RESOURCES})
+    set(path "${ARG_RESOURCES_DIR}/${resource}")
+    get_filename_component(subdir "${resource}" DIRECTORY)
+    set(location "Resources")
+    foreach(part ${ARG_RESOURCES_DEST} ${subdir})
+      set(location "${location}/${part}")
+    endforeach()
+    set_source_files_properties("${path}" PROPERTIES MACOSX_PACKAGE_LOCATION "${location}")
+    list(APPEND resources "${path}")
+  endforeach()
+
+  add_executable(${target} MACOSX_BUNDLE ${ARG_SOURCES} ${resources})
   SET_EXECUTABLE_TARGET_PROPERTIES(${target})
   add_dependencies(${target} libcef_dll_wrapper)
   target_link_libraries(${target} libcef_dll_wrapper ${CEF_STANDARD_LIBS} ${ARG_LIBRARIES})

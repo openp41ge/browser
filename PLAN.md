@@ -397,8 +397,10 @@ that sign-in, sync and Translate don't appear.
   - context menu "Pop out this element"
   - a shortcut that enters pick mode (hover to highlight, click to choose, step to parent/child)
   - long-press on a playing video
-- **Site presets** (e.g. "YouTube player"), defined in the same rule format the
-  web extension uses.
+- **Site presets** (e.g. "YouTube player") come from extensions, not the
+  browser: the browser's pop-out is generic, and Internet Utility Belt adds
+  per-site behaviour on the shared page-side code (`packages/popout`).
+  Browser tests never depend on live sites.
 - **Persistence:** pop-outs restore with the session by reopening the source
   page and re-resolving the element (selector or preset). If an element can't
   be found again, the user is told rather than it silently failing.
@@ -427,7 +429,8 @@ that sign-in, sync and Translate don't appear.
 
 ### Phase 6: Internet Utility Belt in this repo
 
-- Move `~/Repository/internet-utility-belt` to `packages/web-extension`. It
+- Move `~/Repository/internet-utility-belt` to `packages/web-extension`
+  (started 2026-10-11, carrying the YouTube and Shorts pop-out presets). It
   remains a normal web extension for Chrome, Firefox and Safari.
 - Chrome-style pages load Chrome extensions, so it runs as a normal
   extension in openp41ge explorer too. Engine powers (e.g. pop-out without a

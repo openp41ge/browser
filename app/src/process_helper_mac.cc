@@ -6,6 +6,8 @@
 #include "include/cef_app.h"
 #include "include/wrapper/cef_library_loader.h"
 
+#include "renderer_app.h"
+
 #if defined(CEF_USE_SANDBOX)
 #include "include/cef_sandbox_mac.h"
 #endif
@@ -25,5 +27,6 @@ int main(int argc, char* argv[]) {
   }
 
   CefMainArgs main_args(argc, argv);
-  return CefExecuteProcess(main_args, nullptr, nullptr);
+  CefRefPtr<CefApp> app(new RendererApp());
+  return CefExecuteProcess(main_args, app, nullptr);
 }
