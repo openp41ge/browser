@@ -61,7 +61,6 @@ constexpr char kPopoutScript[] = R"JS(
       --openp41ge-bg: rgba(255, 255, 255, 0.92);
       --openp41ge-fg: #1d1d1f;
       --openp41ge-ring: rgba(0, 0, 0, 0.14);
-      position: fixed; top: 8px; z-index: 2147483647;
       height: 24px; box-sizing: border-box; padding: 0; border: 0; border-radius: 12px;
       background: var(--openp41ge-bg);
       box-shadow: 0 0 0 1px var(--openp41ge-ring), 0 1px 4px rgba(0, 0, 0, 0.25);
@@ -74,6 +73,7 @@ constexpr char kPopoutScript[] = R"JS(
         --openp41ge-ring: rgba(255, 255, 255, 0.16);
       }
     }
+    .openp41ge-grip, .openp41ge-close { position: fixed; top: 8px; z-index: 2147483647; }
     .openp41ge-grip {
       left: calc(50% - 70px); width: 140px;
       display: flex; flex-direction: column; justify-content: center; gap: 3px;
@@ -94,12 +94,22 @@ constexpr char kPopoutScript[] = R"JS(
       width: 10px; height: 10px; fill: none;
       stroke: var(--openp41ge-fg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
     }
-    /* YouTube Shorts: previous / next / auto-advance down the right edge. */
-    .openp41ge-shorts-nav { right: 8px; width: 28px; height: 28px; border-radius: 14px; }
-    .openp41ge-prev { top: calc(50% - 50px); }
-    .openp41ge-next { top: calc(50% - 14px); }
-    .openp41ge-auto { top: calc(50% + 22px); }
+    /* YouTube Shorts: previous / next / auto-advance / not interested in a
+       row along the bottom. */
+    .openp41ge-shorts-row {
+      position: fixed; left: 0; right: 0; bottom: 16px; z-index: 2147483647;
+      display: flex; justify-content: center; gap: 10px;
+      pointer-events: none;
+    }
+    button.openp41ge-shorts-nav { width: 32px; height: 32px; border-radius: 16px; pointer-events: auto; }
+    button.openp41ge-shorts-nav svg { width: 12px; height: 12px; }
     .openp41ge-auto[aria-pressed='true'] { --openp41ge-bg: #0a84ff; --openp41ge-fg: #fff; }
+    .openp41ge-flash { --openp41ge-bg: #ff453a; --openp41ge-fg: #fff; }
+    /* The outgoing Short's last frame, slid away as the next slides in. */
+    .openp41ge-snap {
+      position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 2147483646;
+      object-fit: contain; background: #000; pointer-events: none;
+    }
     .openp41ge-visible, .openp41ge-ctl:hover { opacity: 1; }
   `;
 
@@ -227,15 +237,9 @@ constexpr char kPopoutScript[] = R"JS(
   // next Short here. Moves use YouTube's own navigation buttons.
   if (el.id === 'shorts-player') {
     const video = el.querySelector('video');
-    const navButton = (direction) => document.querySelector(`#navigation-button-${direction} button`);
-    const go = (direction) => {
-      const button = navButton(direction);
-      if (!button || button.disabled) return;
-      button.click();
-      // The user asked to move on: start the next Short if YouTube loads it paused.
-      video?.addEventListener('canplay', () => video.paused && video.play().catch(() => {}), { once: true });
-      setTimeout(() => video?.paused && video.play().catch(() => {}), 1500);
-    };
+    const row = doc.createElement('div');
+    row.className = 'openp41ge-shorts-row';
+    doc.body.append(row);
     const navControl = (className, label, d, onClick) => {
       const b = doc.createElement('button');
       b.className = `openp41ge-ctl openp41ge-shorts-nav ${className}`;
@@ -243,9 +247,54 @@ constexpr char kPopoutScript[] = R"JS(
       b.setAttribute('aria-label', label);
       b.append(icon(d));
       b.addEventListener('click', onClick);
-      doc.body.append(b);
+      row.append(b);
       return b;
     };
+
+    // Moves the feed with YouTube's own navigation buttons, sliding the
+    // outgoing Short away as the next one slides in.
+    let moving = false;
+    const go = async (direction) => {
+      const button = document.querySelector(`#navigation-button-${direction} button`);
+      if (moving || !button || button.disabled) return;
+      moving = true;
+      try {
+        // Freeze the outgoing frame.
+        const snap = doc.createElement('canvas');
+        snap.className = 'openp41ge-snap';
+        snap.width = video.videoWidth || 1;
+        snap.height = video.videoHeight || 1;
+        try {
+          snap.getContext('2d').drawImage(video, 0, 0, snap.width, snap.height);
+        } catch {}
+        doc.body.append(snap);
+
+        button.click();
+        // Wait for the next Short's first frame (or give up after 2 s).
+        await new Promise((resolve) => {
+          const done = () => {
+            clearTimeout(timer);
+            video.removeEventListener('loadeddata', done);
+            video.removeEventListener('playing', done);
+            resolve();
+          };
+          const timer = setTimeout(done, 2000);
+          video.addEventListener('loadeddata', done);
+          video.addEventListener('playing', done);
+        });
+        // The user asked to move on: start the next Short if it loaded paused.
+        if (video.paused) video.play().catch(() => {});
+
+        const sign = direction === 'down' ? 1 : -1;
+        const timing = { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' };
+        snap.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${-sign * 100}%)` }], timing);
+        await el.animate([{ transform: `translateY(${sign * 100}%)` }, { transform: 'translateY(0)' }], timing).finished;
+        snap.remove();
+      } finally {
+        moving = false;
+      }
+    };
+
     navControl('openp41ge-prev', 'Previous Short', 'M2 6.5L5 3.5L8 6.5', () => go('up'));
     navControl('openp41ge-next', 'Next Short', 'M2 3.5L5 6.5L8 3.5', () => go('down'));
 
@@ -258,12 +307,44 @@ constexpr char kPopoutScript[] = R"JS(
     auto.setAttribute('aria-pressed', 'false');
     auto.title = 'Auto-advance: off';
 
+    // "Not interested": YouTube's own menu action, then on to the next Short.
+    // YouTube exposes no language-independent hook for it, so the menu item
+    // is found by its English label; it's only offered to signed-in users.
+    const notInterested = navControl(
+      'openp41ge-not-interested',
+      'Not interested',
+      'M9 5A4 4 0 1 1 1 5A4 4 0 1 1 9 5M2.2 2.2L7.8 7.8',
+      async () => {
+        const menuButton = [...document.querySelectorAll('#menu-button button, #menu-button [role=button]')].find(
+          (b) => b.getBoundingClientRect().width > 0,
+        );
+        menuButton?.click();
+        let item;
+        for (let i = 0; i < 20 && !item; i++) {
+          await new Promise((r) => setTimeout(r, 100));
+          item = [...document.querySelectorAll('yt-list-item-view-model, ytd-menu-service-item-renderer')].find(
+            (e) => e.getBoundingClientRect().width > 0 && /^\s*not interested\s*$/i.test(e.textContent),
+          );
+        }
+        if (!item) {
+          // Close the menu again (its button toggles it) and say why nothing happened.
+          menuButton?.click();
+          notInterested.classList.add('openp41ge-flash');
+          notInterested.title = 'Not available (YouTube only offers it when signed in)';
+          setTimeout(() => notInterested.classList.remove('openp41ge-flash'), 1200);
+          return;
+        }
+        item.click();
+        go('down');
+      },
+    );
+
     // Shorts loop instead of ending, so "finished" is the position wrapping
     // back to the start.
     let lastTime = 0;
     video?.addEventListener('timeupdate', () => {
       const t = video.currentTime;
-      if (autoAdvance && video.duration > 0 && lastTime > video.duration - 1 && t < 1) go('down');
+      if (autoAdvance && !moving && video.duration > 0 && lastTime > video.duration - 1 && t < 1) go('down');
       lastTime = t;
     });
     video?.addEventListener('ended', () => autoAdvance && go('down'));
