@@ -20,7 +20,14 @@ endif()
 list(APPEND CMAKE_MODULE_PATH "${CEF_ROOT}/cmake")
 find_package(CEF REQUIRED)
 
+include(cmake/cef_mac_app.cmake)
+
 add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
 add_subdirectory(app)
+
+option(EXPLORER_BUILD_SPIKES "Build spikes (spikes/)" OFF)
+if(EXPLORER_BUILD_SPIKES)
+  add_subdirectory(spikes/dom-popout)
+endif()
 
 PRINT_CEF_CONFIG()
