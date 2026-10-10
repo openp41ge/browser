@@ -29,6 +29,7 @@ web extension (currently `~/Repository/internet-utility-belt`).
 |---|---|
 | Name | **openp41ge explorer**: bundle id `com.openp41ge.explorer` (matches the app's `com.openp41ge.app`) |
 | Engine | CEF binary distributions (no Electron, no Chromium fork) |
+| Browser style | **Alloy**, off-screen ("windowless") pages: no Chrome UI or Google features; we build the browser UI. Chrome style is the fallback only (see Phase 2) |
 | Shell language | C++ (CEF's first-class API) |
 | Video codecs | Ship v1 **without** proprietary codecs (H.264/AAC); standard CEF binaries |
 | Platforms | macOS on Apple Silicon first; others later |
@@ -82,8 +83,15 @@ As of CEF M128+ (see [CEF issue #3685](https://github.com/chromiumembedded/cef/i
 - Standard binary builds **exclude proprietary codecs** (H.264/AAC). Enabling
   them requires building CEF from source.
 
-The tension between **extensions (Chrome style)** and **off-screen mirroring
-(Alloy style)** is resolved by the Phase 2 spike, which tries both.
+**Decision (2026-10-10): Alloy style.** It gives the best element pop-out
+(off-screen mirroring) and ships none of Chrome's UI or Google features, which
+we don't want anyway. The costs are that we build all browser UI and that
+Chrome extensions don't load. Chrome style remains the fallback if the
+Phase 2 spike shows off-screen rendering isn't workable.
+
+Off-screen rendering on macOS (`cef_render_handler.h`): `OnAcceleratedPaint`
+delivers each frame as an IOSurface from a pool. It is only valid during the
+callback, so the client must copy it into a surface it owns.
 
 ## Repository layout
 
@@ -270,79 +278,87 @@ Prove the toolchain end to end before features.
   phase. If it's regularly too slow for the zero-day target, that's an input to
   Phase 7.
 
-### Phase 2: Element pop-out spike (decides the browser architecture)
+### Phase 2: Alloy off-screen pop-out spike
 
-Build both candidates in the shell, measure them on YouTube 1080p60 and one
-non-video site, and pick one.
+A throwaway target (`spikes/popout/`) that proves the architecture before any
+browser UI is built: one window with one Alloy off-screen page, plus a
+pop-out window showing a single element of it.
 
-**A. Chrome-style tabs, mirrored by element capture inside the page**
+**Rendering:**
 
-- Tabs are Chrome-style browsers, so Chrome UI and extensions work.
-- An injected script captures its own tab (`getDisplayMedia`, auto-approved by
-  our permission handler, so there's no prompt) and narrows it to the element
-  (`RestrictionTarget.fromElement` + `restrictTo`, falling back to
-  `CropTarget` + `cropTo`).
-- The pop-out is a same-origin popup (`window.open`). CEF's `OnBeforePopup`
-  lets the shell create it as **our own window**: frameless, always on top,
-  positioned over the element, aspect-locked. The capture stream plays in a
-  `<video>` inside it.
-- Input: pop-out events are mapped to the element's page coordinates and
-  injected as **trusted** input through the DevTools protocol
-  (`Input.dispatchMouseEvent` / `dispatchKeyEvent` via `ExecuteDevToolsMethod`).
+- Each `OnAcceleratedPaint` IOSurface is copied with Metal, in one GPU blit,
+  into a small ring of IOSurfaces we own.
+- The page view and every pop-out display the *same* owned surface via
+  `CALayer.contents`. The pop-out crops to the element with
+  `CALayer.contentsRect`, so there are no extra copies however many windows
+  show it.
 
-**B. Alloy-style windowless tabs, mirrored by off-screen rendering**
+**Element tracking:** the element's rect and the device scale come from the
+DevTools protocol (`Runtime.evaluate` via `ExecuteDevToolsMethod`), browser
+process only. Polled for the spike; event-driven later.
 
-- Tabs are Alloy-style windowless browsers. The shell draws every page itself
-  from shared GPU textures (`OnAcceleratedPaint`, IOSurface on macOS).
-- The pop-out is simply another view drawing the element's region of the same
-  texture: zero copies, perfectly in sync.
-- Input: `SendMouseEvent` / `SendKeyEvent` / `SendMouseWheelEvent` with mapped
-  coordinates.
-- Cost: **no Chrome extensions**, and we build **all browser UI** (tabs,
-  toolbar, menus, dialogs, permission prompts) ourselves.
+**Input:** pop-out mouse, wheel and key events are mapped into page
+coordinates and sent with `SendMouseClickEvent`, `SendMouseMoveEvent`,
+`SendMouseWheelEvent` and `SendKeyEvent`. These are real input, as far as the
+page can tell.
 
-**Shared to both:**
+**Pop-out window:** our own `NSWindow`:
 
-- **Element tracking:** element rect, visibility and removal are reported to
-  the shell each frame (an injected script over CEF's message router, or the
-  DevTools protocol's DOM methods).
-- **Keeping the page live:** the source browser keeps rendering and running
-  timers at full rate while a pop-out is open, even if its tab is hidden.
-  Chrome-style capture already keeps a page active; in windowless mode we
-  control hidden state directly.
-- **Gestures:**
-  - Long-press pops out and keeps dragging: the window is created under the
-    cursor and follows it while the button is held.
-  - Inside the window, quick clicks go to the page; press-and-hold or dragging
-    past a threshold moves the window. Edges resize, with the aspect ratio locked.
+- floating, opened over the element's on-screen rect
+- locked to the element's aspect ratio
+- resizing scales the mirrored image
 
-**Success criteria:**
+**Keeping the page live:** the source page is never hidden from Chromium's
+point of view (`WasHidden(false)`) while a pop-out shows it, so YouTube-style
+timers keep running.
 
-- 60 fps and under 1 frame of added latency
-- CPU/GPU cost within ~10% of normal playback
-- scrubbing, settings menus, hover states and keyboard shortcuts all work through the pop-out
-- source tab hidden: everything keeps working
+**Also measure the true cost of Alloy** (the reason for choosing it carefully):
 
-**Decision rule:** prefer **A** if it meets the criteria (we keep Chrome's UI
-and extensions for free). Choose **B** only if A's quality or latency falls
-short. Write the result up in `plans/` with numbers.
+- frame-copy time per frame
+- keyboard input incl. input methods (IME)
+- `<select>` and other popup widgets (`PET_POPUP`)
+- cursor changes
+- drag and drop
+- accessibility
 
-### Phase 3: Browser MVP
+**Success criteria (YouTube 1080p60 and one non-video site):**
 
-Scope depends on the Phase 2 decision:
+- 60 fps in both windows, under 1 frame of added latency
+- frame copy under ~1 ms
+- scrubbing, settings menus, hover states and keyboard shortcuts all work
+  through the pop-out
+- the source window hidden or minimized: the pop-out keeps working
 
-- **If A (Chrome style):** Chrome's own UI provides tabs, the address bar,
-  menus, downloads, permission prompts and settings. The MVP is mostly shell
-  work: window management, profile, branding, `chrome://` pages we keep or
-  hide, and default search engine.
-- **If B (Alloy style):** we build the browser UI ourselves:
-  - tabs, address bar with search, back/forward/reload
-  - downloads, permission prompts, auth and certificate error pages
-  - find-in-page, zoom, popups, history, bookmarks
-  This is substantially larger, so it gets its own plan.
+**Fallback:** if off-screen rendering fails these, go back to Chrome-style
+pages with element capture (`getDisplayMedia` + `RestrictionTarget`) and
+DevTools-protocol input, and write the reasons up in `plans/`.
 
-Either way, out of scope for the MVP: sync, multiple profiles, password-manager
-work beyond what Chrome style provides, and DRM (see Open Questions).
+**Gestures** (product work, after the spike):
+
+- long-press pops out and keeps dragging while the button is held
+- inside the pop-out, quick clicks go to the page; press-and-hold or dragging
+  past a threshold moves the window
+
+### Phase 3: Browser MVP (our own UI)
+
+Alloy pages come with no browser UI, so we build it. This gets its own plan.
+Leaning towards a UI written in HTML/TypeScript, rendered by a separate Alloy
+view and talking to the shell over CEF's message router, so it's hackable
+with the same web tools as Openp41ge.
+
+- **Tabs and navigation:** tab strip, address bar with search, back/forward/reload
+- **Pages:** find-in-page, zoom, popups and new windows
+- **Prompts and errors:** permission prompts, auth dialogs, certificate and
+  network error pages
+- **Data:** downloads with a downloads list, history, bookmarks
+- **Input details** for off-screen pages: input methods (IME), drag and drop,
+  cursors, and accessibility
+
+**Features are opt-in:** Alloy has no Google sign-in, sync, AI features,
+Translate or password-manager UI. We only add what we choose.
+
+**Out of scope for the MVP:** sync, multiple profiles, password manager, DRM
+(see Open Questions).
 
 ### Phase 4: Element pop-out as a product
 
@@ -382,15 +398,12 @@ work beyond what Chrome style provides, and DRM (see Open Questions).
 
 - Move `~/Repository/internet-utility-belt` to `packages/web-extension`. It
   remains a normal web extension for Chrome, Firefox and Safari.
-- **If A (Chrome style):** it also loads in the Openp41ge browser as an
-  extension. The browser exposes its engine powers (e.g. `popOutElement`) to
-  pages through an injected bridge (CEF message router), which the extension
-  calls via DOM events. Feature detection picks the native pop-out in our
-  browser and the Document PiP fallback in Chrome.
-- **If B (Alloy style):** extensions don't load. The browser runs the
-  extension's feature modules directly as injected scripts. This works because
-  features are plain DOM code with host services injected
-  (`core/run-feature.ts`); add a CEF host adapter alongside the WXT one.
+- Alloy pages don't load extensions, so the browser runs the extension's
+  feature modules directly as injected scripts. This works because features
+  are plain DOM code with host services injected (`core/run-feature.ts`). Add
+  a CEF host adapter alongside the WXT one, which also exposes engine powers
+  such as `popOutElement`.
+- In stock Chrome the extension keeps its Document PiP fallback.
 
 ### Phase 7: CEF source build gate (only if needed)
 
@@ -459,4 +472,5 @@ for macOS windowing); not Chromium internals unless Phase 7 happens.
    `browser-tests` smoke tests with status reporting, and the first GitHub
    pre-release (`v0.1.0-alpha.1`), unsigned until the Apple account arrives.
 3. Phase 1: `cef-bump.yml` and the beta/stable channels.
-4. Phase 2 spike: A vs B, ending in the architecture decision write-up.
+4. Phase 2: Alloy off-screen pop-out spike (in progress), ending in a
+   write-up with measurements.
