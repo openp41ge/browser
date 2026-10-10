@@ -209,8 +209,17 @@ public commit.
   permission it needs (e.g. `permission-contents: write` to dispatch).
 - **Results:** reported as plain **commit statuses**, not check runs, because
   check-run summaries are publicly visible on the public repo.
-- **Key handling:** the private key lives only in the org secret and a
-  password manager. Rotate it by generating a new key and deleting the old.
+- **Key handling:** the private key lives only in GitHub secrets; to rotate,
+  generate a new key on the app page and delete the old one.
+- **Where the credentials live:** on GitHub's Free plan, org-level secrets
+  and variables don't reach **private** repos' workflows. So `browser` uses
+  the org secret and variable, while `browser-tests` has its own repo-level
+  `CI_APP_CLIENT_ID` and `CI_APP_PRIVATE_KEY` (a separate key of the same
+  app). On a paid plan, both could use the org-level ones.
+- **Minutes:** the private repo's macOS runs count against the Free plan's
+  private-repo minutes, and macOS minutes are billed at a multiple of Linux
+  minutes. Watch usage once tests grow, and consider a paid plan or a
+  self-hosted Mac runner for `browser-tests`.
 
 Secrets are never exposed to fork PR workflows.
 
