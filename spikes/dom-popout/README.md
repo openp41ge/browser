@@ -39,7 +39,14 @@ CEF) couldn't do this.
    page's own scripts pauses media until the user interacts). If the new page
    has a player, a bar offers **Play in pop-out**: the pop-out switches to it,
    in the same place and width.
-7. Closing the pop-out moves the element back. If its page was only kept open
+7. **YouTube Shorts:** the pop-out holds YouTube's single Shorts player, so
+   it can move the feed: previous/next buttons and a vertical swipe (one
+   Short per gesture) press YouTube's own navigation buttons
+   (`#navigation-button-up/down`), and an auto-advance toggle moves on when a
+   Short finishes (Shorts loop, so "finished" is the position wrapping to
+   the start). A Short loaded paused after a move is started, since the user
+   asked to move on.
+8. Closing the pop-out moves the element back. If its page was only kept open
    for the pop-out, that page window closes too.
 
 Chromium's background throttling is switched off
@@ -85,6 +92,9 @@ the macOS Keychain.
   next Short loads it into the same player, which is in the pop-out, so the
   pop-out switches Shorts. Expected to be resolved by the tabs UI (browsing
   happens in another tab while the pop-out's page stays in the background).
+- **Shorts controls** (automated, muted, real clicks/wheel in the pop-out):
+  next, one-swipe-one-Short, previous back to the same Short, and
+  auto-advance at the end all moved the feed and kept playing in the pop-out.
 - **Known risk:** code that looks the element up in the *main* document
   (`document.getElementById`) doesn't find it while popped out.
 

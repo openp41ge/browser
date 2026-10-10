@@ -55,8 +55,9 @@ constexpr char kPopoutScript[] = R"JS(
        and a button closes it. Drag regions take clicks even when hidden, so
        the handle is compact rather than full width: it sits clear of the
        element's own controls (e.g. YouTube's title and top buttons).
-       Both share one look, following the system's light/dark setting. */
-    .openp41ge-grip, .openp41ge-close {
+       All controls share one look (.openp41ge-ctl), following the system's
+       light/dark setting. */
+    .openp41ge-ctl {
       --openp41ge-bg: rgba(255, 255, 255, 0.92);
       --openp41ge-fg: #1d1d1f;
       --openp41ge-ring: rgba(0, 0, 0, 0.14);
@@ -67,7 +68,7 @@ constexpr char kPopoutScript[] = R"JS(
       opacity: 0; transition: opacity 0.2s;
     }
     @media (prefers-color-scheme: dark) {
-      .openp41ge-grip, .openp41ge-close {
+      .openp41ge-ctl {
         --openp41ge-bg: rgba(44, 44, 46, 0.92);
         --openp41ge-fg: #f5f5f7;
         --openp41ge-ring: rgba(255, 255, 255, 0.16);
@@ -83,16 +84,23 @@ constexpr char kPopoutScript[] = R"JS(
     .openp41ge-grip span {
       display: block; height: 2px; border-radius: 1px; background: var(--openp41ge-fg);
     }
-    .openp41ge-close {
-      right: 8px; width: 24px;
+    .openp41ge-close { right: 8px; }
+    button.openp41ge-ctl {
+      width: 24px;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
     }
-    .openp41ge-close svg {
-      width: 10px; height: 10px;
-      stroke: var(--openp41ge-fg); stroke-width: 2; stroke-linecap: round;
+    button.openp41ge-ctl svg {
+      width: 10px; height: 10px; fill: none;
+      stroke: var(--openp41ge-fg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
     }
-    .openp41ge-visible, .openp41ge-close:hover { opacity: 1; }
+    /* YouTube Shorts: previous / next / auto-advance down the right edge. */
+    .openp41ge-shorts-nav { right: 8px; width: 28px; height: 28px; border-radius: 14px; }
+    .openp41ge-prev { top: calc(50% - 50px); }
+    .openp41ge-next { top: calc(50% - 14px); }
+    .openp41ge-auto { top: calc(50% + 22px); }
+    .openp41ge-auto[aria-pressed='true'] { --openp41ge-bg: #0a84ff; --openp41ge-fg: #fff; }
+    .openp41ge-visible, .openp41ge-ctl:hover { opacity: 1; }
   `;
 
   const open = window.__openp41gePopout;
@@ -163,20 +171,23 @@ constexpr char kPopoutScript[] = R"JS(
   doc.body.append(el);
 
   const grip = doc.createElement('div');
-  grip.className = 'openp41ge-grip';
+  grip.className = 'openp41ge-ctl openp41ge-grip';
   grip.title = 'Drag to move';
   grip.append(doc.createElement('span'), doc.createElement('span'));
   const close = doc.createElement('button');
-  close.className = 'openp41ge-close';
+  close.className = 'openp41ge-ctl openp41ge-close';
   close.title = 'Put it back';
   close.setAttribute('aria-label', 'Put it back');
-  // An icon rather than a "×" character, so it's centred exactly.
-  const icon = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  icon.setAttribute('viewBox', '0 0 10 10');
-  const cross = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
-  cross.setAttribute('d', 'M1 1L9 9M9 1L1 9');
-  icon.append(cross);
-  close.append(icon);
+  // Icons rather than characters such as "×", so they're centred exactly.
+  const icon = (d) => {
+    const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 10 10');
+    const path = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+    return svg;
+  };
+  close.append(icon('M1 1L9 9M9 1L1 9'));
   close.addEventListener('click', () => win.close());
   doc.body.append(grip, close);
 
@@ -184,7 +195,7 @@ constexpr char kPopoutScript[] = R"JS(
   // like video controls. Over the grab handle the page gets no mouse events
   // at all (the OS treats drag regions as window frame), so the controls
   // stay up while the pointer was last seen on or next to the handle.
-  const controls = [grip, close];
+  const controls = () => doc.querySelectorAll('.openp41ge-ctl');
   let lastPointer = { x: -1, y: -1 };
   let hideTimer;
   const nearGrip = () => {
@@ -200,16 +211,90 @@ constexpr char kPopoutScript[] = R"JS(
       hideTimer = setTimeout(hideUnlessOnGrip, 500);
       return;
     }
-    for (const c of controls) c.classList.remove('openp41ge-visible');
+    for (const c of controls()) c.classList.remove('openp41ge-visible');
   };
   const showControls = (event) => {
     if (event) lastPointer = { x: event.clientX, y: event.clientY };
-    for (const c of controls) c.classList.add('openp41ge-visible');
+    for (const c of controls()) c.classList.add('openp41ge-visible');
     clearTimeout(hideTimer);
     hideTimer = setTimeout(hideUnlessOnGrip, 2500);
   };
   win.addEventListener('mousemove', showControls, true);
   win.addEventListener('pointerdown', showControls, true);
+
+  // YouTube Shorts: previous / next and auto-advance. The pop-out holds
+  // YouTube's one Shorts player, so moving the feed in the page plays the
+  // next Short here. Moves use YouTube's own navigation buttons.
+  if (el.id === 'shorts-player') {
+    const video = el.querySelector('video');
+    const navButton = (direction) => document.querySelector(`#navigation-button-${direction} button`);
+    const go = (direction) => {
+      const button = navButton(direction);
+      if (!button || button.disabled) return;
+      button.click();
+      // The user asked to move on: start the next Short if YouTube loads it paused.
+      video?.addEventListener('canplay', () => video.paused && video.play().catch(() => {}), { once: true });
+      setTimeout(() => video?.paused && video.play().catch(() => {}), 1500);
+    };
+    const navControl = (className, label, d, onClick) => {
+      const b = doc.createElement('button');
+      b.className = `openp41ge-ctl openp41ge-shorts-nav ${className}`;
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      b.append(icon(d));
+      b.addEventListener('click', onClick);
+      doc.body.append(b);
+      return b;
+    };
+    navControl('openp41ge-prev', 'Previous Short', 'M2 6.5L5 3.5L8 6.5', () => go('up'));
+    navControl('openp41ge-next', 'Next Short', 'M2 3.5L5 6.5L8 3.5', () => go('down'));
+
+    let autoAdvance = false;
+    const auto = navControl('openp41ge-auto', 'Auto-advance', 'M1.5 2.5L5 5L1.5 7.5M5.5 2.5L9 5L5.5 7.5', () => {
+      autoAdvance = !autoAdvance;
+      auto.setAttribute('aria-pressed', String(autoAdvance));
+      auto.title = autoAdvance ? 'Auto-advance: on' : 'Auto-advance: off';
+    });
+    auto.setAttribute('aria-pressed', 'false');
+    auto.title = 'Auto-advance: off';
+
+    // Shorts loop instead of ending, so "finished" is the position wrapping
+    // back to the start.
+    let lastTime = 0;
+    video?.addEventListener('timeupdate', () => {
+      const t = video.currentTime;
+      if (autoAdvance && video.duration > 0 && lastTime > video.duration - 1 && t < 1) go('down');
+      lastTime = t;
+    });
+    video?.addEventListener('ended', () => autoAdvance && go('down'));
+
+    // A vertical swipe or wheel moves one Short per gesture. Trackpads send a
+    // stream of wheel events (with momentum), so a gesture ends after a
+    // short pause. These are handled here, not forwarded to the page.
+    let travel = 0;
+    let gestureUsed = false;
+    let gestureEnd;
+    win.addEventListener(
+      'wheel',
+      (event) => {
+        if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        clearTimeout(gestureEnd);
+        gestureEnd = setTimeout(() => {
+          travel = 0;
+          gestureUsed = false;
+        }, 250);
+        if (gestureUsed) return;
+        travel += event.deltaY;
+        if (Math.abs(travel) >= 60) {
+          gestureUsed = true;
+          go(travel > 0 ? 'down' : 'up');
+        }
+      },
+      { capture: true, passive: false },
+    );
+  }
   showControls();
 
   if (PLAY_AFTER_MOVE) {
