@@ -1,0 +1,77 @@
+# Builds openp41ge explorer on every push and pull request, then asks the
+# private browser-tests repo to test the build. See PLAN.md, "Tests".
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest # Apple Silicon
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cache CEF
+        uses: actions/cache@v4
+        with:
+          path: third_party/cef
+          key: cef-macosarm64-${{ hashFiles('CEF_VERSION') }}
+
+      - name: Fetch CEF
+        run: scripts/fetch-cef
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      # ditto keeps the framework's symlinks intact.
+      - name: Package
+        run: |
+          cd build/app/Release
+          ditto -c -k --keepParent "openp41ge explorer.app" "$GITHUB_WORKSPACE/openp41ge-explorer-macos-arm64.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openp41ge-explorer-macos-arm64
+          path: openp41ge-explorer-macos-arm64.zip
+          retention-days: 7
+
+  # Fork pull requests get no secrets, so they're tested by a maintainer
+  # triggering browser-tests manually after review.
+  dispatch-tests:
+    needs: build
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: openp41ge
+          repositories: browser-tests
+
+      - name: Trigger browser-tests
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          gh api repos/openp41ge/browser-tests/dispatches \
+            -f event_type=test-build \
+            -f "client_payload[sha]=$SHA" \
+            -f "client_payload[run_id]=${{ github.run_id }}"
