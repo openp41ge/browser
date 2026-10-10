@@ -187,7 +187,7 @@ Chromium. Each release's notes state the CEF and Chromium versions it ships.
 | `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | Developer ID Application certificate |
 | `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` | `notarytool` (App Store Connect API key) |
 | `SPARKLE_ED_PRIVATE_KEY` | Signing update archives |
-| `CI_APP_ID` (org variable), `CI_APP_PRIVATE_KEY` (org secret) | The `openp41ge-ci` GitHub App, shared only with `browser` and `browser-tests` (see below) |
+| `CI_APP_CLIENT_ID` (org variable), `CI_APP_PRIVATE_KEY` (org secret) | The `openp41ge-ci` GitHub App, shared only with `browser` and `browser-tests` (see below) |
 
 **Why a cross-repo credential is needed:** each workflow's built-in
 `GITHUB_TOKEN` only works inside its own repo. The public CI must *trigger* a
@@ -205,7 +205,8 @@ public commit.
   - Contents: read & write (required to send `repository_dispatch`)
   - Metadata: read
 - **Tokens:** each workflow mints a short-lived token with
-  `actions/create-github-app-token`, scoped to the single repo it needs.
+  `actions/create-github-app-token`, scoped to the single repo and the single
+  permission it needs (e.g. `permission-contents: write` to dispatch).
 - **Results:** reported as plain **commit statuses**, not check runs, because
   check-run summaries are publicly visible on the public repo.
 - **Key handling:** the private key lives only in the org secret and a
