@@ -40,18 +40,17 @@ CEF) couldn't do this.
    has a player, a bar offers **Play in pop-out**: the pop-out switches to it,
    in the same place and width.
 7. **YouTube Shorts:** the pop-out holds YouTube's single Shorts player, so
-   it can move the feed. A row along the bottom has previous, next,
-   auto-advance and not interested:
+   it can move the feed. Previous sits above next at the bottom right,
+   auto-advance at the bottom left, and a progress bar runs along the bottom
+   edge:
    - previous/next and a vertical swipe (one Short per gesture) press
      YouTube's own navigation buttons (`#navigation-button-up/down`). The
      outgoing Short's last frame is frozen and slides away as the next one
      slides in, like the Shorts feed;
    - auto-advance moves on when a Short finishes (Shorts loop, so "finished"
      is the position wrapping back to the start);
-   - not interested picks YouTube's own "Not interested" menu item, then
-     moves on. YouTube exposes no language-independent hook for it, so it's
-     matched by its English label, and YouTube only offers it when signed in.
-     If it isn't there, the button says so instead of failing silently.
+   - the progress bar is always shown, thickens under the pointer, and seeks
+     on click or drag (its events aren't forwarded to the page).
 8. Closing the pop-out moves the element back. If its page was only kept open
    for the pop-out, that page window closes too.
 
@@ -99,10 +98,11 @@ the macOS Keychain.
   pop-out switches Shorts. Expected to be resolved by the tabs UI (browsing
   happens in another tab while the pop-out's page stays in the background).
 - **Shorts controls** (automated, muted, real clicks/wheel in the pop-out):
-  the row sits centred along the bottom; next, one-swipe-one-Short, previous
+  previous above next at the bottom right, auto-advance bottom left,
+  progress bar along the bottom edge; next, one-swipe-one-Short, previous
   back to the same Short, and auto-advance at the end all moved the feed,
-  slid, and kept playing. Not interested, signed out, reported "not
-  available" and closed YouTube's menu again. (Signed in: untested.)
+  slid, and kept playing. The progress bar tracked playback, and a drag from
+  25% to 75% seeked to 75% on the same Short, still playing.
 - **Known risk:** code that looks the element up in the *main* document
   (`document.getElementById`) doesn't find it while popped out.
 

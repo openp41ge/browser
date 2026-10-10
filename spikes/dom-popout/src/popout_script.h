@@ -94,17 +94,32 @@ constexpr char kPopoutScript[] = R"JS(
       width: 10px; height: 10px; fill: none;
       stroke: var(--openp41ge-fg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
     }
-    /* YouTube Shorts: previous / next / auto-advance / not interested in a
-       row along the bottom. */
-    .openp41ge-shorts-row {
-      position: fixed; left: 0; right: 0; bottom: 16px; z-index: 2147483647;
-      display: flex; justify-content: center; gap: 10px;
-      pointer-events: none;
+    /* YouTube Shorts: previous above next at the bottom right, auto-advance
+       at the bottom left, and a progress bar along the bottom edge. */
+    .openp41ge-shorts-nav-group, button.openp41ge-auto {
+      position: fixed; bottom: 18px; z-index: 2147483647;
     }
-    button.openp41ge-shorts-nav { width: 32px; height: 32px; border-radius: 16px; pointer-events: auto; }
+    .openp41ge-shorts-nav-group {
+      right: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+    button.openp41ge-auto { left: 12px; }
+    button.openp41ge-shorts-nav { width: 32px; height: 32px; border-radius: 16px; }
     button.openp41ge-shorts-nav svg { width: 12px; height: 12px; }
     .openp41ge-auto[aria-pressed='true'] { --openp41ge-bg: #0a84ff; --openp41ge-fg: #fff; }
-    .openp41ge-flash { --openp41ge-bg: #ff453a; --openp41ge-fg: #fff; }
+    /* Always visible, thicker under the pointer; click or drag to seek. */
+    .openp41ge-progress {
+      position: fixed; left: 0; right: 0; bottom: 0; height: 12px; z-index: 2147483647;
+      display: flex; align-items: flex-end; cursor: pointer; touch-action: none;
+    }
+    .openp41ge-progress-track {
+      flex: 1; height: 3px; background: rgba(255, 255, 255, 0.3); transition: height 0.15s;
+    }
+    .openp41ge-progress:hover .openp41ge-progress-track,
+    .openp41ge-progress.openp41ge-seeking .openp41ge-progress-track { height: 6px; }
+    .openp41ge-progress-fill {
+      height: 100%; width: 100%; background: #ff0033;
+      transform-origin: left; transform: scaleX(0);
+    }
     /* The outgoing Short's last frame, slid away as the next slides in. */
     .openp41ge-snap {
       position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 2147483646;
@@ -232,22 +247,30 @@ constexpr char kPopoutScript[] = R"JS(
   win.addEventListener('mousemove', showControls, true);
   win.addEventListener('pointerdown', showControls, true);
 
+  // Events the pop-out passes on to the page (see below).
+  const FORWARDED = [
+    'mousedown', 'mouseup', 'mousemove', 'click', 'dblclick', 'contextmenu', 'wheel',
+    'pointerdown', 'pointerup', 'pointermove', 'pointercancel',
+    'touchstart', 'touchmove', 'touchend', 'touchcancel',
+    'keydown', 'keyup', 'keypress',
+  ];
+
   // YouTube Shorts: previous / next and auto-advance. The pop-out holds
   // YouTube's one Shorts player, so moving the feed in the page plays the
   // next Short here. Moves use YouTube's own navigation buttons.
   if (el.id === 'shorts-player') {
     const video = el.querySelector('video');
-    const row = doc.createElement('div');
-    row.className = 'openp41ge-shorts-row';
-    doc.body.append(row);
-    const navControl = (className, label, d, onClick) => {
+    const navGroup = doc.createElement('div');
+    navGroup.className = 'openp41ge-shorts-nav-group';
+    doc.body.append(navGroup);
+    const navControl = (parent, className, label, d, onClick) => {
       const b = doc.createElement('button');
       b.className = `openp41ge-ctl openp41ge-shorts-nav ${className}`;
       b.title = label;
       b.setAttribute('aria-label', label);
       b.append(icon(d));
       b.addEventListener('click', onClick);
-      row.append(b);
+      parent.append(b);
       return b;
     };
 
@@ -295,11 +318,11 @@ constexpr char kPopoutScript[] = R"JS(
       }
     };
 
-    navControl('openp41ge-prev', 'Previous Short', 'M2 6.5L5 3.5L8 6.5', () => go('up'));
-    navControl('openp41ge-next', 'Next Short', 'M2 3.5L5 6.5L8 3.5', () => go('down'));
+    navControl(navGroup, 'openp41ge-prev', 'Previous Short', 'M2 6.5L5 3.5L8 6.5', () => go('up'));
+    navControl(navGroup, 'openp41ge-next', 'Next Short', 'M2 3.5L5 6.5L8 3.5', () => go('down'));
 
     let autoAdvance = false;
-    const auto = navControl('openp41ge-auto', 'Auto-advance', 'M1.5 2.5L5 5L1.5 7.5M5.5 2.5L9 5L5.5 7.5', () => {
+    const auto = navControl(doc.body, 'openp41ge-auto', 'Auto-advance', 'M1.5 2.5L5 5L1.5 7.5M5.5 2.5L9 5L5.5 7.5', () => {
       autoAdvance = !autoAdvance;
       auto.setAttribute('aria-pressed', String(autoAdvance));
       auto.title = autoAdvance ? 'Auto-advance: on' : 'Auto-advance: off';
@@ -307,37 +330,44 @@ constexpr char kPopoutScript[] = R"JS(
     auto.setAttribute('aria-pressed', 'false');
     auto.title = 'Auto-advance: off';
 
-    // "Not interested": YouTube's own menu action, then on to the next Short.
-    // YouTube exposes no language-independent hook for it, so the menu item
-    // is found by its English label; it's only offered to signed-in users.
-    const notInterested = navControl(
-      'openp41ge-not-interested',
-      'Not interested',
-      'M9 5A4 4 0 1 1 1 5A4 4 0 1 1 9 5M2.2 2.2L7.8 7.8',
-      async () => {
-        const menuButton = [...document.querySelectorAll('#menu-button button, #menu-button [role=button]')].find(
-          (b) => b.getBoundingClientRect().width > 0,
-        );
-        menuButton?.click();
-        let item;
-        for (let i = 0; i < 20 && !item; i++) {
-          await new Promise((r) => setTimeout(r, 100));
-          item = [...document.querySelectorAll('yt-list-item-view-model, ytd-menu-service-item-renderer')].find(
-            (e) => e.getBoundingClientRect().width > 0 && /^\s*not interested\s*$/i.test(e.textContent),
-          );
-        }
-        if (!item) {
-          // Close the menu again (its button toggles it) and say why nothing happened.
-          menuButton?.click();
-          notInterested.classList.add('openp41ge-flash');
-          notInterested.title = 'Not available (YouTube only offers it when signed in)';
-          setTimeout(() => notInterested.classList.remove('openp41ge-flash'), 1200);
-          return;
-        }
-        item.click();
-        go('down');
-      },
-    );
+    // Progress along the bottom edge. Click or drag to seek; these events
+    // stay in the pop-out rather than being forwarded to the page.
+    const progress = doc.createElement('div');
+    progress.className = 'openp41ge-progress';
+    const track = doc.createElement('div');
+    track.className = 'openp41ge-progress-track';
+    const fill = doc.createElement('div');
+    fill.className = 'openp41ge-progress-fill';
+    track.append(fill);
+    progress.append(track);
+    doc.body.append(progress);
+    const drawProgress = () => {
+      const p = video?.duration > 0 ? video.currentTime / video.duration : 0;
+      fill.style.transform = `scaleX(${Math.min(1, Math.max(0, p))})`;
+      if (win.closed) return;
+      win.requestAnimationFrame(drawProgress);
+    };
+    drawProgress();
+    const seek = (event) => {
+      if (!(video?.duration > 0)) return;
+      const r = track.getBoundingClientRect();
+      video.currentTime = (Math.min(Math.max(event.clientX - r.left, 0), r.width) / r.width) * video.duration;
+    };
+    let seeking = false;
+    progress.addEventListener('pointerdown', (event) => {
+      seeking = true;
+      progress.setPointerCapture(event.pointerId);
+      progress.classList.add('openp41ge-seeking');
+      seek(event);
+    });
+    progress.addEventListener('pointermove', (event) => seeking && seek(event));
+    const endSeek = () => {
+      seeking = false;
+      progress.classList.remove('openp41ge-seeking');
+    };
+    progress.addEventListener('pointerup', endSeek);
+    progress.addEventListener('pointercancel', endSeek);
+    for (const type of FORWARDED) progress.addEventListener(type, (event) => event.stopPropagation());
 
     // Shorts loop instead of ending, so "finished" is the position wrapping
     // back to the start.
@@ -403,12 +433,6 @@ constexpr char kPopoutScript[] = R"JS(
   // copy on to the main document so those listeners see it as if the element
   // had never moved. Coordinates still line up: the element is measured in
   // the pop-out's viewport too.
-  const FORWARDED = [
-    'mousedown', 'mouseup', 'mousemove', 'click', 'dblclick', 'contextmenu', 'wheel',
-    'pointerdown', 'pointerup', 'pointermove', 'pointercancel',
-    'touchstart', 'touchmove', 'touchend', 'touchcancel',
-    'keydown', 'keyup', 'keypress',
-  ];
   const forwarded = new WeakSet();
   for (const type of FORWARDED) {
     win.addEventListener(type, (event) => {
