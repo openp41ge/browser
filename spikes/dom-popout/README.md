@@ -59,7 +59,10 @@ cmake --build build --target dom_popout_spike
 ```
 
 Options: `--start-url=<url>` (default: a 60 fps YouTube video),
-`--selector=<css>` (default: `#movie_player`), `--user-data-dir=<dir>`.
+`--selector=<css>` (default: `.html5-video-player`, YouTube's regular and
+Shorts players), `--user-data-dir=<dir>`. When several elements match, the
+pop-out takes a visible one, preferring the one whose video is playing, then
+the largest (a Shorts page also has a hidden 0×0 regular player).
 (`--url` can't be used: Chromium's startup code acts on that switch.)
 
 The spike uses `--use-mock-keychain`, so its throwaway profiles never touch
@@ -76,6 +79,12 @@ the macOS Keychain.
 - A link opens a new page window while the original page and pop-out keep
   running; the new page's autoplay is held.
 - Closing the pop-out returns the element and closes the background page.
+- **YouTube Shorts** (automated, muted): the Shorts player pops out at its
+  9:16 shape and keeps playing with no reload (5.1 s → 8.6 s on a 24.7 s
+  Short, no `emptied`/`seeking` events). Scrolling the *main* window to the
+  next Short loads it into the same player, which is in the pop-out, so the
+  pop-out switches Shorts. Expected to be resolved by the tabs UI (browsing
+  happens in another tab while the pop-out's page stays in the background).
 - **Known risk:** code that looks the element up in the *main* document
   (`document.getElementById`) doesn't find it while popped out.
 

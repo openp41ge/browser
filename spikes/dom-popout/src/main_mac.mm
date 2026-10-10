@@ -25,7 +25,8 @@
 namespace {
 
 constexpr char kDefaultUrl[] = "https://www.youtube.com/watch?v=aqz-KE-bpKQ";
-constexpr char kDefaultSelector[] = "#movie_player";
+// YouTube's player class: both the regular player and the Shorts player.
+constexpr char kDefaultSelector[] = ".html5-video-player";
 
 std::string SwitchOr(CefRefPtr<CefCommandLine> command_line,
                      const char* name,

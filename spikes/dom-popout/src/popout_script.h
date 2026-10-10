@@ -101,9 +101,21 @@ constexpr char kPopoutScript[] = R"JS(
     return;
   }
 
-  const el = document.querySelector(SELECTOR);
+  // Pages can have several matches (a YouTube Shorts page also has a
+  // hidden 0x0 regular player): take a visible one, preferring the one whose
+  // video is playing, then the largest.
+  const area = (e) => {
+    const b = e.getBoundingClientRect();
+    return b.width * b.height;
+  };
+  const isPlaying = (e) =>
+    [...e.querySelectorAll('video'), ...(e.matches('video') ? [e] : [])].some((v) => !v.paused);
+  const candidates = [...document.querySelectorAll(SELECTOR)].filter((e) => area(e) > 0);
+  const el =
+    candidates.filter(isPlaying).sort((a, b) => area(b) - area(a))[0] ??
+    candidates.sort((a, b) => area(b) - area(a))[0];
   if (!el) {
-    console.warn('[openp41ge] pop-out: nothing matches', SELECTOR);
+    console.warn('[openp41ge] pop-out: nothing visible matches', SELECTOR);
     return;
   }
 

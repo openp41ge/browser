@@ -256,7 +256,11 @@ void SpikeClient::DismissBanner(CefRefPtr<CefWindow> window) {
 void SpikeClient::OfferIfPageHasPlayer(CefRefPtr<CefBrowser> page, int attempts_left) {
   if (!popout_browser_ || (popout_source_ && page->IsSame(popout_source_))) return;
   CefRefPtr<SpikeClient> self(this);
-  Evaluate(page, "!!document.querySelector(" + SelectorJson() + ")", false,
+  // A visible match, as the pop-out script would pick.
+  Evaluate(page,
+           "[...document.querySelectorAll(" + SelectorJson() +
+               ")].some((e) => { const b = e.getBoundingClientRect(); return b.width * b.height > 0; })",
+           false,
            [self, page, attempts_left](CefRefPtr<CefValue> found) {
              if (found && found->GetType() == VTYPE_BOOL && found->GetBool()) {
                self->SetBannerVisible(self->PageForBrowser(page), true);
