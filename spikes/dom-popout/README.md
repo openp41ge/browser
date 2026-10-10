@@ -25,8 +25,10 @@ CEF) couldn't do this.
    page's document-level listeners (drags such as scrubbing, press-and-hold)
    still see them. Keys the pop-out already handled aren't forwarded, so
    shortcuts don't run twice.
-5. **Frameless window controls:** a thin strip along the top edge drags it,
-   and a close button appears on hover.
+5. **Frameless window controls:** on hover, a grab handle centred at the top
+   drags the window, and a close button sits top-right. The handle is compact
+   because drag regions take clicks even when hidden; centred, it stays clear
+   of controls like YouTube's title and top buttons.
 6. **Browsing on keeps the pop-out.** While something is popped out, links
    open in a new page window and the original page stays open, so the pop-out
    keeps playing. New pages' autoplay is held (a script injected before the
@@ -77,7 +79,7 @@ the macOS Keychain.
 
 1. Play the video, press Cmd+Shift+P. The player moves into a frameless
    window over its old spot **and keeps playing**.
-2. Drag it by the top edge; resize it (it keeps the player's shape).
+2. Drag it by the handle at the top; resize it (it keeps the player's shape).
 3. Click to pause/play, scrub, settings, hover controls, Space/K/arrows.
 4. Minimize the main window or put it behind others: everything keeps working.
 5. Click another video: it opens in a new window without playing, and a bar

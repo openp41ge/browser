@@ -51,23 +51,34 @@ constexpr char kPopoutScript[] = R"JS(
     [data-openp41ge-popout] .ytp-fullscreen-button {
       display: none !important;
     }
-    /* The window is frameless: a thin strip along the top edge drags it
-       (drag regions take clicks even when invisible, so it stays thin to
-       keep clear of the element's own controls), plus a close button. */
-    .openp41ge-bar {
-      position: fixed; top: 0; left: 0; right: 0; height: 8px;
+    /* The window is frameless: a grab handle centred at the top drags it,
+       and a button closes it. Drag regions take clicks even when hidden, so
+       the handle is compact rather than full width: it sits clear of the
+       element's own controls (e.g. YouTube's title and top buttons). */
+    .openp41ge-grip {
+      position: fixed; top: 8px; left: calc(50% - 70px); width: 140px; height: 22px;
       z-index: 2147483647;
-      background: rgba(255, 255, 255, 0.35);
+      display: flex; flex-direction: column; justify-content: center; gap: 3px;
+      padding: 0 46px; box-sizing: border-box;
+      border-radius: 11px;
+      background: rgba(0, 0, 0, 0.6);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+      cursor: grab;
       -webkit-app-region: drag;
       opacity: 0; transition: opacity 0.2s;
     }
+    .openp41ge-grip span {
+      display: block; height: 2px; border-radius: 1px; background: rgba(255, 255, 255, 0.85);
+    }
     .openp41ge-close {
-      position: fixed; top: 12px; right: 12px; z-index: 2147483647;
-      width: 22px; height: 22px; border: 0; border-radius: 11px;
-      background: rgba(255, 255, 255, 0.85); color: #000; font: 15px/22px system-ui; cursor: pointer;
+      position: fixed; top: 8px; right: 8px; z-index: 2147483647;
+      display: flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9); cursor: pointer;
       opacity: 0; transition: opacity 0.2s;
     }
-    body:hover .openp41ge-bar, body:hover .openp41ge-close { opacity: 1; }
+    .openp41ge-close svg { width: 10px; height: 10px; stroke: #000; stroke-width: 2; stroke-linecap: round; }
+    body:hover .openp41ge-grip, body:hover .openp41ge-close { opacity: 1; }
   `;
 
   const open = window.__openp41gePopout;
@@ -125,14 +136,23 @@ constexpr char kPopoutScript[] = R"JS(
   el.setAttribute('data-openp41ge-popout', '');
   doc.body.append(el);
 
-  const bar = doc.createElement('div');
-  bar.className = 'openp41ge-bar';
+  const grip = doc.createElement('div');
+  grip.className = 'openp41ge-grip';
+  grip.title = 'Drag to move';
+  grip.append(doc.createElement('span'), doc.createElement('span'));
   const close = doc.createElement('button');
   close.className = 'openp41ge-close';
-  close.textContent = '×';
   close.title = 'Put it back';
+  close.setAttribute('aria-label', 'Put it back');
+  // An icon rather than a "×" character, so it's centred exactly.
+  const icon = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 10 10');
+  const cross = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+  cross.setAttribute('d', 'M1 1L9 9M9 1L1 9');
+  icon.append(cross);
+  close.append(icon);
   close.addEventListener('click', () => win.close());
-  doc.body.append(bar, close);
+  doc.body.append(grip, close);
 
   if (PLAY_AFTER_MOVE) {
     for (const media of [...el.querySelectorAll('video, audio'), ...(el.matches('video, audio') ? [el] : [])]) {
