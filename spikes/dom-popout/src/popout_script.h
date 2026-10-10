@@ -4,15 +4,23 @@
 #define OPENP41GE_DOM_POPOUT_SPIKE_POPOUT_SCRIPT_H_
 
 // Runs in the page's main frame. Toggles the pop-out: moves the element
-// matching SELECTOR into a same-origin child window, or closes that window
-// (which moves the element back).
+// matching SELECTOR into a Document Picture-in-Picture window, or closes that
+// window (which moves the element back).
 //
-// The child window's name carries the element's viewport rect
-// ("openp41ge-popout:x,y,w,h") so the browser can create the native window
-// right over the element.
+// Document PiP is the web's API for moving live elements into another
+// window: Chromium keeps media playing across the move (it reloads media
+// moved into any other window). The browser makes the window frameless and
+// lets this script place it (CefBrowserViewDelegate PiP options).
 constexpr char kPopoutScript[] = R"JS(
-(() => {
+(async () => {
   const SELECTOR = %SELECTOR%;
+  // Start the element's media playing after the move (used when the user
+  // swaps the pop-out to another page's video).
+  const PLAY_AFTER_MOVE = %PLAY%;
+  // [screenX, screenY, width] to reuse a previous pop-out's place, or null to
+  // open right over the element.
+  const PLACE = %PLACE%;
+
   const FIT_CSS = `
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
     [data-openp41ge-popout] {
@@ -43,6 +51,23 @@ constexpr char kPopoutScript[] = R"JS(
     [data-openp41ge-popout] .ytp-fullscreen-button {
       display: none !important;
     }
+    /* The window is frameless: a thin strip along the top edge drags it
+       (drag regions take clicks even when invisible, so it stays thin to
+       keep clear of the element's own controls), plus a close button. */
+    .openp41ge-bar {
+      position: fixed; top: 0; left: 0; right: 0; height: 8px;
+      z-index: 2147483647;
+      background: rgba(255, 255, 255, 0.35);
+      -webkit-app-region: drag;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .openp41ge-close {
+      position: fixed; top: 12px; right: 12px; z-index: 2147483647;
+      width: 22px; height: 22px; border: 0; border-radius: 11px;
+      background: rgba(255, 255, 255, 0.85); color: #000; font: 15px/22px system-ui; cursor: pointer;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    body:hover .openp41ge-bar, body:hover .openp41ge-close { opacity: 1; }
   `;
 
   const open = window.__openp41gePopout;
@@ -58,12 +83,22 @@ constexpr char kPopoutScript[] = R"JS(
   }
 
   const r = el.getBoundingClientRect();
-  const rect = [r.x, r.y, r.width, r.height].map(Math.round).join(',');
-  const win = window.open('', `openp41ge-popout:${rect}`);
-  if (!win) {
-    console.warn('[openp41ge] pop-out: window.open was blocked');
+  const ratio = r.height / r.width;
+  const width = Math.round(PLACE ? PLACE[2] : r.width);
+  const height = Math.round(width * ratio);
+  let win;
+  try {
+    win = await documentPictureInPicture.requestWindow({ width, height });
+  } catch (e) {
+    console.warn('[openp41ge] pop-out: could not open the window:', e.name, e.message);
     return;
   }
+
+  // Open right over the element (or where the previous pop-out was).
+  const left = PLACE ? PLACE[0] : window.screenX + (window.outerWidth - window.innerWidth) + r.left;
+  const top = PLACE ? PLACE[1] : window.screenY + (window.outerHeight - window.innerHeight) + r.top;
+  win.moveTo(Math.round(left), Math.round(top));
+  win.resizeTo(width, height);
 
   // Bring the page's styles along so the element looks the same.
   const doc = win.document;
@@ -83,23 +118,39 @@ constexpr char kPopoutScript[] = R"JS(
   fit.textContent = FIT_CSS;
   doc.head.append(fit);
 
-  // Moving media between documents pauses it: remember what was playing so
-  // it can carry on after each move.
-  const playing = () =>
-    [...el.querySelectorAll('video, audio'), ...(el.matches('video, audio') ? [el] : [])]
-      .filter((media) => !media.paused);
-  const resume = (media) => {
-    for (const m of media) if (m.paused) m.play().catch(() => {});
-  };
-  const wasPlaying = playing();
-
   // Move the real element, leaving a placeholder to hold its spot.
   const placeholder = document.createElement('div');
   placeholder.style.cssText = `width:${r.width}px;height:${r.height}px;background:#000`;
   el.replaceWith(placeholder);
   el.setAttribute('data-openp41ge-popout', '');
   doc.body.append(el);
-  resume(wasPlaying);
+
+  const bar = doc.createElement('div');
+  bar.className = 'openp41ge-bar';
+  const close = doc.createElement('button');
+  close.className = 'openp41ge-close';
+  close.textContent = '×';
+  close.title = 'Put it back';
+  close.addEventListener('click', () => win.close());
+  doc.body.append(bar, close);
+
+  if (PLAY_AFTER_MOVE) {
+    for (const media of [...el.querySelectorAll('video, audio'), ...(el.matches('video, audio') ? [el] : [])]) {
+      media.play().catch(() => {});
+    }
+  }
+
+  // Keep the window at the element's proportions as it's resized.
+  let settle;
+  win.addEventListener('resize', () => {
+    clearTimeout(settle);
+    settle = setTimeout(() => {
+      const wanted = Math.round(win.outerWidth * ratio);
+      if (Math.abs(win.outerHeight - wanted) > 1) win.resizeTo(win.outerWidth, wanted);
+    }, 150);
+    // Sites (YouTube included) re-measure on window resize.
+    window.dispatchEvent(new Event('resize'));
+  });
 
   // Complete each event's journey. Events inside the pop-out bubble up to the
   // pop-out's document and window, but the page's own document-level
@@ -136,7 +187,6 @@ constexpr char kPopoutScript[] = R"JS(
 
   // While popped out, following a link opens it as a new page in the main
   // window instead of navigating this page, so what's playing keeps playing.
-  // (A same-tab link inside the pop-out would otherwise navigate the pop-out.)
   const openAsNewPage = (event) => {
     if (event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -151,17 +201,12 @@ constexpr char kPopoutScript[] = R"JS(
   window.addEventListener('click', openAsNewPage, true);
   win.addEventListener('click', openAsNewPage, true);
 
-  // Sites (YouTube included) re-measure on window resize.
-  win.addEventListener('resize', () => window.dispatchEvent(new Event('resize')));
-
   win.addEventListener(
     'pagehide',
     () => {
       window.removeEventListener('click', openAsNewPage, true);
       el.removeAttribute('data-openp41ge-popout');
-      const stillPlaying = playing();
       if (placeholder.isConnected) placeholder.replaceWith(el);
-      resume(stillPlaying);
       window.__openp41gePopout = null;
       window.dispatchEvent(new Event('resize'));
     },
@@ -170,6 +215,27 @@ constexpr char kPopoutScript[] = R"JS(
 
   window.__openp41gePopout = { win };
 })();
+)JS";
+
+// Runs before page scripts in pages opened while something is popped out:
+// media that tries to start before the user has interacted with the page is
+// paused, so it doesn't play over the pop-out.
+constexpr char kHoldAutoplayScript[] = R"JS(
+window.addEventListener(
+  'play',
+  (event) => {
+    if (!navigator.userActivation.hasBeenActive) event.target.pause();
+  },
+  true,
+);
+)JS";
+
+// Where the open pop-out is, as [screenX, screenY, width], or null.
+constexpr char kPopoutPlaceScript[] = R"JS(
+(() => {
+  const win = window.__openp41gePopout?.win;
+  return win ? [win.screenX, win.screenY, win.outerWidth] : null;
+})()
 )JS";
 
 #endif  // OPENP41GE_DOM_POPOUT_SPIKE_POPOUT_SCRIPT_H_

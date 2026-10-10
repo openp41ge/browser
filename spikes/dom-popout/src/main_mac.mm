@@ -1,19 +1,17 @@
 // Copyright (c) 2026 Richard Kielty. MIT License.
 // App setup adapted from CEF's cefsimple sample (BSD-3-Clause, the CEF Authors).
 
-// DOM pop-out spike: one Alloy page in a window. Cmd+Shift+P moves the
-// element matching --selector (default: YouTube's player) into its own
-// window, as real DOM in the same page; again (or closing it) moves it back.
+// DOM pop-out spike: our own window with a Chrome-style page (no Chrome UI).
+// Cmd+Shift+P moves the element matching --selector (default: YouTube's
+// player) into a Document Picture-in-Picture window, as real DOM in the same
+// page; again (or the pop-out's close button) moves it back.
 //
-//   --start-url=<url>      page to open (default: a YouTube video). Not --url:
-//                          Chromium's startup code cancels Alloy navigations
-//                          when that switch is present.
+//   --start-url=<url>      page to open (default: a YouTube video)
 //   --selector=<css>       element to pop out
 //   --user-data-dir=<dir>  profile directory
 
 #import <Cocoa/Cocoa.h>
 
-#include <functional>
 #include <string>
 
 #include "include/cef_app.h"
@@ -45,15 +43,15 @@ std::string DefaultDataDir() {
 
 class SpikeApp : public CefApp, public CefBrowserProcessHandler {
  public:
-  explicit SpikeApp(std::function<void()> on_ready) : on_ready_(std::move(on_ready)) {}
+  explicit SpikeApp(CefRefPtr<SpikeClient> client) : client_(client) {}
 
   CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override { return this; }
 
-  // Keep the page running at full speed while its element is in another
-  // window, even if the main window is hidden behind others or minimized.
   void OnBeforeCommandLineProcessing(const CefString& process_type,
                                      CefRefPtr<CefCommandLine> command_line) override {
     if (process_type.empty()) {
+      // Keep the page running at full speed while its element is in the
+      // pop-out, even if the main window is hidden or minimized.
       command_line->AppendSwitch("disable-background-timer-throttling");
       command_line->AppendSwitch("disable-renderer-backgrounding");
       command_line->AppendSwitch("disable-backgrounding-occluded-windows");
@@ -62,10 +60,13 @@ class SpikeApp : public CefApp, public CefBrowserProcessHandler {
     }
   }
 
-  void OnContextInitialized() override { on_ready_(); }
+  void OnContextInitialized() override { client_->Start(); }
+
+  // Browsers CEF creates itself (the Document PiP window) use our client.
+  CefRefPtr<CefClient> GetDefaultClient() override { return client_; }
 
  private:
-  std::function<void()> on_ready_;
+  CefRefPtr<SpikeClient> client_;
   IMPLEMENT_REFCOUNTING(SpikeApp);
 };
 
@@ -166,8 +167,6 @@ int main(int argc, char* argv[]) {
 
     CefRefPtr<CefCommandLine> command_line = CefCommandLine::CreateCommandLine();
     command_line->InitFromArgv(argc, argv);
-    const std::string url = SwitchOr(command_line, "start-url", kDefaultUrl);
-    const std::string selector = SwitchOr(command_line, "selector", kDefaultSelector);
 
     CefSettings settings;
 #if !defined(CEF_USE_SANDBOX)
@@ -177,28 +176,14 @@ int main(int argc, char* argv[]) {
     CefString(&settings.root_cache_path) = data_dir;
     CefString(&settings.cache_path) = data_dir + "/Default";
 
+    CefRefPtr<SpikeClient> client(new SpikeClient(SwitchOr(command_line, "start-url", kDefaultUrl),
+                                                  SwitchOr(command_line, "selector", kDefaultSelector)));
     PopoutAction* popout = [[PopoutAction alloc] init];
-    CefRefPtr<SpikeApp> app(new SpikeApp([url, selector, popout] {
-      NSWindow* window = [[NSWindow alloc]
-          initWithContentRect:NSMakeRect(0, 0, 1280, 800)
-                    styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
-                              NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable
-                      backing:NSBackingStoreBuffered
-                        defer:NO];
-      window.releasedWhenClosed = NO;
-      [window center];
-      NSView* content = window.contentView;
+    popout.client = client;
+    static_cast<SpikeApplication*>(NSApp).client = client;
+    NSApp.mainMenu = BuildMenu(popout);
 
-      CefRefPtr<SpikeClient> client(new SpikeClient(window, content, selector));
-      popout.client = client;
-      static_cast<SpikeApplication*>(NSApp).client = client;
-      NSApp.mainMenu = BuildMenu(popout);
-
-      client->CreatePage(url);
-
-      [window makeKeyAndOrderFront:nil];
-    }));
-
+    CefRefPtr<SpikeApp> app(new SpikeApp(client));
     if (!CefInitialize(main_args, settings, app.get(), nullptr)) {
       return CefGetExitCode();
     }
