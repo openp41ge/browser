@@ -30,8 +30,8 @@ web extension (currently `~/Repository/internet-utility-belt`).
 |---|---|
 | Name | **openp41ge explorer**: bundle id `com.openp41ge.explorer` (matches the app's `com.openp41ge.app`) |
 | Engine | CEF binary distributions (no Electron, no Chromium fork) |
-| Browser style | **Alloy**, normal (windowed) pages: no Chrome UI or Google features; we build the browser UI |
-| Element pop-out | The **real DOM element moves** into a child window of its page (same JS context). Pixel mirroring was tried and rejected |
+| Browser style | **Chrome style, hosted in our own windows** (CEF Views, no Chrome toolbar): no Chrome UI; we build the browser UI; Google features switched off |
+| Element pop-out | The **real DOM element moves** into a **Document Picture-in-Picture** window (`documentPictureInPicture.requestWindow()`), frameless and controlled by us via CEF's PiP APIs. Pixel mirroring was tried and rejected |
 | Shell language | C++ (CEF's first-class API) |
 | Video codecs | Ship v1 **without** proprietary codecs (H.264/AAC); standard CEF binaries |
 | Platforms | macOS on Apple Silicon first; others later |
@@ -95,11 +95,30 @@ As of CEF M128+ (see [CEF issue #3685](https://github.com/chromiumembedded/cef/i
 - Standard binary builds **exclude proprietary codecs** (H.264/AAC). Enabling
   them requires building CEF from source.
 
-**Decision (2026-10-10): Alloy style, normal (windowed) pages.** It ships
-none of Chrome's UI or Google features, which we don't want. Being on-screen,
-Chromium itself handles input methods, accessibility, popups such as
-`<select>`, and drag and drop. The costs are that we build the browser UI and
-that Chrome extensions don't load.
+**Decision (2026-10-10): Chrome style, hosted in our own windows.** Pages are
+Chrome-style `CefBrowserView`s in our own `CefWindow`s with Chrome's toolbar
+off (`CEF_CTT_NONE`), so no Chrome UI is shown and we build the browser UI.
+
+**Why not Alloy (tried first):** Moving a playing `<video>` into another
+document makes Chromium reload it, which breaks streams such as YouTube's.
+The only exemption is a **Document Picture-in-Picture** window opened by the
+page (`HTMLMediaElement::ShouldReusePlayer`). CEF supports Document PiP only
+for Chrome-style pages ([#3448](https://github.com/chromiumembedded/cef/issues/3448):
+"The Alloy runtime will not be supported"). Workarounds (streaming a stand-in
+video) were rejected as tricks rather than real support.
+
+**CEF's Document PiP APIs for embedders** (`CefBrowserViewDelegate`):
+
+- `UseFramelessWindowForPictureInPicture`: a frameless window, with
+  `-webkit-app-region: drag` for drag areas
+- `AllowMoveForPictureInPicture`: the page can move and resize the window
+- `AllowPictureInPictureWithoutUserActivation`: open it from our own triggers
+
+**Cost:** Chrome style includes Google features that Alloy didn't, so they
+must be switched off and kept off: sign-in, sync, AI features, Translate,
+password and autofill UI, usage statistics and field trials. This is done
+with startup flags and locked settings (policies), checked by the smoke
+tests. **Benefit:** Chrome extensions load again.
 
 ## Repository layout
 
@@ -289,31 +308,29 @@ Prove the toolchain end to end before features.
 ### Phase 2: DOM pop-out spike
 
 A spike target (`spikes/dom-popout/`) that proves the approach before any
-browser UI is built: one window with one Alloy page (YouTube), and a pop-out
-window that the player **moves into**.
+browser UI is built: our own window with a Chrome-style page (YouTube), and a
+pop-out window that the player **moves into**.
 
 **How it works:**
 
-1. **Open a child window.** An injected script opens a same-origin child window
-   (`window.open('', name)`). The child shares the page's renderer process and
-   JavaScript context family.
-2. **Make it our window.** `OnBeforePopup` recognises the pop-out's window
-   name and creates the child as **our native window**: floating, positioned
-   over the element, aspect-locked, draggable as we choose.
-3. **Move the element in.** The script copies the page's stylesheets and root
-   attributes into the child document and moves the element in, leaving a
-   placeholder. It's the same DOM node, with its listeners, state and media
-   playback intact.
-4. **Lay it out to fit.** The element fills the child window and lays out at
-   the window's size. Site-specific fixes (e.g. YouTube's inline pixel sizes)
-   are expected.
-5. **Put it back on close.** Closing the window moves the element back to the
-   placeholder.
+1. **Open a Document PiP window.** A script in the page calls
+   `documentPictureInPicture.requestWindow()`. CEF creates it frameless
+   (`UseFramelessWindowForPictureInPicture`), and allows it without a page
+   gesture so our own shortcuts and openp41ge can trigger it.
+2. **Place it.** The script moves and sizes the window over the element
+   (`AllowMoveForPictureInPicture`) and keeps it at the element's
+   proportions.
+3. **Move the element in.** The script copies the page's stylesheets and moves
+   the element in, leaving a placeholder. It's the same DOM node with its
+   listeners and state, and **media keeps playing**: Chromium keeps the player
+   for moves into Document PiP windows.
+4. **Forward events.** Events that bubble through the pop-out unhandled are
+   passed on to the main document, where pages keep document-level listeners
+   (drags, press-and-hold, keyboard shortcuts).
+5. **Put it back on close.** Closing the window moves the element back.
 
 **No throttling:** Chromium's background throttling is switched off, so the
-original page runs at full speed while its element is elsewhere. These were
-the suspected cause of YouTube's late clicks and stalled controls in Chrome's
-Document PiP:
+original page runs at full speed while its element is elsewhere:
 
 - `--disable-background-timer-throttling`
 - `--disable-renderer-backgrounding`
@@ -345,10 +362,10 @@ YouTube.
 
 ### Phase 3: Browser MVP (our own UI)
 
-Alloy pages come with no browser UI, so we build it. This gets its own plan.
-Leaning towards a UI written in HTML/TypeScript, rendered by a separate Alloy
-view and talking to the shell over CEF's message router, so it's hackable
-with the same web tools as Openp41ge.
+Pages are hosted with Chrome's UI off, so we build the browser UI. This gets
+its own plan. Leaning towards a UI written in HTML/TypeScript, rendered by
+its own browser view and talking to the shell over CEF's message router, so
+it's hackable with the same web tools as Openp41ge.
 
 - **Tabs and navigation:** tab strip, address bar with search, back/forward/reload
 - **Pages:** find-in-page, zoom, popups and new windows
@@ -356,8 +373,8 @@ with the same web tools as Openp41ge.
   network error pages
 - **Data:** downloads with a downloads list, history, bookmarks
 
-**Features are opt-in:** Alloy has no Google sign-in, sync, AI features,
-Translate or password-manager UI. We only add what we choose.
+**Google features stay off** (see the decision above): smoke tests check
+that sign-in, sync and Translate don't appear.
 
 **Out of scope for the MVP:** sync, multiple profiles, password manager, DRM
 (see Open Questions).
@@ -400,12 +417,10 @@ Translate or password-manager UI. We only add what we choose.
 
 - Move `~/Repository/internet-utility-belt` to `packages/web-extension`. It
   remains a normal web extension for Chrome, Firefox and Safari.
-- Alloy pages don't load extensions, so the browser runs the extension's
-  feature modules directly as injected scripts. This works because features
-  are plain DOM code with host services injected (`core/run-feature.ts`). Add
-  a CEF host adapter alongside the WXT one, which also exposes engine powers
-  such as `popOutElement`.
-- In stock Chrome the extension keeps its Document PiP fallback.
+- Chrome-style pages load Chrome extensions, so it runs as a normal
+  extension in openp41ge explorer too. Engine powers (e.g. pop-out without a
+  user gesture) are exposed through a small bridge the extension feature-detects.
+- In stock Chrome it keeps using Document PiP directly.
 
 ### Phase 7: CEF source build gate (only if needed)
 
