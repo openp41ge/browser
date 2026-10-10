@@ -1,0 +1,30 @@
+# openp41ge explorer
+
+An open-source web browser built on [CEF](https://github.com/chromiumembedded/cef)
+(the Chromium Embedded Framework), released alongside
+[Openp41ge](https://github.com/openp41ge/app).
+
+Its headline feature is **element pop-out**: show any part of a web page (a
+video player, a chat, a dashboard widget) in its own always-on-top window, while
+it stays live in its original page and responds to clicks as normal.
+
+> **Status:** planning. See [PLAN.md](PLAN.md) for the design and roadmap.
+
+## Platforms
+
+macOS on Apple Silicon first.
+
+## Releases
+
+Builds are published on [GitHub Releases](https://github.com/openp41ge/browser/releases)
+and update automatically.
+
+## Tests
+
+Tests live in a separate private repository. CI reports their results on every
+commit and pull request as the `browser-tests` check.
+
+## License
+
+MIT. See [LICENSE](LICENSE). CEF and Chromium are distributed under their own
+licenses.

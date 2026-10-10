@@ -1,0 +1,10 @@
+.DS_Store
+# CEF binary distribution fetched by scripts/fetch-cef
+/third_party/cef/
+# Build output
+/build/
+/out/
+# Node (packages/)
+node_modules/
+.output/
+.wxt/
