@@ -54,30 +54,44 @@ constexpr char kPopoutScript[] = R"JS(
     /* The window is frameless: a grab handle centred at the top drags it,
        and a button closes it. Drag regions take clicks even when hidden, so
        the handle is compact rather than full width: it sits clear of the
-       element's own controls (e.g. YouTube's title and top buttons). */
+       element's own controls (e.g. YouTube's title and top buttons).
+       Both share one look, following the system's light/dark setting. */
+    .openp41ge-grip, .openp41ge-close {
+      --openp41ge-bg: rgba(255, 255, 255, 0.92);
+      --openp41ge-fg: #1d1d1f;
+      --openp41ge-ring: rgba(0, 0, 0, 0.14);
+      position: fixed; top: 8px; z-index: 2147483647;
+      height: 24px; box-sizing: border-box; padding: 0; border: 0; border-radius: 12px;
+      background: var(--openp41ge-bg);
+      box-shadow: 0 0 0 1px var(--openp41ge-ring), 0 1px 4px rgba(0, 0, 0, 0.25);
+      opacity: 0; transition: opacity 0.2s;
+    }
+    @media (prefers-color-scheme: dark) {
+      .openp41ge-grip, .openp41ge-close {
+        --openp41ge-bg: rgba(44, 44, 46, 0.92);
+        --openp41ge-fg: #f5f5f7;
+        --openp41ge-ring: rgba(255, 255, 255, 0.16);
+      }
+    }
     .openp41ge-grip {
-      position: fixed; top: 8px; left: calc(50% - 70px); width: 140px; height: 22px;
-      z-index: 2147483647;
+      left: calc(50% - 70px); width: 140px;
       display: flex; flex-direction: column; justify-content: center; gap: 3px;
-      padding: 0 46px; box-sizing: border-box;
-      border-radius: 11px;
-      background: rgba(0, 0, 0, 0.6);
-      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+      padding: 0 50px;
       cursor: grab;
       -webkit-app-region: drag;
-      opacity: 0; transition: opacity 0.2s;
     }
     .openp41ge-grip span {
-      display: block; height: 2px; border-radius: 1px; background: rgba(255, 255, 255, 0.85);
+      display: block; height: 2px; border-radius: 1px; background: var(--openp41ge-fg);
     }
     .openp41ge-close {
-      position: fixed; top: 8px; right: 8px; z-index: 2147483647;
+      right: 8px; width: 24px;
       display: flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.9); cursor: pointer;
-      opacity: 0; transition: opacity 0.2s;
+      cursor: pointer;
     }
-    .openp41ge-close svg { width: 10px; height: 10px; stroke: #000; stroke-width: 2; stroke-linecap: round; }
+    .openp41ge-close svg {
+      width: 10px; height: 10px;
+      stroke: var(--openp41ge-fg); stroke-width: 2; stroke-linecap: round;
+    }
     .openp41ge-visible, .openp41ge-close:hover { opacity: 1; }
   `;
 

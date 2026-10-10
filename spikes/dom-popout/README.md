@@ -29,7 +29,8 @@ CEF) couldn't do this.
    window, and a close button sits top-right. They show on any mouse movement
    and hide after 2.5 s idle. Over the handle the page gets no mouse events
    (the OS treats drag regions as window frame), so they stay up while the
-   pointer was last seen at the handle. The handle is compact because drag
+   pointer was last seen at the handle. Both share one style that follows the
+   system's light/dark setting (`prefers-color-scheme`). The handle is compact because drag
    regions take clicks even when hidden; centred, it stays clear of controls
    like YouTube's title and top buttons.
 6. **Browsing on keeps the pop-out.** While something is popped out, links
