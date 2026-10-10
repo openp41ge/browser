@@ -8,6 +8,7 @@
 #include <string>
 
 #include "include/cef_application_mac.h"
+#include "include/cef_command_line.h"
 #include "include/cef_id_mappers.h"
 #include "include/wrapper/cef_helpers.h"
 #include "include/wrapper/cef_library_loader.h"
@@ -19,8 +20,15 @@ namespace {
 
 constexpr char kProductName[] = "openp41ge explorer";
 
-// ~/Library/Application Support/openp41ge explorer
-std::string AppDataDir() {
+// `--user-data-dir=<path>` if given (tests use a throwaway profile),
+// otherwise ~/Library/Application Support/openp41ge explorer.
+std::string AppDataDir(int argc, char* argv[]) {
+  CefRefPtr<CefCommandLine> command_line = CefCommandLine::CreateCommandLine();
+  command_line->InitFromArgv(argc, argv);
+  const std::string override_dir = command_line->GetSwitchValue("user-data-dir");
+  if (!override_dir.empty()) {
+    return override_dir;
+  }
   NSString* support = NSSearchPathForDirectoriesInDomains(
                           NSApplicationSupportDirectory, NSUserDomainMask, YES)
                           .firstObject;
@@ -221,7 +229,7 @@ int main(int argc, char* argv[]) {
     settings.no_sandbox = true;
 #endif
     // Persistent profile: logins, cookies and history survive restarts.
-    const std::string data_dir = AppDataDir();
+    const std::string data_dir = AppDataDir(argc, argv);
     CefString(&settings.root_cache_path) = data_dir;
     CefString(&settings.cache_path) = data_dir + "/Default";
 
