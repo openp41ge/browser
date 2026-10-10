@@ -78,7 +78,7 @@ constexpr char kPopoutScript[] = R"JS(
       opacity: 0; transition: opacity 0.2s;
     }
     .openp41ge-close svg { width: 10px; height: 10px; stroke: #000; stroke-width: 2; stroke-linecap: round; }
-    body:hover .openp41ge-grip, body:hover .openp41ge-close { opacity: 1; }
+    .openp41ge-visible, .openp41ge-close:hover { opacity: 1; }
   `;
 
   const open = window.__openp41gePopout;
@@ -153,6 +153,38 @@ constexpr char kPopoutScript[] = R"JS(
   close.append(icon);
   close.addEventListener('click', () => win.close());
   doc.body.append(grip, close);
+
+  // Show the controls on any mouse movement and hide them after a pause,
+  // like video controls. Over the grab handle the page gets no mouse events
+  // at all (the OS treats drag regions as window frame), so the controls
+  // stay up while the pointer was last seen on or next to the handle.
+  const controls = [grip, close];
+  let lastPointer = { x: -1, y: -1 };
+  let hideTimer;
+  const nearGrip = () => {
+    const g = grip.getBoundingClientRect();
+    const slack = 8;
+    return (
+      lastPointer.x >= g.left - slack && lastPointer.x <= g.right + slack &&
+      lastPointer.y >= g.top - slack && lastPointer.y <= g.bottom + slack
+    );
+  };
+  const hideUnlessOnGrip = () => {
+    if (nearGrip()) {
+      hideTimer = setTimeout(hideUnlessOnGrip, 500);
+      return;
+    }
+    for (const c of controls) c.classList.remove('openp41ge-visible');
+  };
+  const showControls = (event) => {
+    if (event) lastPointer = { x: event.clientX, y: event.clientY };
+    for (const c of controls) c.classList.add('openp41ge-visible');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hideUnlessOnGrip, 2500);
+  };
+  win.addEventListener('mousemove', showControls, true);
+  win.addEventListener('pointerdown', showControls, true);
+  showControls();
 
   if (PLAY_AFTER_MOVE) {
     for (const media of [...el.querySelectorAll('video, audio'), ...(el.matches('video, audio') ? [el] : [])]) {

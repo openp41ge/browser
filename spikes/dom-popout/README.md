@@ -25,10 +25,13 @@ CEF) couldn't do this.
    page's document-level listeners (drags such as scrubbing, press-and-hold)
    still see them. Keys the pop-out already handled aren't forwarded, so
    shortcuts don't run twice.
-5. **Frameless window controls:** on hover, a grab handle centred at the top
-   drags the window, and a close button sits top-right. The handle is compact
-   because drag regions take clicks even when hidden; centred, it stays clear
-   of controls like YouTube's title and top buttons.
+5. **Frameless window controls:** a grab handle centred at the top drags the
+   window, and a close button sits top-right. They show on any mouse movement
+   and hide after 2.5 s idle. Over the handle the page gets no mouse events
+   (the OS treats drag regions as window frame), so they stay up while the
+   pointer was last seen at the handle. The handle is compact because drag
+   regions take clicks even when hidden; centred, it stays clear of controls
+   like YouTube's title and top buttons.
 6. **Browsing on keeps the pop-out.** While something is popped out, links
    open in a new page window and the original page stays open, so the pop-out
    keeps playing. New pages' autoplay is held (a script injected before the
