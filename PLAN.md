@@ -7,10 +7,11 @@
 An open-source web browser **built on CEF (the Chromium Embedded Framework)**,
 released alongside Openp41ge and integrated with it. Its headline capability
 is **element pop-out**: any part of a web page (a video player, a chat, a
-dashboard widget) can be shown in its own native window while it stays live
-in its original page. Clicks, keys and scrolling in the popped-out window go
-back to the original element as real input, so the website keeps working
-exactly as if nothing had moved.
+dashboard widget) moves into its own native window **as real DOM**. The
+element stays part of the same page: the same JavaScript context, event
+listeners and state. Clicks, keys and scrolling in that window are ordinary
+input to the element, and it lays out at the window's size. Closing the
+window puts the element back.
 
 That gives Picture-in-Picture for any site (opening over the element, always
 on top, dragged from anywhere, locked to the element's aspect ratio), and more
@@ -29,7 +30,8 @@ web extension (currently `~/Repository/internet-utility-belt`).
 |---|---|
 | Name | **openp41ge explorer**: bundle id `com.openp41ge.explorer` (matches the app's `com.openp41ge.app`) |
 | Engine | CEF binary distributions (no Electron, no Chromium fork) |
-| Browser style | **Alloy**, off-screen ("windowless") pages: no Chrome UI or Google features; we build the browser UI. Chrome style is the fallback only (see Phase 2) |
+| Browser style | **Alloy**, normal (windowed) pages: no Chrome UI or Google features; we build the browser UI |
+| Element pop-out | The **real DOM element moves** into a child window of its page (same JS context). Pixel mirroring was tried and rejected |
 | Shell language | C++ (CEF's first-class API) |
 | Video codecs | Ship v1 **without** proprietary codecs (H.264/AAC); standard CEF binaries |
 | Platforms | macOS on Apple Silicon first; others later |
@@ -49,9 +51,19 @@ The web extension hit hard limits trying to build "PiP of YouTube's player":
   late, controls stalled on hover, and playback state fought with our own
   handling.
 
-The fix is to **leave the element in its page and only show it elsewhere**
-(mirror the pixels, forward input). That needs control over windows, page
-rendering and input delivery, which means owning the browser.
+Moving the real element into another window is the right model; the problems
+were Chrome's limits around it:
+
+- Chrome decides where PiP windows go and how they behave.
+- Chrome slows down ("throttles") the original tab once its content leaves it.
+
+Owning the browser removes both: we create the element's window ourselves,
+and throttling is ours to switch off.
+
+A pixel-mirroring approach (render the page off-screen and show a cropped
+copy elsewhere) was prototyped and **rejected (2026-10-10)**. It isn't the
+real DOM, and keeping the copy aligned through scrolling and layout changes
+proved brittle.
 
 **Why CEF:**
 
@@ -59,12 +71,12 @@ rendering and input delivery, which means owning the browser.
 - **No fork:** CEF ships **prebuilt Chromium binaries** for every Chrome
   release, so there's no 100 GB checkout, no multi-hour builds, and no patch
   series to carry.
-- **Its public API has what element pop-out needs:** our own native windows,
-  off-screen rendering with GPU shared textures, control of popup windows,
-  trusted input injection, and DevTools protocol access.
-- **Escape hatch:** if a must-have feature needs changes inside Chromium
-  (e.g. giving an element its own layout viewport), CEF can be built from
-  source with our patches. That's only adopted behind an explicit gate
+- **Its public API has what element pop-out needs:** control over how popup
+  windows are created (`OnBeforePopup`), so a page's child window can be our
+  own native window; command-line control of Chromium's throttling; and
+  script injection and DevTools protocol access.
+- **Escape hatch:** if a must-have feature needs changes inside Chromium,
+  CEF can be built from source with our patches. That's only adopted behind an explicit gate
   (Phase 7).
 
 ## Key CEF facts this plan depends on
@@ -74,24 +86,20 @@ As of CEF M128+ (see [CEF issue #3685](https://github.com/chromiumembedded/cef/i
 - CEF runs on the **Chrome bootstrap** and can create two browser styles:
   - **Chrome style:** Chrome's UI and behaviour, including **Chrome extension
     support**.
-  - **Alloy style:** minimal, embedder-drawn. **Required for windowless
-    (off-screen) rendering**, which is the cleanest way to mirror pixels.
-    **No Chrome extension support** (the Alloy extension API was removed in M128).
+  - **Alloy style:** minimal: no Chrome UI or Google features; the
+    embedder provides the browser UI. **No Chrome extension support** (the
+    Alloy extension API was removed in M128).
 - Release branches track Chromium milestones. Within a branch the CEF API is
   frozen and only security/bug fixes land, published as automated binary
   builds at [cef-builds.spotifycdn.com](https://cef-builds.spotifycdn.com/index.html).
 - Standard binary builds **exclude proprietary codecs** (H.264/AAC). Enabling
   them requires building CEF from source.
 
-**Decision (2026-10-10): Alloy style.** It gives the best element pop-out
-(off-screen mirroring) and ships none of Chrome's UI or Google features, which
-we don't want anyway. The costs are that we build all browser UI and that
-Chrome extensions don't load. Chrome style remains the fallback if the
-Phase 2 spike shows off-screen rendering isn't workable.
-
-Off-screen rendering on macOS (`cef_render_handler.h`): `OnAcceleratedPaint`
-delivers each frame as an IOSurface from a pool. It is only valid during the
-callback, so the client must copy it into a surface it owns.
+**Decision (2026-10-10): Alloy style, normal (windowed) pages.** It ships
+none of Chrome's UI or Google features, which we don't want. Being on-screen,
+Chromium itself handles input methods, accessibility, popups such as
+`<select>`, and drag and drop. The costs are that we build the browser UI and
+that Chrome extensions don't load.
 
 ## Repository layout
 
@@ -278,60 +286,56 @@ Prove the toolchain end to end before features.
   phase. If it's regularly too slow for the zero-day target, that's an input to
   Phase 7.
 
-### Phase 2: Alloy off-screen pop-out spike
+### Phase 2: DOM pop-out spike
 
-A throwaway target (`spikes/popout/`) that proves the architecture before any
-browser UI is built: one window with one Alloy off-screen page, plus a
-pop-out window showing a single element of it.
+A spike target (`spikes/dom-popout/`) that proves the approach before any
+browser UI is built: one window with one Alloy page (YouTube), and a pop-out
+window that the player **moves into**.
 
-**Rendering:**
+**How it works:**
 
-- Each `OnAcceleratedPaint` IOSurface is copied with Metal, in one GPU blit,
-  into a small ring of IOSurfaces we own.
-- The page view and every pop-out display the *same* owned surface via
-  `CALayer.contents`. The pop-out crops to the element with
-  `CALayer.contentsRect`, so there are no extra copies however many windows
-  show it.
+1. **Open a child window.** An injected script opens a same-origin child window
+   (`window.open('', name)`). The child shares the page's renderer process and
+   JavaScript context family.
+2. **Make it our window.** `OnBeforePopup` recognises the pop-out's window
+   name and creates the child as **our native window**: floating, positioned
+   over the element, aspect-locked, draggable as we choose.
+3. **Move the element in.** The script copies the page's stylesheets and root
+   attributes into the child document and moves the element in, leaving a
+   placeholder. It's the same DOM node, with its listeners, state and media
+   playback intact.
+4. **Lay it out to fit.** The element fills the child window and lays out at
+   the window's size. Site-specific fixes (e.g. YouTube's inline pixel sizes)
+   are expected.
+5. **Put it back on close.** Closing the window moves the element back to the
+   placeholder.
 
-**Element tracking:** the element's rect and the device scale come from the
-DevTools protocol (`Runtime.evaluate` via `ExecuteDevToolsMethod`), browser
-process only. Polled for the spike; event-driven later.
+**No throttling:** Chromium's background throttling is switched off, so the
+original page runs at full speed while its element is elsewhere. These were
+the suspected cause of YouTube's late clicks and stalled controls in Chrome's
+Document PiP:
 
-**Input:** pop-out mouse, wheel and key events are mapped into page
-coordinates and sent with `SendMouseClickEvent`, `SendMouseMoveEvent`,
-`SendMouseWheelEvent` and `SendKeyEvent`. These are real input, as far as the
-page can tell.
+- `--disable-background-timer-throttling`
+- `--disable-renderer-backgrounding`
+- `--disable-backgrounding-occluded-windows`
 
-**Pop-out window:** our own `NSWindow`:
+**Success criteria (YouTube):**
 
-- floating, opened over the element's on-screen rect
-- locked to the element's aspect ratio
-- resizing scales the mirrored image
+- **Fits the window:** the player shows in the pop-out at the pop-out's size;
+  resizing re-lays it out.
+- **Controls work:** click to pause, scrub, settings menu, hover controls,
+  keyboard shortcuts, fullscreen behaviour.
+- **No lag:** no late or undone clicks, and controls appear and hide normally.
+- **Works in the background:** the main window minimized or behind other
+  windows changes nothing.
+- **Returns cleanly:** closing the pop-out returns the player and playback
+  continues.
+- **Survives navigation:** navigating YouTube while the player is popped out
+  is recorded, whatever happens.
 
-**Keeping the page live:** the source page is never hidden from Chromium's
-point of view (`WasHidden(false)`) while a pop-out shows it, so YouTube-style
-timers keep running.
-
-**Also measure the true cost of Alloy** (the reason for choosing it carefully):
-
-- frame-copy time per frame
-- keyboard input incl. input methods (IME)
-- `<select>` and other popup widgets (`PET_POPUP`)
-- cursor changes
-- drag and drop
-- accessibility
-
-**Success criteria (YouTube 1080p60 and one non-video site):**
-
-- 60 fps in both windows, under 1 frame of added latency
-- frame copy under ~1 ms
-- scrubbing, settings menus, hover states and keyboard shortcuts all work
-  through the pop-out
-- the source window hidden or minimized: the pop-out keeps working
-
-**Fallback:** if off-screen rendering fails these, go back to Chrome-style
-pages with element capture (`getDisplayMedia` + `RestrictionTarget`) and
-DevTools-protocol input, and write the reasons up in `plans/`.
+**Known risk:** site scripts that look elements up in the main document can
+lose track of a moved element. The spike measures how much this happens on
+YouTube.
 
 **Gestures** (product work, after the spike):
 
@@ -351,8 +355,6 @@ with the same web tools as Openp41ge.
 - **Prompts and errors:** permission prompts, auth dialogs, certificate and
   network error pages
 - **Data:** downloads with a downloads list, history, bookmarks
-- **Input details** for off-screen pages: input methods (IME), drag and drop,
-  cursors, and accessibility
 
 **Features are opt-in:** Alloy has no Google sign-in, sync, AI features,
 Translate or password-manager UI. We only add what we choose.
@@ -410,9 +412,6 @@ Translate or password-manager UI. We only add what we choose.
 Switch from binary CEF to a CEF source build with our patches only for a
 must-have that binaries can't provide:
 
-- **Independent element viewport:** a popped-out element laid out at the
-  window's size rather than mirrored and scaled. This touches Blink's
-  single-viewport assumptions and would need a dedicated plan.
 - **Proprietary codecs** (H.264/AAC), if the codec decision requires shipping them.
 - **Security lag:** if Phase 1 shows CEF binaries regularly miss our
   zero-day target.
@@ -472,5 +471,5 @@ for macOS windowing); not Chromium internals unless Phase 7 happens.
    `browser-tests` smoke tests with status reporting, and the first GitHub
    pre-release (`v0.1.0-alpha.1`), unsigned until the Apple account arrives.
 3. Phase 1: `cef-bump.yml` and the beta/stable channels.
-4. Phase 2: Alloy off-screen pop-out spike (in progress), ending in a
-   write-up with measurements.
+4. Phase 2: DOM pop-out spike (in progress), ending in a write-up of what
+   works on YouTube.
