@@ -305,18 +305,24 @@ Prove the toolchain end to end before features.
   phase. If it's regularly too slow for the zero-day target, that's an input to
   Phase 7.
 
-### Phase 2: DOM pop-out spike
+### Phase 2: DOM pop-out spike (done)
 
-A spike target (`spikes/dom-popout/`) that proves the approach before any
-browser UI is built: our own window with a Chrome-style page (YouTube), and a
-pop-out window that the player **moves into**.
+**Outcome (2026-10-10): it works.** See
+[plans/2026-10-10-dom-popout-spike.md](plans/2026-10-10-dom-popout-spike.md)
+for the results; the pop-out moves into the browser per
+[plans/2026-10-10-popout-in-app.md](plans/2026-10-10-popout-in-app.md).
+
+A spike target (`spikes/dom-popout/`, now removed) proved the approach before
+any browser UI was built: our own window with a Chrome-style page (YouTube),
+and a pop-out window that the player **moves into**.
 
 **How it works:**
 
 1. **Open a Document PiP window.** A script in the page calls
    `documentPictureInPicture.requestWindow()`. CEF creates it frameless
-   (`UseFramelessWindowForPictureInPicture`), and allows it without a page
-   gesture so our own shortcuts and openp41ge can trigger it.
+   (`UseFramelessWindowForPictureInPicture`). It needs a user gesture: the
+   browser runs the script as one (`AllowPictureInPictureWithoutUserActivation`
+   had no visible effect).
 2. **Place it.** The script moves and sizes the window over the element
    (`AllowMoveForPictureInPicture`) and keeps it at the element's
    proportions.
@@ -492,5 +498,7 @@ for macOS windowing); not Chromium internals unless Phase 7 happens.
    `browser-tests` smoke tests with status reporting, and the first GitHub
    pre-release (`v0.1.0-alpha.1`), unsigned until the Apple account arrives.
 3. Phase 1: `cef-bump.yml` and the beta/stable channels.
-4. Phase 2: DOM pop-out spike (in progress), ending in a write-up of what
-   works on YouTube.
+4. Phase 2: DOM pop-out spike: **done**, see
+   [the results](plans/2026-10-10-dom-popout-spike.md).
+5. Pop-out in the browser ([plan](plans/2026-10-10-popout-in-app.md)), then
+   the tabs probe that decides the Phase 3 tabs design.
