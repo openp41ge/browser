@@ -30,8 +30,8 @@ web extension (currently `~/Repository/internet-utility-belt`).
 |---|---|
 | Name | **openp41ge explorer**: bundle id `com.openp41ge.explorer` (matches the app's `com.openp41ge.app`) |
 | Engine | CEF binary distributions (no Electron, no Chromium fork) |
-| Browser style | **Chrome style, hosted in our own windows** (CEF Views, no Chrome toolbar): no Chrome UI; we build the browser UI; Google features switched off |
-| Element pop-out | The **real DOM element moves** into a **Document Picture-in-Picture** window (`documentPictureInPicture.requestWindow()`), frameless and controlled by us via CEF's PiP APIs. Pixel mirroring was tried and rejected |
+| Browser style | **Alloy-style pages in our own windows** (decided 2026-10-11): our own UI (top bar, pane grid, tabs, command palette); no Chrome UI, no Google features. Chrome style was used during the spike and dropped: one Chrome-style page per window, and pages can't move between windows. See [plans/2026-10-11-browser-ui-grid.md](plans/2026-10-11-browser-ui-grid.md) |
+| Element pop-out | The **real DOM element moves** into a **Document Picture-in-Picture** window (`documentPictureInPicture.requestWindow()`), which the browser hosts in its own frameless window. Media keeps playing (also in Alloy pages: probe 2026-10-11). Pixel mirroring was tried and rejected |
 | Shell language | C++ (CEF's first-class API) |
 | Video codecs | Ship v1 **without** proprietary codecs (H.264/AAC); standard CEF binaries |
 | Platforms | macOS on Apple Silicon first; others later |
@@ -95,30 +95,27 @@ As of CEF M128+ (see [CEF issue #3685](https://github.com/chromiumembedded/cef/i
 - Standard binary builds **exclude proprietary codecs** (H.264/AAC). Enabling
   them requires building CEF from source.
 
-**Decision (2026-10-10): Chrome style, hosted in our own windows.** Pages are
-Chrome-style `CefBrowserView`s in our own `CefWindow`s with Chrome's toolbar
-off (`CEF_CTT_NONE`), so no Chrome UI is shown and we build the browser UI.
+**Decision (2026-10-11): Alloy-style pages in our own windows.** Every page
+is an Alloy-style `CefBrowserView`; the browser draws all of its UI itself
+(top bar, pane grid, tabs, command palette). No Chrome UI and no Google
+features ship. Details: [plans/2026-10-11-browser-ui-grid.md](plans/2026-10-11-browser-ui-grid.md).
 
-**Why not Alloy (tried first):** Moving a playing `<video>` into another
-document makes Chromium reload it, which breaks streams such as YouTube's.
-The only exemption is a **Document Picture-in-Picture** window opened by the
-page (`HTMLMediaElement::ShouldReusePlayer`). CEF supports Document PiP only
-for Chrome-style pages ([#3448](https://github.com/chromiumembedded/cef/issues/3448):
-"The Alloy runtime will not be supported"). Workarounds (streaming a stand-in
-video) were rejected as tricks rather than real support.
+**History:** Alloy was tried first (2026-10-10) and set aside on the
+assumption, from CEF's [#3448](https://github.com/chromiumembedded/cef/issues/3448),
+that Alloy pages couldn't use Document Picture-in-Picture: a playing
+`<video>` moved into any other kind of window is reloaded
+(`HTMLMediaElement::ShouldReusePlayer`). Chrome style was used instead, but
+it allows only one Chrome-style page per window, and moving one between
+windows crashes, so it can't do tabs or a pane grid. Probes on 2026-10-11
+showed that in this CEF version Alloy pages **can** use Document PiP: the
+request reaches `OnBeforePopup` as a PiP popup, the browser hosts it in its
+own frameless window, and moved media keeps playing. Alloy pages can also
+share a window and move between panes and windows. Chrome style was
+dropped entirely.
 
-**CEF's Document PiP APIs for embedders** (`CefBrowserViewDelegate`):
-
-- `UseFramelessWindowForPictureInPicture`: a frameless window, with
-  `-webkit-app-region: drag` for drag areas
-- `AllowMoveForPictureInPicture`: the page can move and resize the window
-- `AllowPictureInPictureWithoutUserActivation`: open it from our own triggers
-
-**Cost:** Chrome style includes Google features that Alloy didn't, so they
-must be switched off and kept off: sign-in, sync, AI features, Translate,
-password and autofill UI, usage statistics and field trials. This is done
-with startup flags and locked settings (policies), checked by the smoke
-tests. **Benefit:** Chrome extensions load again.
+**Cost:** no Chrome extensions (our own features are injected by the
+browser) and none of Chrome's UI (find, permission prompts, downloads and
+so on are ours to provide).
 
 ## Repository layout
 
@@ -368,18 +365,15 @@ YouTube.
 
 ### Phase 3: Browser MVP (our own UI)
 
-Pages are hosted with Chrome's UI off, so we build the browser UI. This gets
-its own plan. Leaning towards a UI written in HTML/TypeScript, rendered by
-its own browser view and talking to the shell over CEF's message router, so
-it's hackable with the same web tools as Openp41ge.
+Pages are Alloy style, so we build the browser UI: see
+[plans/2026-10-11-browser-ui-grid.md](plans/2026-10-11-browser-ui-grid.md).
+It's written in HTML/CSS/JS, rendered by its own browser view and talking to
+the shell over CEF's message router, so it's hackable with the same web
+tools as Openp41ge.
 
-- **Tabs and navigation:** tab strip, address bar with search, back/forward/reload.
-  **Constraint:** CEF only lets one Chrome-style browser view be *created* in
-  a window (`browser_view_impl.cc`: "Cannot add multiple Chrome style
-  BrowserViews"). Tabs therefore need a design that fits this, e.g. creating
-  each tab's view in its own window and moving existing views between
-  windows, or one window per tab with our own tab strip across them. To be
-  decided in the Phase 3 plan.
+- **Tabs and navigation:** a top bar (back, forward, reload), a grid of
+  panes split left/right with a tab bar each (like openp41ge), and a command
+  palette for addresses and search.
 - **Pages:** find-in-page, zoom, popups and new windows
 - **Prompts and errors:** permission prompts, auth dialogs, certificate and
   network error pages
@@ -432,10 +426,11 @@ that sign-in, sync and Translate don't appear.
 - Move `~/Repository/internet-utility-belt` to `packages/web-extension`
   (started 2026-10-11, carrying the YouTube and Shorts pop-out presets). It
   remains a normal web extension for Chrome, Firefox and Safari.
-- Chrome-style pages load Chrome extensions, so it runs as a normal
-  extension in openp41ge explorer too. Engine powers (e.g. pop-out without a
-  user gesture) are exposed through a small bridge the extension feature-detects.
-- In stock Chrome it keeps using Document PiP directly.
+- Alloy-style pages don't load Chrome extensions, so the browser runs the
+  extension's features itself: they're plain DOM code with host services
+  passed in, and the browser provides a CEF host for them.
+- In Chrome, Edge and Brave it stays a normal extension, using Document PiP
+  directly.
 
 ### Phase 7: CEF source build gate (only if needed)
 

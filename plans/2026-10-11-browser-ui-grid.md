@@ -27,12 +27,12 @@ Alloy-style pages can (probes, 2026-10-11, prebuilt CEF 154):
 | PiP window in our own frameless `NSWindow` (`SetAsChild`) | Works, at the size the page asked for |
 | Page script `moveTo()` / `resizeTo()` on it | Ignored / refused: the browser places and sizes the window itself |
 
-So: **every page is an Alloy-style browser view.** A CEF source build isn't
-needed. What Alloy pages don't get, compared with Chrome style:
+So: **every page is an Alloy-style browser view, and Chrome style is
+dropped entirely** (decided 2026-10-11). A CEF source build isn't needed.
+What Alloy pages don't get, compared with Chrome style:
 
 - **Chrome extensions.** Our own features are injected by the browser
-  instead (see **Features**). Whether Chrome-style windows stay for real
-  Chrome extensions is left open.
+  instead (see **Features**).
 - **Chrome's UI:** settings, history, downloads, password manager,
   permission prompts, find bar, and Google features (wanted off anyway). We
   provide what we need (see **Alloy gaps**).
@@ -74,8 +74,10 @@ over pages), animate and theme; the shell only places rectangles.
 
 ## Grid model (matches openp41ge)
 
-openp41ge's grid is **one row of columns** (`openp41ge-sdk-uikit` `tab-grid`,
-`openp41ge-core-tabs`), splitting left/right only:
+The grid is **one row of columns**, split left/right only, like openp41ge's
+(`openp41ge-sdk-uikit` `tab-grid`, `openp41ge-core-tabs`). There will never
+be top/bottom splits (decided 2026-10-11), so the model is just a list of
+columns.
 
 - **Columns:** each has tabs (in order), an active tab and a width. Widths
   are shared (`flex: 1`) until a splitter is dragged.
@@ -87,8 +89,6 @@ openp41ge's grid is **one row of columns** (`openp41ge-sdk-uikit` `tab-grid`,
   makes all columns equal.
 - **Last tab moved out of a column:** the column is removed and its width
   shared out.
-- The model is a matrix (rows × columns) so top/bottom splits can be added
-  later (see **Open questions**).
 
 Persisted per window (and per session): columns, their tabs (URL, title)
 and widths.
@@ -163,13 +163,25 @@ Chrome style gave us these; with Alloy pages we provide them:
 | Context menu | CEF's default for now; ours later |
 | Zoom, print, dev tools | `CefBrowserHost` (`SetZoomLevel`, `Print`, `ShowDevTools`) |
 | New tab page | Ours (openp41ge://ui/newtab) |
-| Address entry | Elsewhere in the UI (not the top bar), to be designed |
+| Address entry | The command palette (see below) |
+
+## Command palette
+
+Typing an address or a search happens in a command palette over the grid
+(decided 2026-10-11), not in a toolbar:
+
+- **Cmd+L** opens it for the focused tab: Return loads the address, or
+  searches for anything that isn't one, in that tab.
+- **Cmd+T** opens it for a new tab in the focused pane.
+- It's drawn by the frame view, centred near the top, in openp41ge's style.
+  Later it can list open tabs, history and commands.
 
 ## Steps
 
 1. **Alloy pages + frame view:** windows become a frame UI view with pages
    as overlay views; one pane, tabs (open, switch, close, reorder), Cmd+T /
-   Cmd+W / Cmd+Shift+[ ]. The current top bar moves into the frame.
+   Cmd+W / Cmd+Shift+[ ]; the command palette (Cmd+L, Cmd+T). The current
+   top bar moves into the frame. Chrome-style code goes.
 2. **Grid:** splitting by dragging tabs, splitters, removing empty columns,
    drop previews; persistence.
 3. **Pop-out in Alloy:** our own PiP window, placed and shaped by the
@@ -196,11 +208,8 @@ in CI rather than on a developer's screen.
 - **Pop-out placement:** where the PiP window's content view sits relative
   to `SetAsChild` bounds, and keyboard focus in it.
 
-## Open questions
+## Decided
 
-1. **Top/bottom splits:** openp41ge only splits left/right. Match it first
-   (recommended), or allow splits on all four sides from the start?
-2. **Chrome-style windows:** drop them entirely, or keep a way to open a
-   page as a Chrome-style window for real Chrome extensions?
-3. **Address entry:** where it lives (a command palette like openp41ge's
-   Cmd+P pane picker, the new tab page, or elsewhere).
+1. Splits are left/right only; never top/bottom.
+2. Chrome-style pages and windows are dropped entirely.
+3. Addresses are typed in a command palette (Cmd+L, Cmd+T).
