@@ -173,8 +173,10 @@
     const tryTo = (action) => {
       try {
         action();
+        return true;
       } catch (e) {
         console.info('[openp41ge] pop-out:', e.message);
+        return false;
       }
     };
     // Resizes the pop-out makes itself (not the user's), for a moment after.
@@ -187,7 +189,10 @@
     // the user resizes it to. Shape changes size from this, so a size the
     // browser caps (a wide shape on a small screen) doesn't shrink the next.
     let preferredHeight = height;
-    tryTo(() => win.moveTo(Math.round(left), Math.round(top)));
+    // Browsers that let the page place the window (openp41ge explorer) also
+    // make it frameless; others (e.g. Chrome) give it a title bar of their
+    // own, to drag and close it by.
+    const framed = !tryTo(() => win.moveTo(Math.round(left), Math.round(top)));
     if (win.innerWidth !== width || win.innerHeight !== height) resizeOwn(width, height);
 
     const presets = sitePresets().filter((p) => !p.appliesTo || p.appliesTo(el));
@@ -274,12 +279,8 @@
     grip.title = 'Drag to move';
     grip.append(doc.createElement('span'), doc.createElement('span'));
     doc.body.append(grip);
-    // Only frameless windows need our handle and close button. The window
-    // may settle after opening, so this is checked again on resize.
-    const markFramed = () =>
-      doc.documentElement.classList.toggle('openp41ge-framed', win.outerHeight - win.innerHeight > 0);
-    markFramed();
-    win.addEventListener('resize', markFramed);
+    // Only frameless windows need our handle and close button.
+    doc.documentElement.classList.toggle('openp41ge-framed', framed);
     control({ className: 'openp41ge-close', label: 'Put it back', icon: icon('M1 1L9 9M9 1L1 9'), onClick: () => win.close() });
 
     // Show the controls on any mouse movement and hide them after a pause,
