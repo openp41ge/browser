@@ -3,7 +3,7 @@ import { isDocumentPipSupported, popout } from '@/lib/popout';
 import { shortsPreset, youtubePreset } from './presets';
 
 const BUTTON_CLASS = 'utility-belt-pip-button';
-/** The icon button among YouTube's own Shorts controls. */
+/** Shorts: the round button floating alone at the top centre. */
 const SHORTS_BUTTON_CLASS = 'utility-belt-pip-shorts-button';
 /** On <html> while another tab's video is popped out: the button offers to play this one there. */
 const OFFER_CLASS = 'utility-belt-pip-offer';
@@ -92,8 +92,31 @@ function createButton(host: FeatureHost): HTMLButtonElement {
 }
 
 /**
- * Shorts: an icon button among YouTube's own controls (before "More
- * actions"), built like them so it looks and sits the same.
+ * A small window coming out of a larger one, with an arrow: "pop out", as
+ * opposed to YouTube's miniplayer icon. Styled inline so YouTube's icon CSS
+ * doesn't fill the outlines.
+ */
+function createPopOutIcon(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.style.cssText =
+    'fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; width: 24px; height: 24px;';
+  const outline = document.createElementNS(SVG_NS, 'path');
+  outline.setAttribute('d', 'M10 7H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5');
+  const arrow = document.createElementNS(SVG_NS, 'path');
+  arrow.setAttribute('d', 'M7 17l6-6M9 11h4v4');
+  const window = document.createElementNS(SVG_NS, 'rect');
+  for (const [name, value] of Object.entries({ x: '13', y: '3', width: '8', height: '6', rx: '1.2' })) {
+    window.setAttribute(name, value);
+  }
+  window.style.fill = 'currentColor';
+  svg.append(outline, window, arrow);
+  return svg;
+}
+
+/**
+ * Shorts: a round button on its own at the top centre of the Short, styled
+ * like YouTube's own (e.g. play) so it fits beside them.
  */
 function createShortsButton(host: FeatureHost, controls: Element): HTMLElement {
   const wrapper = document.createElement('div');
@@ -101,8 +124,8 @@ function createShortsButton(host: FeatureHost, controls: Element): HTMLElement {
   const button = document.createElement('button');
   button.className = [
     'ytSpecButtonShapeNextHost',
-    'ytSpecButtonShapeNextText',
-    'ytSpecButtonShapeNextOverlay',
+    'ytSpecButtonShapeNextTonal',
+    'ytSpecButtonShapeNextOverlayDark',
     'ytSpecButtonShapeNextSizeL',
     'ytSpecButtonShapeNextIconButton',
     'ytSpecButtonShapeNextMainstageIconSize',
@@ -113,7 +136,7 @@ function createShortsButton(host: FeatureHost, controls: Element): HTMLElement {
   const icon = document.createElement('div');
   icon.className = 'ytSpecButtonShapeNextIcon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.append(createIcon());
+  icon.append(createPopOutIcon());
   button.append(icon);
   wrapper.append(button);
   // The controls sit beside the Short's player, not inside it.
@@ -128,10 +151,8 @@ function addButtons(host: FeatureHost) {
   for (const player of document.querySelectorAll('.html5-video-player:not(#shorts-player)')) {
     if (!player.querySelector(`:scope > .${BUTTON_CLASS}`)) player.append(createButton(host));
   }
-  for (const controls of document.querySelectorAll('ytd-shorts-player-controls #right-controls')) {
-    if (controls.querySelector(`:scope > .${SHORTS_BUTTON_CLASS}`)) continue;
-    const button = createShortsButton(host, controls);
-    controls.insertBefore(button, controls.querySelector(':scope > #menu-button'));
+  for (const controls of document.querySelectorAll('ytd-shorts-player-controls')) {
+    if (!controls.querySelector(`:scope > .${SHORTS_BUTTON_CLASS}`)) controls.append(createShortsButton(host, controls));
   }
 }
 

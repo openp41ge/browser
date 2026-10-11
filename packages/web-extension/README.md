@@ -48,7 +48,7 @@ openp41ge explorer); `src/lib/popout.ts` wraps it.
 ### Pop out YouTube videos
 
 A button at the top centre of the YouTube player (shown on hover; on Shorts,
-an icon among YouTube's own controls, beside "More actions") pops the
+a round icon button on its own at the top centre, styled like YouTube's) pops the
 whole player, with YouTube's own controls, captions and settings, out into
 its own window: the real player, still part of the page, so it keeps
 playing.

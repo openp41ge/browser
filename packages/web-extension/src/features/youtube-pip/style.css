@@ -56,16 +56,18 @@
   background: rgba(10, 132, 255, 0.85);
 }
 
-/* Shorts: the icon button among YouTube's controls. The control bar
-   ignores the pointer and each of YouTube's buttons takes it back. */
-.utility-belt-pip-shorts-button {
-  pointer-events: auto;
+/* Shorts: a round button on its own, centred along YouTube's top row of
+   controls (which sit at the row's two ends). The row ignores the pointer
+   and each of YouTube's buttons takes it back. */
+ytd-shorts-player-controls:has(> .utility-belt-pip-shorts-button) {
+  position: relative;
 }
-.utility-belt-pip-shorts-button svg {
-  width: 24px;
-  height: 24px;
-  fill: currentColor;
-  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.3));
+.utility-belt-pip-shorts-button {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
 }
 .utility-belt-pip-offer .utility-belt-pip-shorts-button button {
   background-color: rgba(10, 132, 255, 0.85) !important;
