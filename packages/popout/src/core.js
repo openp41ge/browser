@@ -92,6 +92,9 @@
     }
     button.openp41ge-ctl svg.openp41ge-filled { fill: var(--openp41ge-fg); stroke: none; }
     .openp41ge-visible, .openp41ge-ctl:hover { opacity: 1; }
+    /* A window with a frame (browsers other than openp41ge explorer) has its
+       own title bar to drag and close it by. */
+    .openp41ge-framed .openp41ge-grip, .openp41ge-framed .openp41ge-close { display: none; }
   `;
 
   // Events the pop-out passes on to the page (see "Complete each event's
@@ -271,6 +274,12 @@
     grip.title = 'Drag to move';
     grip.append(doc.createElement('span'), doc.createElement('span'));
     doc.body.append(grip);
+    // Only frameless windows need our handle and close button. The window
+    // may settle after opening, so this is checked again on resize.
+    const markFramed = () =>
+      doc.documentElement.classList.toggle('openp41ge-framed', win.outerHeight - win.innerHeight > 0);
+    markFramed();
+    win.addEventListener('resize', markFramed);
     control({ className: 'openp41ge-close', label: 'Put it back', icon: icon('M1 1L9 9M9 1L1 9'), onClick: () => win.close() });
 
     // Show the controls on any mouse movement and hide them after a pause,
