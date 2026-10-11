@@ -41,6 +41,8 @@ declare global {
       }): HTMLButtonElement;
       /** Keeps a control's own input in the pop-out instead of forwarding it to the page. */
       keepEventsHere(node: Element): void;
+      /** Gives the window a new shape (width / height), keeping its height and centre. */
+      setAspectRatio(aspect: number): void;
     }
 
     interface Preset {

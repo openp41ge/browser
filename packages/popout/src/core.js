@@ -32,7 +32,8 @@
   //   play      (el) => void: starts the element's media the site's way, for
   //             the `play` option (sites can re-pause a bare media.play())
   //   setup     (ctx) => teardown?: adds behaviour once the element has moved
-  //             in; ctx is { el, win, doc, icon, control, keepEventsHere }
+  //             in; ctx is { el, win, doc, icon, control, keepEventsHere,
+  //             setAspectRatio }
   op.definePreset = (preset) => op.presets.set(preset.id, preset);
 
   const sitePresets = () => [...op.presets.values()].filter((p) => p.hosts.test(location.hostname));
@@ -146,7 +147,8 @@
     if (!el) return 'nothing-to-pop-out';
 
     const r = el.getBoundingClientRect();
-    const ratio = r.height / r.width;
+    // Height over width; the window keeps it while resized.
+    let ratio = r.height / r.width;
     const width = Math.round(place ? place[2] : r.width);
     const height = Math.round(width * ratio);
     let win;
@@ -172,8 +174,18 @@
         console.info('[openp41ge] pop-out:', e.message);
       }
     };
+    // Resizes the pop-out makes itself (not the user's), for a moment after.
+    let ownResizeUntil = 0;
+    const resizeOwn = (w, h) => {
+      ownResizeUntil = performance.now() + 1000;
+      tryTo(() => win.resizeTo(w, h));
+    };
+    // The height the window should have: what it opened at, then whatever
+    // the user resizes it to. Shape changes size from this, so a size the
+    // browser caps (a wide shape on a small screen) doesn't shrink the next.
+    let preferredHeight = height;
     tryTo(() => win.moveTo(Math.round(left), Math.round(top)));
-    if (win.innerWidth !== width || win.innerHeight !== height) tryTo(() => win.resizeTo(width, height));
+    if (win.innerWidth !== width || win.innerHeight !== height) resizeOwn(width, height);
 
     const presets = sitePresets().filter((p) => !p.appliesTo || p.appliesTo(el));
 
@@ -239,6 +251,16 @@
       parent.append(b);
       return b;
     };
+    // Gives the window a new shape (width / height), e.g. when the element's
+    // content changes shape. It keeps its preferred height and stays centred
+    // where it is.
+    const setAspectRatio = (aspect) => {
+      if (!(aspect > 0) || Math.abs(1 / aspect - ratio) < 0.01) return;
+      ratio = 1 / aspect;
+      const newWidth = Math.round(preferredHeight * aspect);
+      tryTo(() => win.moveTo(Math.round(win.screenX + (win.outerWidth - newWidth) / 2), win.screenY));
+      resizeOwn(newWidth, preferredHeight);
+    };
     // Keeps a control's own input in the pop-out instead of forwarding it.
     const keepEventsHere = (node) => {
       for (const type of FORWARDED) node.addEventListener(type, (event) => event.stopPropagation());
@@ -284,7 +306,7 @@
     const teardowns = [];
     for (const preset of presets) {
       try {
-        const teardown = preset.setup?.({ el, win, doc, icon, control, keepEventsHere });
+        const teardown = preset.setup?.({ el, win, doc, icon, control, keepEventsHere, setAspectRatio });
         if (teardown) teardowns.push(teardown);
       } catch (e) {
         console.warn(`[openp41ge] pop-out preset ${preset.id} failed:`, e);
@@ -292,14 +314,14 @@
     }
     showControls();
 
-
     // Keep the window at the element's proportions as it's resized.
     let settle;
     win.addEventListener('resize', () => {
       clearTimeout(settle);
       settle = setTimeout(() => {
         const wanted = Math.round(win.outerWidth * ratio);
-        if (Math.abs(win.outerHeight - wanted) > 1) tryTo(() => win.resizeTo(win.outerWidth, wanted));
+        if (performance.now() > ownResizeUntil) preferredHeight = wanted; // The user's resize.
+        if (Math.abs(win.outerHeight - wanted) > 1) resizeOwn(win.outerWidth, wanted);
       }, 150);
       // Sites re-measure on window resize.
       window.dispatchEvent(new Event('resize'));

@@ -99,7 +99,7 @@ export const shortsPreset: Openp41gePopout.Preset = {
       object-fit: contain; background: #000; pointer-events: none;
     }
   `,
-  setup: ({ el, win, doc, icon, control, keepEventsHere }) => {
+  setup: ({ el, win, doc, icon, control, keepEventsHere, setAspectRatio }) => {
     const video = el.querySelector('video')!;
     // Listeners on the page's own objects, removed when the pop-out closes.
     const listeners = new AbortController();
@@ -134,6 +134,15 @@ export const shortsPreset: Openp41gePopout.Preset = {
     };
     for (const type of ['loadeddata', 'timeupdate', 'seeked']) video.addEventListener(type, keepFrame, { signal });
     keepFrame();
+
+    // Shorts come in different shapes (9:16, 3:4, square…): the window
+    // takes each one's, as YouTube's page does. The video fires "resize"
+    // whenever its dimensions change.
+    const fitWindow = () => {
+      if (video.videoWidth && video.videoHeight) setAspectRatio(video.videoWidth / video.videoHeight);
+    };
+    video.addEventListener('resize', fitWindow, { signal });
+    fitWindow();
 
     // Which way the feed moved: back to a Short seen earlier is up, anything
     // else is down.
