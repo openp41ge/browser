@@ -1,0 +1,57 @@
+.utility-belt-pip-button {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 70;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px 0 10px;
+  font: 500 14px/1 'YouTube Sans', Roboto, system-ui, sans-serif;
+  white-space: nowrap;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.utility-belt-pip-button svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Show while hovering the player, and hide with YouTube's own controls when the mouse goes idle. */
+.html5-video-player:hover:not(.ytp-autohide) .utility-belt-pip-button,
+.utility-belt-pip-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.utility-belt-pip-button:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.utility-belt-pip-button-offer-label,
+.utility-belt-pip-offer .utility-belt-pip-button-label {
+  display: none;
+}
+
+/* While another tab's video is popped out: always shown, offering to play this one there. */
+.utility-belt-pip-offer .utility-belt-pip-button-offer-label {
+  display: inline;
+}
+.utility-belt-pip-offer .utility-belt-pip-button {
+  opacity: 1;
+  pointer-events: auto;
+  background: rgba(10, 132, 255, 0.85);
+}

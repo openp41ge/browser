@@ -29,6 +29,8 @@
   //   selector  the site's element to pop out when none is given (optional)
   //   appliesTo (el) => bool: narrows which popped-out elements it handles
   //   css       extra CSS for the pop-out window (optional)
+  //   play      (el) => void: starts the element's media the site's way, for
+  //             the `play` option (sites can re-pause a bare media.play())
   //   setup     (ctx) => teardown?: adds behaviour once the element has moved
   //             in; ctx is { el, win, doc, icon, control, keepEventsHere }
   op.definePreset = (preset) => op.presets.set(preset.id, preset);
@@ -131,15 +133,16 @@
   };
 
   // Pops out an element. Options:
+  //   element   the element itself, or
   //   selector  CSS selector of the element (default: see chooseElement)
   //   play      start its media after the move (when the user swapped the
   //             pop-out to this page's video)
   //   place     [screenX, screenY, width] to reuse an earlier pop-out's
   //             place; by default it opens right over the element
   // Resolves to 'opened', 'already-open', 'nothing-to-pop-out' or 'refused'.
-  op.popout = async ({ selector = '', play = false, place = null } = {}) => {
+  op.popout = async ({ element = null, selector = '', play = false, place = null } = {}) => {
     if (op.current) return 'already-open';
-    const el = chooseElement(selector);
+    const el = element ?? chooseElement(selector);
     if (!el) return 'nothing-to-pop-out';
 
     const r = el.getBoundingClientRect();
@@ -158,8 +161,19 @@
     // Open right over the element (or where the previous pop-out was).
     const left = place ? place[0] : window.screenX + (window.outerWidth - window.innerWidth) + r.left;
     const top = place ? place[1] : window.screenY + (window.outerHeight - window.innerHeight) + r.top;
-    win.moveTo(Math.round(left), Math.round(top));
-    win.resizeTo(width, height);
+    // Chromium lets a PiP window move or resize only on a user action, and
+    // opening the window used up this one: where the browser refuses
+    // (browsers other than openp41ge explorer), it stays where it opened.
+    // requestWindow() already gave it the size.
+    const tryTo = (action) => {
+      try {
+        action();
+      } catch (e) {
+        console.info('[openp41ge] pop-out:', e.message);
+      }
+    };
+    tryTo(() => win.moveTo(Math.round(left), Math.round(top)));
+    if (win.innerWidth !== width || win.innerHeight !== height) tryTo(() => win.resizeTo(width, height));
 
     const presets = sitePresets().filter((p) => !p.appliesTo || p.appliesTo(el));
 
@@ -180,6 +194,20 @@
     const style = doc.createElement('style');
     style.textContent = [CSS, ...presets.map((p) => p.css ?? '')].join('\n');
     doc.head.append(style);
+
+    // Start its media while it's still in the page: autoplay rules follow
+    // the user's click in this document, not the new window (where it
+    // would be paused). Playback carries on through the move.
+    if (play) {
+      const preset = presets.find((p) => p.play);
+      if (preset) {
+        preset.play(el);
+      } else {
+        for (const media of [...el.querySelectorAll('video, audio'), ...(el.matches('video, audio') ? [el] : [])]) {
+          media.play().catch(() => {});
+        }
+      }
+    }
 
     // Move the real element, leaving a placeholder to hold its spot.
     const placeholder = document.createElement('div');
@@ -264,11 +292,6 @@
     }
     showControls();
 
-    if (play) {
-      for (const media of [...el.querySelectorAll('video, audio'), ...(el.matches('video, audio') ? [el] : [])]) {
-        media.play().catch(() => {});
-      }
-    }
 
     // Keep the window at the element's proportions as it's resized.
     let settle;
@@ -276,7 +299,7 @@
       clearTimeout(settle);
       settle = setTimeout(() => {
         const wanted = Math.round(win.outerWidth * ratio);
-        if (Math.abs(win.outerHeight - wanted) > 1) win.resizeTo(win.outerWidth, wanted);
+        if (Math.abs(win.outerHeight - wanted) > 1) tryTo(() => win.resizeTo(win.outerWidth, wanted));
       }, 150);
       // Sites re-measure on window resize.
       window.dispatchEvent(new Event('resize'));
