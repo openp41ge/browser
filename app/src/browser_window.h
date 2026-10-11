@@ -9,6 +9,7 @@
 
 #include "include/views/cef_window.h"
 
+#include "command_palette.h"
 #include "pane.h"
 #include "top_bar.h"
 
@@ -74,6 +75,7 @@ class BrowserWindow : public CefWindowDelegate {
   std::string first_url_;
   CefRefPtr<CefWindow> window_;
   CefRefPtr<TopBar> top_bar_;
+  CefRefPtr<CommandPalette> palette_;  // Created when first opened.
   std::vector<std::unique_ptr<Pane>> panes_;
   Pane* active_pane_ = nullptr;
   bool closing_ = false;

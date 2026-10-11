@@ -34,7 +34,10 @@ class UiView : public CefClient,
 
   // The view, created on first call.
   CefRefPtr<CefBrowserView> view();
-  CefRefPtr<CefBrowser> browser() const { return view_ ? view_->GetBrowser() : nullptr; }
+  // Or, instead of a view: the page as a native child of `window_info`'s
+  // parent (for UI in windows of our own, like the command palette).
+  void CreateBrowser(const CefWindowInfo& window_info);
+  CefRefPtr<CefBrowser> browser() const { return browser_; }
   // Sends a message to the page (dropped until the page is listening).
   void Send(CefRefPtr<CefDictionaryValue> message);
   bool connected() const { return listener_ != nullptr; }
@@ -76,6 +79,7 @@ class UiView : public CefClient,
                      bool* no_javascript_access) override {
     return true;  // The browser's UI opens no windows of its own.
   }
+  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override { browser_ = browser; }
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
 
   // CefRequestHandler:
@@ -111,6 +115,7 @@ class UiView : public CefClient,
   int height_;
   Background background_;
   CefRefPtr<CefBrowserView> view_;
+  CefRefPtr<CefBrowser> browser_;
   CefRefPtr<CefMessageRouterBrowserSide> router_;
   CefRefPtr<Callback> listener_;
   int64_t listener_id_ = 0;

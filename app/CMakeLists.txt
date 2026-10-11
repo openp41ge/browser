@@ -44,6 +44,8 @@ add_cef_mac_app(openp41ge_explorer
     src/renderer_app.h
     src/ui/ui_scheme.cc
     src/ui/ui_scheme.h
+  LIBRARIES
+    "-framework QuartzCore"
   INCLUDE_DIRS
     src
 )

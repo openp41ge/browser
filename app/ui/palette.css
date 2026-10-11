@@ -16,8 +16,7 @@ body {
   height: 100vh;
   box-sizing: border-box;
   padding: 0 16px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  /* The window's rounded border is drawn natively (command_palette.mm). */
 }
 
 .icon {

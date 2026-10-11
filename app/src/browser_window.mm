@@ -107,7 +107,8 @@ void BrowserWindow::OnActiveTabChanged(Pane* pane) {
 
 void BrowserWindow::ShowPalette(bool new_tab, Pane* pane) {
   if (pane) active_pane_ = pane;
-  manager_->ShowPalette(this, new_tab);
+  if (!palette_) palette_ = new CommandPalette(this);
+  palette_->Show(new_tab);
 }
 
 void BrowserWindow::UpdateTitle() {
@@ -132,6 +133,7 @@ bool BrowserWindow::CanClose(CefRefPtr<CefWindow> window) {
 
 void BrowserWindow::OnWindowDestroyed(CefRefPtr<CefWindow> window) {
   top_bar_->Detach();
+  if (palette_) palette_->Detach();
   manager_->OnWindowDestroyed(this);
   panes_.clear();
   active_pane_ = nullptr;

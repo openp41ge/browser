@@ -10,7 +10,6 @@
 #include "include/views/cef_browser_view.h"
 
 #include "browser_window.h"
-#include "command_palette.h"
 #include "devtools_client.h"
 #include "popout/popout_controller.h"
 
@@ -67,7 +66,6 @@ class BrowserManager : public CefClient,
   CefRefPtr<Tab> CreateTab(const std::string& url);
   // A tab for a page CEF created (a popup).
   CefRefPtr<Tab> AdoptTab(CefRefPtr<CefBrowserView> view);
-  void ShowPalette(BrowserWindow* window, bool new_tab);
   PopoutController* popout() const { return popout_.get(); }
 
   // From BrowserWindow.
@@ -135,7 +133,6 @@ class BrowserManager : public CefClient,
   CefRefPtr<DevToolsClient> devtools_;
   CefRefPtr<PopoutController> popout_;
   CefRefPtr<CefBrowserViewDelegate> view_delegate_;
-  CefRefPtr<CommandPalette> palette_;
   std::vector<CefRefPtr<BrowserWindow>> windows_;
   BrowserWindow* current_ = nullptr;
   int next_tab_id_ = 1;

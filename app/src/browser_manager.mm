@@ -47,8 +47,7 @@ class PageViewDelegate : public CefBrowserViewDelegate {
 BrowserManager::BrowserManager()
     : devtools_(new DevToolsClient()),
       popout_(new PopoutController(devtools_, this)),
-      view_delegate_(new PageViewDelegate(this)),
-      palette_(new CommandPalette()) {
+      view_delegate_(new PageViewDelegate(this)) {
   DCHECK(!g_manager);
   g_manager = this;
 }
@@ -87,10 +86,6 @@ void BrowserManager::OnPopupViewCreated(CefRefPtr<CefBrowserView> opener, CefRef
   if (window) window->AdoptPopup(opener->GetBrowser(), popup, popup_foreground_);
 }
 
-void BrowserManager::ShowPalette(BrowserWindow* window, bool new_tab) {
-  palette_->Show(window, new_tab);
-}
-
 void BrowserManager::OnWindowCreated(BrowserWindow* window) {
   current_ = window;
 }
@@ -101,14 +96,12 @@ void BrowserManager::OnWindowActivated(BrowserWindow* window) {
 
 void BrowserManager::OnWindowDestroyed(BrowserWindow* window) {
   CefRefPtr<BrowserWindow> keep_alive(window);
-  palette_->Forget(window);
   windows_.erase(std::remove_if(windows_.begin(), windows_.end(),
                                 [&](const CefRefPtr<BrowserWindow>& w) { return w.get() == window; }),
                  windows_.end());
   if (current_ == window) current_ = windows_.empty() ? nullptr : windows_.back().get();
   if (windows_.empty()) {
     popout_->Close();
-    palette_->Close();
     CefQuitMessageLoop();
   }
 }
@@ -124,7 +117,6 @@ void BrowserManager::CloseAll() {
   CEF_REQUIRE_UI_THREAD();
   closing_ = true;
   popout_->Close();
-  palette_->Hide();
   for (const CefRefPtr<BrowserWindow>& w : std::vector<CefRefPtr<BrowserWindow>>(windows_)) {
     if (w->window()) w->window()->Close();
   }

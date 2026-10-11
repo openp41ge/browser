@@ -3,59 +3,49 @@
 #ifndef OPENP41GE_EXPLORER_COMMAND_PALETTE_H_
 #define OPENP41GE_EXPLORER_COMMAND_PALETTE_H_
 
-#include "include/views/cef_window.h"
+#include <memory>
 
 #include "ui/ui_view.h"
 
 class BrowserWindow;
 
-// The command palette (app/ui/palette.html): where addresses and searches
-// are typed. Cmd+L opens it for the active tab, Cmd+T (or a tab bar's +)
-// for a new tab.
+// A browser window's command palette (app/ui/palette.html): where addresses
+// and searches are typed. Cmd+L opens it for the active tab, Cmd+T (or a tab
+// bar's +) for a new tab.
 //
-// It floats over the browser window in a small frameless window of its own:
-// views layered inside a window stop the window's other web views getting
-// clicks, so floating UI gets its own window (as Chrome does for its
-// address-bar dropdown). It hides when it loses focus.
+// It floats over the browser window in a borderless panel of our own,
+// attached to the browser window so it moves with it, with the page hosted
+// inside it (views layered inside a window stop the window's other web
+// views getting clicks, and CEF's own windows always keep a hidden title
+// bar). It hides when it loses focus.
 //
 // Messages from the page: {"type": "go", "url"}, {"type": "dismiss"}.
 // Messages to it: {"type": "open", "newTab", "text"}.
-class CommandPalette : public UiView, public CefWindowDelegate {
+class CommandPalette : public UiView {
  public:
   static constexpr int kWidth = 560;
   static constexpr int kHeight = 56;
 
-  CommandPalette();
+  explicit CommandPalette(BrowserWindow* owner);
+  ~CommandPalette() override;
 
-  // Opens over `target`, for its active tab or a new tab in its active pane.
-  void Show(BrowserWindow* target, bool new_tab);
+  // Opens it, for the window's active tab or a new tab in its active pane.
+  void Show(bool new_tab);
   void Hide();
-  // `window` is going away.
-  void Forget(BrowserWindow* window);
-  void Close();
-
-  // CefWindowDelegate:
-  void OnWindowCreated(CefRefPtr<CefWindow> window) override;
-  void OnWindowActivationChanged(CefRefPtr<CefWindow> window, bool active) override;
-  void OnWindowDestroyed(CefRefPtr<CefWindow> window) override;
-  cef_runtime_style_t GetWindowRuntimeStyle() override { return CEF_RUNTIME_STYLE_ALLOY; }
-  bool IsFrameless(CefRefPtr<CefWindow> window) override { return true; }
-  bool CanResize(CefRefPtr<CefWindow> window) override { return false; }
-  bool CanMinimize(CefRefPtr<CefWindow> window) override { return false; }
-  bool CanMaximize(CefRefPtr<CefWindow> window) override { return false; }
-  CefRect GetInitialBounds(CefRefPtr<CefWindow> window) override { return bounds_; }
+  // The browser window is going away.
+  void Detach();
 
  protected:
   void OnConnected() override;
   bool OnMessage(const std::string& type, CefRefPtr<CefDictionaryValue> message) override;
 
  private:
-  void Place();
+  struct Native;  // The Cocoa panel (command_palette.mm).
+
   void SendOpen();
 
-  CefRefPtr<CefWindow> window_;
-  CefRect bounds_;
-  BrowserWindow* target_ = nullptr;
+  BrowserWindow* owner_;  // Null once the browser window has gone.
+  std::unique_ptr<Native> native_;
   bool new_tab_ = false;
   bool shown_ = false;
 

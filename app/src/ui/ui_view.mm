@@ -52,6 +52,12 @@ CefRefPtr<CefBrowserView> UiView::view() {
   return view_;
 }
 
+void UiView::CreateBrowser(const CefWindowInfo& window_info) {
+  CefBrowserSettings settings;
+  settings.background_color = Color(background_);
+  CefBrowserHost::CreateBrowser(window_info, this, url_, settings, nullptr, nullptr);
+}
+
 void UiView::Send(CefRefPtr<CefDictionaryValue> message) {
   if (!listener_) return;
   CefRefPtr<CefValue> value = CefValue::Create();
@@ -113,6 +119,7 @@ void UiView::OnDraggableRegionsChanged(CefRefPtr<CefBrowser> browser,
 
 void UiView::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   listener_ = nullptr;
+  browser_ = nullptr;
   router_->OnBeforeClose(browser);
 }
 
