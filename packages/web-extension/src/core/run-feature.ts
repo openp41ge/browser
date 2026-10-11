@@ -9,8 +9,14 @@ function contentScriptHost(feature: Feature): FeatureHost {
   return {
     async broadcast(message) {
       const request: BroadcastRequest = { kind: 'utility-belt:broadcast', featureId: feature.id, message };
-      const replies = await browser.runtime.sendMessage(request);
-      return Array.isArray(replies) ? replies : [];
+      try {
+        const replies = await browser.runtime.sendMessage(request);
+        return Array.isArray(replies) ? replies : [];
+      } catch {
+        // The extension was reloaded or removed while this page stayed open
+        // ("Extension context invalidated"): there's no one left to ask.
+        return [];
+      }
     },
     onMessage(handler) {
       const listener = (message: unknown, _sender: unknown, sendResponse: (reply: unknown) => void) => {
