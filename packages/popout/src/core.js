@@ -161,7 +161,14 @@
       console.warn('[openp41ge] pop-out: could not open the window:', e.name, e.message);
       return 'refused';
     }
-    op.current = { win };
+    // Where it should go, for browsers that place the window themselves
+    // (openp41ge explorer reads this): a previous pop-out's place on screen,
+    // or the element's position in this page's viewport.
+    op.current = {
+      win,
+      anchor: place ? { screen: [place[0], place[1]] } : { viewport: [r.left, r.top] },
+      size: [width, height],
+    };
 
     // Open right over the element (or where the previous pop-out was).
     const left = place ? place[0] : window.screenX + (window.outerWidth - window.innerWidth) + r.left;

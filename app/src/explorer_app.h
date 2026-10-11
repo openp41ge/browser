@@ -16,6 +16,7 @@ class ExplorerApp : public CefApp, public CefBrowserProcessHandler {
 
   // CefApp:
   CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override { return this; }
+  void OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) override;
   void OnBeforeCommandLineProcessing(const CefString& process_type,
                                      CefRefPtr<CefCommandLine> command_line) override;
 

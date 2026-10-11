@@ -9,54 +9,91 @@
 #include "include/cef_client.h"
 #include "include/views/cef_browser_view.h"
 
+#include "browser_window.h"
+#include "command_palette.h"
 #include "devtools_client.h"
-#include "page_window.h"
 #include "popout/popout_controller.h"
 
-// The browser's pages and their windows, and the client for every page.
+// The browser's windows, and the client for every page.
 //
-// - Each page is a Chrome-style browser view in its own window (PageWindow).
-// - New tabs and windows, from links, scripts or commands, open as new page
-//   windows.
+// - Pages are Alloy-style browser views, each a tab in a pane of a
+//   BrowserWindow.
+// - Pages' popups (window.open, links to new windows) become tabs beside
+//   their opener.
 // - Element pop-out (PopoutController): while something is popped out, new
-//   pages hold autoplay, and a page only kept open for the pop-out closes
-//   with it.
+//   pages hold autoplay.
 class BrowserManager : public CefClient,
-                       public CefLifeSpanHandler,
                        public CefDisplayHandler,
-                       public CefCommandHandler,
                        public CefKeyboardHandler,
+                       public CefLifeSpanHandler,
+                       public CefLoadHandler,
+                       public CefRequestHandler,
                        public PopoutController::Observer {
  public:
+  // Menu commands; they act on the active window's active tab.
+  enum class Command {
+    kNewTab,
+    kNewWindow,
+    kOpenLocation,
+    kCloseTab,
+    kCloseWindow,
+    kNextTab,
+    kPreviousTab,
+    kBack,
+    kForward,
+    kReload,
+    kReloadIgnoringCache,
+    kZoomIn,
+    kZoomOut,
+    kZoomReset,
+    kDevTools,
+    kViewSource,
+    kPrint,
+    kTogglePopout,
+  };
+
   BrowserManager();
   static BrowserManager* Get();
 
-  // Opens a page window for `url`.
-  void OpenPageWindow(const std::string& url);
-  // Opens a page window around a browser view CEF created (a popup).
-  void OpenPageWindow(CefRefPtr<CefBrowserView> view);
-
-  // The page of the last active page window.
-  CefRefPtr<CefBrowser> CurrentPage() const;
-  void ExecuteChromeCommand(int command_id);
-  void CloseCurrentWindow();
+  // Opens a browser window, with `url` (or an empty tab and the palette).
+  void OpenWindow(const std::string& url);
+  void Run(Command command);
+  bool CanRun(Command command) const;
   // Closes everything; the app quits once every window is gone.
   void CloseAll();
   bool IsClosing() const { return closing_; }
 
+  // A new tab's page, loading `url`.
+  CefRefPtr<Tab> CreateTab(const std::string& url);
+  // A tab for a page CEF created (a popup).
+  CefRefPtr<Tab> AdoptTab(CefRefPtr<CefBrowserView> view);
+  void ShowPalette(BrowserWindow* window, bool new_tab);
   PopoutController* popout() const { return popout_.get(); }
-  void TogglePopout();
 
-  // From PageWindow.
-  void OnPageWindowCreated(PageWindow* page_window);
-  void OnPageWindowActivated(PageWindow* page_window);
-  void OnPageWindowDestroyed(PageWindow* page_window);
+  // From BrowserWindow.
+  void OnWindowCreated(BrowserWindow* window);
+  void OnWindowActivated(BrowserWindow* window);
+  void OnWindowDestroyed(BrowserWindow* window);
+  // From the page view delegate: a popup's view, to become a tab.
+  void OnPopupViewCreated(CefRefPtr<CefBrowserView> opener, CefRefPtr<CefBrowserView> popup);
 
   // CefClient:
-  CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
-  CefRefPtr<CefCommandHandler> GetCommandHandler() override { return this; }
   CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
+  CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
+  CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
+  CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
+
+  // CefDisplayHandler:
+  void OnAddressChange(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, const CefString& url) override;
+  void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& title) override;
+  void OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::vector<CefString>& icon_urls) override;
+
+  // CefKeyboardHandler:
+  bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
+                     const CefKeyEvent& event,
+                     CefEventHandle os_event,
+                     bool* is_keyboard_shortcut) override;
 
   // CefLifeSpanHandler:
   bool OnBeforePopup(CefRefPtr<CefBrowser> browser,
@@ -75,34 +112,34 @@ class BrowserManager : public CefClient,
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
 
-  // CefDisplayHandler:
-  void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& title) override;
+  // CefLoadHandler:
+  void OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
+                            bool is_loading,
+                            bool can_go_back,
+                            bool can_go_forward) override;
 
-  // CefCommandHandler:
-  bool OnChromeCommand(CefRefPtr<CefBrowser> browser,
-                       int command_id,
-                       cef_window_open_disposition_t disposition) override;
-
-  // CefKeyboardHandler:
-  bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
-                     const CefKeyEvent& event,
-                     CefEventHandle os_event,
-                     bool* is_keyboard_shortcut) override;
-
-  // PopoutController::Observer:
-  void OnPopoutClosed(CefRefPtr<CefBrowser> source) override;
+  // CefRequestHandler:
+  bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                      CefRefPtr<CefFrame> frame,
+                      CefRefPtr<CefRequest> request,
+                      bool user_gesture,
+                      bool is_redirect) override;
 
  private:
-  PageWindow* PageWindowFor(CefRefPtr<CefBrowser> browser) const;
+  BrowserWindow* WindowOf(CefRefPtr<CefBrowser> browser, CefRefPtr<Tab>* tab = nullptr) const;
   // Extra info for a new page: the script it runs before its own (if any),
   // read by the renderer (renderer_app.cc).
   CefRefPtr<CefDictionaryValue> NewPageExtraInfo() const;
 
   CefRefPtr<DevToolsClient> devtools_;
   CefRefPtr<PopoutController> popout_;
-  CefRefPtr<PageViewDelegate> view_delegate_;
-  std::vector<CefRefPtr<PageWindow>> windows_;
-  PageWindow* current_ = nullptr;
+  CefRefPtr<CefBrowserViewDelegate> view_delegate_;
+  CefRefPtr<CommandPalette> palette_;
+  std::vector<CefRefPtr<BrowserWindow>> windows_;
+  BrowserWindow* current_ = nullptr;
+  int next_tab_id_ = 1;
+  // Whether the popup being created should become the active tab.
+  bool popup_foreground_ = true;
   bool closing_ = false;
 
   IMPLEMENT_REFCOUNTING(BrowserManager);

@@ -1,0 +1,75 @@
+/* Copyright (c) 2026 Richard Kielty. MIT License.
+ *
+ * The top bar, after the openp41ge app's title bar: 35px, the gutter
+ * background, a divider underneath, 28x28 icon buttons.
+ */
+
+html,
+body {
+  overflow: hidden;
+  user-select: none;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 35px;
+  box-sizing: border-box;
+  padding-right: 12px;
+  background: var(--bg-gutter);
+  border-bottom: 1px solid var(--border-divider);
+  /* The bar moves the window; its controls don't. */
+  -webkit-app-region: drag;
+}
+
+/* Room for macOS's traffic lights (the window draws them). */
+.traffic-lights {
+  flex: none;
+  width: 85px;
+  height: 100%;
+}
+
+.btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  -webkit-app-region: no-drag;
+}
+.btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+.btn:disabled {
+  opacity: 0.35;
+}
+.btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.btn [hidden] {
+  display: none;
+}
+
+/* Reload's circular icon reads larger than the chevrons at the same size. */
+.btn.small {
+  width: 24px;
+  height: 24px;
+}
+.btn.small svg {
+  width: 14px;
+  height: 14px;
+}

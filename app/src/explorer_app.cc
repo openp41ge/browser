@@ -8,6 +8,12 @@
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
 
+#include "ui/ui_scheme.h"
+
+void ExplorerApp::OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) {
+  ui_scheme::Register(registrar);
+}
+
 void ExplorerApp::OnBeforeCommandLineProcessing(const CefString& process_type,
                                                 CefRefPtr<CefCommandLine> command_line) {
   if (!process_type.empty()) return;
@@ -20,9 +26,10 @@ void ExplorerApp::OnBeforeCommandLineProcessing(const CefString& process_type,
 
 void ExplorerApp::OnContextInitialized() {
   CEF_REQUIRE_UI_THREAD();
+  ui_scheme::RegisterHandlerFactory();
   manager_ = new BrowserManager();
   // `--url=<url>` opens a specific page instead of the new tab page.
-  manager_->OpenPageWindow(CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("url"));
+  manager_->OpenWindow(CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("url"));
 }
 
 CefRefPtr<CefClient> ExplorerApp::GetDefaultClient() {

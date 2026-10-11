@@ -5,24 +5,50 @@
 #include <algorithm>
 
 #include "include/cef_app.h"
-#include "include/cef_id_mappers.h"
 #include "include/wrapper/cef_helpers.h"
+
+#include "ui/ui_scheme.h"
 
 namespace {
 
 BrowserManager* g_manager = nullptr;
 
-constexpr char kNewPageUrl[] = "chrome://newtab/";
-
 // Key read by the renderer (renderer_app.cc).
 constexpr char kInitScriptKey[] = "openp41ge.init_script";
+
+// Every page: Alloy style. Popups become tabs (see OnPopupViewCreated);
+// dev tools get CEF's own window.
+class PageViewDelegate : public CefBrowserViewDelegate {
+ public:
+  explicit PageViewDelegate(BrowserManager* manager) : manager_(manager) {}
+
+  cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_ALLOY; }
+  CefRefPtr<CefBrowserViewDelegate> GetDelegateForPopupBrowserView(CefRefPtr<CefBrowserView> view,
+                                                                   const CefBrowserSettings& settings,
+                                                                   CefRefPtr<CefClient> client,
+                                                                   bool is_devtools) override {
+    return this;
+  }
+  bool OnPopupBrowserViewCreated(CefRefPtr<CefBrowserView> view,
+                                 CefRefPtr<CefBrowserView> popup_view,
+                                 bool is_devtools) override {
+    if (is_devtools) return false;
+    manager_->OnPopupViewCreated(view, popup_view);
+    return true;
+  }
+
+ private:
+  BrowserManager* manager_;  // Lives as long as the app.
+  IMPLEMENT_REFCOUNTING(PageViewDelegate);
+};
 
 }  // namespace
 
 BrowserManager::BrowserManager()
     : devtools_(new DevToolsClient()),
       popout_(new PopoutController(devtools_, this)),
-      view_delegate_(new PageViewDelegate(this)) {
+      view_delegate_(new PageViewDelegate(this)),
+      palette_(new CommandPalette()) {
   DCHECK(!g_manager);
   g_manager = this;
 }
@@ -31,70 +57,75 @@ BrowserManager* BrowserManager::Get() {
   return g_manager;
 }
 
-// --- Page windows -----------------------------------------------------------
+// --- Windows and tabs -------------------------------------------------------
 
-void BrowserManager::OpenPageWindow(const std::string& url) {
-  CEF_REQUIRE_UI_THREAD();
-  CefBrowserSettings settings;
-  OpenPageWindow(CefBrowserView::CreateBrowserView(this, url.empty() ? kNewPageUrl : url, settings,
-                                                   NewPageExtraInfo(), nullptr, view_delegate_));
-}
-
-void BrowserManager::OpenPageWindow(CefRefPtr<CefBrowserView> view) {
+void BrowserManager::OpenWindow(const std::string& url) {
   CEF_REQUIRE_UI_THREAD();
   // Cascade new windows a little so they don't sit exactly on top.
   const int offset = static_cast<int>(windows_.size() % 8) * 40;
-  CefRefPtr<PageWindow> page_window = new PageWindow(this, view, CefRect(120 + offset, 80 + offset, 1280, 800));
-  windows_.push_back(page_window);
-  CefWindow::CreateTopLevelWindow(page_window);
+  CefRefPtr<BrowserWindow> window = new BrowserWindow(this, CefRect(120 + offset, 80 + offset, 1280, 800), url);
+  windows_.push_back(window);
+  CefWindow::CreateTopLevelWindow(window);
 }
 
-void BrowserManager::OnPageWindowCreated(PageWindow* page_window) {
-  current_ = page_window;
+CefRefPtr<Tab> BrowserManager::CreateTab(const std::string& url) {
+  CefBrowserSettings settings;
+  CefRefPtr<CefBrowserView> view =
+      CefBrowserView::CreateBrowserView(this, url, settings, NewPageExtraInfo(), nullptr, view_delegate_);
+  CefRefPtr<Tab> tab = new Tab(next_tab_id_++, view);
+  tab->url = url;
+  return tab;
 }
 
-void BrowserManager::OnPageWindowActivated(PageWindow* page_window) {
-  current_ = page_window;
+CefRefPtr<Tab> BrowserManager::AdoptTab(CefRefPtr<CefBrowserView> view) {
+  return new Tab(next_tab_id_++, view);
 }
 
-void BrowserManager::OnPageWindowDestroyed(PageWindow* page_window) {
-  CefRefPtr<PageWindow> keep_alive(page_window);
+void BrowserManager::OnPopupViewCreated(CefRefPtr<CefBrowserView> opener, CefRefPtr<CefBrowserView> popup) {
+  BrowserWindow* window = WindowOf(opener->GetBrowser());
+  window = window ? window : current_;
+  if (window) window->AdoptPopup(opener->GetBrowser(), popup, popup_foreground_);
+}
+
+void BrowserManager::ShowPalette(BrowserWindow* window, bool new_tab) {
+  palette_->Show(window, new_tab);
+}
+
+void BrowserManager::OnWindowCreated(BrowserWindow* window) {
+  current_ = window;
+}
+
+void BrowserManager::OnWindowActivated(BrowserWindow* window) {
+  current_ = window;
+}
+
+void BrowserManager::OnWindowDestroyed(BrowserWindow* window) {
+  CefRefPtr<BrowserWindow> keep_alive(window);
+  palette_->Forget(window);
   windows_.erase(std::remove_if(windows_.begin(), windows_.end(),
-                                [&](const CefRefPtr<PageWindow>& w) { return w.get() == page_window; }),
+                                [&](const CefRefPtr<BrowserWindow>& w) { return w.get() == window; }),
                  windows_.end());
-  if (current_ == page_window) current_ = windows_.empty() ? nullptr : windows_.back().get();
+  if (current_ == window) current_ = windows_.empty() ? nullptr : windows_.back().get();
   if (windows_.empty()) {
     popout_->Close();
+    palette_->Close();
     CefQuitMessageLoop();
   }
 }
 
-PageWindow* BrowserManager::PageWindowFor(CefRefPtr<CefBrowser> browser) const {
-  for (const CefRefPtr<PageWindow>& w : windows_) {
-    if (browser && w->browser() && w->browser()->IsSame(browser)) return w.get();
+BrowserWindow* BrowserManager::WindowOf(CefRefPtr<CefBrowser> browser, CefRefPtr<Tab>* tab) const {
+  for (const CefRefPtr<BrowserWindow>& window : windows_) {
+    if (window->Locate(browser, tab)) return window.get();
   }
   return nullptr;
-}
-
-CefRefPtr<CefBrowser> BrowserManager::CurrentPage() const {
-  return current_ ? current_->browser() : nullptr;
-}
-
-void BrowserManager::ExecuteChromeCommand(int command_id) {
-  if (CefRefPtr<CefBrowser> page = CurrentPage()) {
-    page->GetHost()->ExecuteChromeCommand(command_id, CEF_WOD_CURRENT_TAB);
-  }
-}
-
-void BrowserManager::CloseCurrentWindow() {
-  if (current_ && current_->window()) current_->window()->Close();
 }
 
 void BrowserManager::CloseAll() {
   CEF_REQUIRE_UI_THREAD();
   closing_ = true;
   popout_->Close();
-  for (const CefRefPtr<PageWindow>& w : std::vector<CefRefPtr<PageWindow>>(windows_)) {
+  palette_->Hide();
+  for (const CefRefPtr<BrowserWindow>& w : std::vector<CefRefPtr<BrowserWindow>>(windows_)) {
     if (w->window()) w->window()->Close();
   }
   if (windows_.empty()) CefQuitMessageLoop();
@@ -108,18 +139,101 @@ CefRefPtr<CefDictionaryValue> BrowserManager::NewPageExtraInfo() const {
   return extra_info;
 }
 
-// --- Pop-out ----------------------------------------------------------------
+// --- Commands ---------------------------------------------------------------
 
-void BrowserManager::TogglePopout() {
-  popout_->Toggle(CurrentPage());
+bool BrowserManager::CanRun(Command command) const {
+  CefRefPtr<CefBrowser> page = current_ ? current_->active_browser() : nullptr;
+  switch (command) {
+    case Command::kNewTab:
+    case Command::kNewWindow:
+      return true;
+    case Command::kBack:
+      return page && page->CanGoBack();
+    case Command::kForward:
+      return page && page->CanGoForward();
+    case Command::kZoomIn:
+      return page && page->GetHost()->CanZoom(CEF_ZOOM_COMMAND_IN);
+    case Command::kZoomOut:
+      return page && page->GetHost()->CanZoom(CEF_ZOOM_COMMAND_OUT);
+    case Command::kZoomReset:
+      return page && page->GetHost()->CanZoom(CEF_ZOOM_COMMAND_RESET);
+    case Command::kTogglePopout:
+      return popout_->IsOpen() || page;
+    default:
+      return current_ != nullptr;
+  }
 }
 
-void BrowserManager::OnPopoutClosed(CefRefPtr<CefBrowser> source) {
-  // The element is back in its page. If that page was only kept open for the
-  // pop-out (another page window is now in front), close it too.
-  PageWindow* source_window = PageWindowFor(source);
-  if (source_window && source_window != current_ && !closing_ && windows_.size() > 1) {
-    source_window->window()->Close();
+void BrowserManager::Run(Command command) {
+  CEF_REQUIRE_UI_THREAD();
+  if (command == Command::kNewWindow || (command == Command::kNewTab && !current_)) {
+    OpenWindow(std::string());
+    return;
+  }
+  if (!current_) return;
+  CefRefPtr<Tab> tab = current_->active_tab();
+  CefRefPtr<CefBrowser> page = tab ? tab->browser() : nullptr;
+  switch (command) {
+    case Command::kNewTab:
+      current_->ShowPalette(/*new_tab=*/true);
+      break;
+    case Command::kOpenLocation:
+      current_->ShowPalette(/*new_tab=*/false);
+      break;
+    case Command::kCloseTab:
+      if (tab) current_->CloseTab(tab);
+      break;
+    case Command::kCloseWindow:
+      if (current_->window()) current_->window()->Close();
+      break;
+    case Command::kNextTab:
+      current_->active_pane()->ActivateRelative(1);
+      break;
+    case Command::kPreviousTab:
+      current_->active_pane()->ActivateRelative(-1);
+      break;
+    case Command::kTogglePopout:
+      popout_->Toggle(page);
+      break;
+    default:
+      if (!page) break;
+      switch (command) {
+        case Command::kBack:
+          page->GoBack();
+          break;
+        case Command::kForward:
+          page->GoForward();
+          break;
+        case Command::kReload:
+          page->Reload();
+          break;
+        case Command::kReloadIgnoringCache:
+          page->ReloadIgnoreCache();
+          break;
+        case Command::kZoomIn:
+          page->GetHost()->Zoom(CEF_ZOOM_COMMAND_IN);
+          break;
+        case Command::kZoomOut:
+          page->GetHost()->Zoom(CEF_ZOOM_COMMAND_OUT);
+          break;
+        case Command::kZoomReset:
+          page->GetHost()->Zoom(CEF_ZOOM_COMMAND_RESET);
+          break;
+        case Command::kDevTools: {
+          CefWindowInfo window_info;
+          CefBrowserSettings settings;
+          page->GetHost()->ShowDevTools(window_info, nullptr, settings, CefPoint());
+          break;
+        }
+        case Command::kViewSource:
+          page->GetMainFrame()->ViewSource();
+          break;
+        case Command::kPrint:
+          page->GetHost()->Print();
+          break;
+        default:
+          break;
+      }
   }
 }
 
@@ -155,9 +269,10 @@ bool BrowserManager::OnBeforePopup(CefRefPtr<CefBrowser> browser,
                                    CefRefPtr<CefDictionaryValue>& extra_info,
                                    bool* no_javascript_access) {
   CEF_REQUIRE_UI_THREAD();
-  if (popout_->OnBeforePopup(browser, target_disposition, client)) return false;
-  // Any other popup or new tab: CEF creates its browser view and
-  // PageViewDelegate puts it in a new page window, keeping its opener.
+  if (popout_->OnBeforePopup(browser, target_disposition, window_info, client)) return false;
+  // Any other popup or new tab: CEF creates its view and PageViewDelegate
+  // hands it to us as a tab beside its opener (keeping window.opener).
+  popup_foreground_ = target_disposition != CEF_WOD_NEW_BACKGROUND_TAB;
   extra_info = NewPageExtraInfo();
   return false;
 }
@@ -170,30 +285,53 @@ void BrowserManager::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
 void BrowserManager::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   devtools_->Detach(browser);
+  if (BrowserWindow* window = WindowOf(browser)) window->OnTabClosed(browser);
 }
 
-// --- Display / commands ----------------------------------------------
+// --- Page state -------------------------------------------------------------
+
+void BrowserManager::OnAddressChange(CefRefPtr<CefBrowser> browser,
+                                     CefRefPtr<CefFrame> frame,
+                                     const CefString& url) {
+  CefRefPtr<Tab> tab;
+  BrowserWindow* window = WindowOf(browser, &tab);
+  if (!window || !frame->IsMain()) return;
+  tab->url = url;
+  window->OnTabChanged(browser);
+}
 
 void BrowserManager::OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& title) {
-  if (PageWindow* w = PageWindowFor(browser)) w->window()->SetTitle(title);
+  CefRefPtr<Tab> tab;
+  BrowserWindow* window = WindowOf(browser, &tab);
+  if (!window) return;
+  tab->title = title;
+  window->OnTabChanged(browser);
 }
 
-bool BrowserManager::OnChromeCommand(CefRefPtr<CefBrowser> browser,
-                                     int command_id,
-                                     cef_window_open_disposition_t disposition) {
-  // Pages have no tab strip yet: new tabs are new page windows, and closing
-  // the tab closes its window.
-  static const int kNewTab = cef_id_for_command_id_name("IDC_NEW_TAB");
-  static const int kNewWindow = cef_id_for_command_id_name("IDC_NEW_WINDOW");
-  static const int kCloseTab = cef_id_for_command_id_name("IDC_CLOSE_TAB");
-  static const int kCloseWindow = cef_id_for_command_id_name("IDC_CLOSE_WINDOW");
-  if (command_id == kNewTab || command_id == kNewWindow) {
-    OpenPageWindow(kNewPageUrl);
-    return true;
-  }
-  if (command_id == kCloseTab || command_id == kCloseWindow) {
-    if (PageWindow* w = PageWindowFor(browser)) w->window()->Close();
-    return true;
-  }
-  return false;
+void BrowserManager::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::vector<CefString>& icon_urls) {
+  CefRefPtr<Tab> tab;
+  BrowserWindow* window = WindowOf(browser, &tab);
+  if (!window) return;
+  tab->favicon = icon_urls.empty() ? std::string() : icon_urls.front().ToString();
+  window->OnTabChanged(browser);
+}
+
+void BrowserManager::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
+                                          bool is_loading,
+                                          bool can_go_back,
+                                          bool can_go_forward) {
+  CefRefPtr<Tab> tab;
+  BrowserWindow* window = WindowOf(browser, &tab);
+  if (!window) return;
+  tab->loading = is_loading;
+  window->OnTabChanged(browser);
+}
+
+bool BrowserManager::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                                    CefRefPtr<CefFrame> frame,
+                                    CefRefPtr<CefRequest> request,
+                                    bool user_gesture,
+                                    bool is_redirect) {
+  // Web pages never load the browser's own UI.
+  return ui_scheme::IsUiUrl(request->GetURL());
 }

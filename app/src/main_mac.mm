@@ -9,7 +9,6 @@
 
 #include "include/cef_application_mac.h"
 #include "include/cef_command_line.h"
-#include "include/cef_id_mappers.h"
 #include "include/wrapper/cef_helpers.h"
 #include "include/wrapper/cef_library_loader.h"
 
@@ -37,45 +36,35 @@ std::string AppDataDir(int argc, char* argv[]) {
 
 }  // namespace
 
-// Menu actions that need the browser. Chrome commands (IDC_*) run in the
-// active page; the item's tag is the command id.
+// Menu items that act on the browser; the item's tag is the
+// BrowserManager::Command.
 @interface ExplorerMenuTarget : NSObject <NSMenuItemValidation>
-- (void)chromeCommand:(NSMenuItem*)sender;
-- (void)newWindow:(id)sender;
-- (void)closeWindow:(id)sender;
-- (void)togglePopout:(id)sender;
+- (void)command:(NSMenuItem*)sender;
 @end
 
 @implementation ExplorerMenuTarget
 
-- (void)chromeCommand:(NSMenuItem*)sender {
-  if (BrowserManager* manager = BrowserManager::Get()) manager->ExecuteChromeCommand(static_cast<int>(sender.tag));
-}
-
-- (void)newWindow:(id)sender {
-  if (BrowserManager* manager = BrowserManager::Get()) manager->OpenPageWindow(std::string());
-}
-
-- (void)closeWindow:(id)sender {
-  if (BrowserManager* manager = BrowserManager::Get()) manager->CloseCurrentWindow();
-}
-
-- (void)togglePopout:(id)sender {
-  if (BrowserManager* manager = BrowserManager::Get()) manager->TogglePopout();
+- (void)command:(NSMenuItem*)sender {
+  BrowserManager* manager = BrowserManager::Get();
+  if (!manager) return;
+  const auto command = static_cast<BrowserManager::Command>(sender.tag);
+  // Closing while the pop-out has the keyboard closes the pop-out.
+  if ((command == BrowserManager::Command::kCloseTab || command == BrowserManager::Command::kCloseWindow) &&
+      [NSApp.keyWindow isKindOfClass:NSClassFromString(@"PopoutWindow")]) {
+    manager->popout()->Close();
+    return;
+  }
+  manager->Run(command);
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem*)item {
   BrowserManager* manager = BrowserManager::Get();
   if (!manager) return NO;
-  if (item.action == @selector(togglePopout:)) {
+  const auto command = static_cast<BrowserManager::Command>(item.tag);
+  if (command == BrowserManager::Command::kTogglePopout) {
     item.title = manager->popout()->IsOpen() ? @"Put Back Pop-out" : @"Pop Out Video";
-    return manager->popout()->IsOpen() || manager->CurrentPage() != nullptr;
   }
-  if (item.action == @selector(chromeCommand:)) {
-    CefRefPtr<CefBrowser> page = manager->CurrentPage();
-    return page && page->GetHost()->CanExecuteChromeCommand(static_cast<int>(item.tag));
-  }
-  return YES;
+  return manager->CanRun(command);
 }
 
 @end
@@ -94,25 +83,15 @@ NSMenuItem* AddItem(NSMenu* menu,
   return item;
 }
 
-// A menu item handled by ExplorerMenuTarget.
-NSMenuItem* AddAction(NSMenu* menu,
-                      NSString* title,
-                      SEL action,
-                      NSString* key,
-                      NSEventModifierFlags modifiers = NSEventModifierFlagCommand) {
-  NSMenuItem* item = AddItem(menu, title, action, key, modifiers);
-  item.target = g_menu_target;
-  return item;
-}
-
-// A menu item that runs a Chrome command (IDC_*) in the active page.
+// A menu item that runs a browser command.
 NSMenuItem* AddCommand(NSMenu* menu,
                        NSString* title,
-                       const char* command_name,
+                       BrowserManager::Command command,
                        NSString* key,
                        NSEventModifierFlags modifiers = NSEventModifierFlagCommand) {
-  NSMenuItem* item = AddAction(menu, title, @selector(chromeCommand:), key, modifiers);
-  item.tag = cef_id_for_command_id_name(command_name);
+  NSMenuItem* item = AddItem(menu, title, @selector(command:), key, modifiers);
+  item.target = g_menu_target;
+  item.tag = static_cast<NSInteger>(command);
   return item;
 }
 
@@ -122,10 +101,10 @@ NSMenu* AddSubmenu(NSMenu* menubar, NSString* title) {
   return menu;
 }
 
-// Chrome-style menu bar. Edit menu items use the standard Cocoa actions so
-// text fields work; most browser items run a Chrome command in the active
-// page. Pages have no tab strip yet, so new tabs are new windows.
+// The menu bar. Edit items use the standard Cocoa actions so text fields
+// work; browser items run a BrowserManager command.
 NSMenu* BuildMainMenu() {
+  using Command = BrowserManager::Command;
   g_menu_target = [[ExplorerMenuTarget alloc] init];
   constexpr auto kCmdShift = NSEventModifierFlagCommand | NSEventModifierFlagShift;
   constexpr auto kCmdOpt = NSEventModifierFlagCommand | NSEventModifierFlagOption;
@@ -135,8 +114,6 @@ NSMenu* BuildMainMenu() {
   NSMenu* menubar = [[NSMenu alloc] init];
 
   NSMenu* app = AddSubmenu(menubar, name);
-  AddCommand(app, @"Settings…", "IDC_OPTIONS", @",");
-  [app addItem:[NSMenuItem separatorItem]];
   AddItem(app, [@"Hide " stringByAppendingString:name], @selector(hide:), @"h");
   AddItem(app, @"Hide Others", @selector(hideOtherApplications:), @"h", kCmdOpt);
   AddItem(app, @"Show All", @selector(unhideAllApplications:), @"", 0);
@@ -144,13 +121,14 @@ NSMenu* BuildMainMenu() {
   AddItem(app, [@"Quit " stringByAppendingString:name], @selector(terminate:), @"q");
 
   NSMenu* file = AddSubmenu(menubar, @"File");
-  AddAction(file, @"New Tab", @selector(newWindow:), @"t");
-  AddAction(file, @"New Window", @selector(newWindow:), @"n");
-  AddCommand(file, @"Open Location…", "IDC_FOCUS_LOCATION", @"l");
+  AddCommand(file, @"New Tab", Command::kNewTab, @"t");
+  AddCommand(file, @"New Window", Command::kNewWindow, @"n");
+  AddCommand(file, @"Open Location…", Command::kOpenLocation, @"l");
   [file addItem:[NSMenuItem separatorItem]];
-  AddAction(file, @"Close Window", @selector(closeWindow:), @"w");
+  AddCommand(file, @"Close Tab", Command::kCloseTab, @"w");
+  AddCommand(file, @"Close Window", Command::kCloseWindow, @"w", kCmdShift);
   [file addItem:[NSMenuItem separatorItem]];
-  AddCommand(file, @"Print…", "IDC_PRINT", @"p");
+  AddCommand(file, @"Print…", Command::kPrint, @"p");
 
   NSMenu* edit = AddSubmenu(menubar, @"Edit");
   AddItem(edit, @"Undo", @selector(undo:), @"z");
@@ -160,43 +138,31 @@ NSMenu* BuildMainMenu() {
   AddItem(edit, @"Copy", @selector(copy:), @"c");
   AddItem(edit, @"Paste", @selector(paste:), @"v");
   AddItem(edit, @"Select All", @selector(selectAll:), @"a");
-  [edit addItem:[NSMenuItem separatorItem]];
-  AddCommand(edit, @"Find…", "IDC_FIND", @"f");
-  AddCommand(edit, @"Find Next", "IDC_FIND_NEXT", @"g");
-  AddCommand(edit, @"Find Previous", "IDC_FIND_PREVIOUS", @"g", kCmdShift);
 
   NSMenu* view = AddSubmenu(menubar, @"View");
-  AddCommand(view, @"Reload This Page", "IDC_RELOAD", @"r");
-  AddCommand(view, @"Force Reload This Page", "IDC_RELOAD_BYPASSING_CACHE", @"r", kCmdShift);
+  AddCommand(view, @"Reload This Page", Command::kReload, @"r");
+  AddCommand(view, @"Force Reload This Page", Command::kReloadIgnoringCache, @"r", kCmdShift);
   [view addItem:[NSMenuItem separatorItem]];
-  AddCommand(view, @"Enter Full Screen", "IDC_FULLSCREEN", @"f", kCmdCtrl);
-  AddCommand(view, @"Actual Size", "IDC_ZOOM_NORMAL", @"0");
-  AddCommand(view, @"Zoom In", "IDC_ZOOM_PLUS", @"=");
-  AddCommand(view, @"Zoom Out", "IDC_ZOOM_MINUS", @"-");
+  AddItem(view, @"Enter Full Screen", @selector(toggleFullScreen:), @"f", kCmdCtrl);
+  AddCommand(view, @"Actual Size", Command::kZoomReset, @"0");
+  AddCommand(view, @"Zoom In", Command::kZoomIn, @"=");
+  AddCommand(view, @"Zoom Out", Command::kZoomOut, @"-");
   [view addItem:[NSMenuItem separatorItem]];
-  AddCommand(view, @"Developer Tools", "IDC_DEV_TOOLS", @"i", kCmdOpt);
-  AddCommand(view, @"JavaScript Console", "IDC_DEV_TOOLS_CONSOLE", @"j", kCmdOpt);
-  AddCommand(view, @"View Source", "IDC_VIEW_SOURCE", @"u", kCmdOpt);
+  AddCommand(view, @"Developer Tools", Command::kDevTools, @"i", kCmdOpt);
+  AddCommand(view, @"View Source", Command::kViewSource, @"u", kCmdOpt);
 
   NSMenu* history = AddSubmenu(menubar, @"History");
-  AddCommand(history, @"Back", "IDC_BACK", @"[");
-  AddCommand(history, @"Forward", "IDC_FORWARD", @"]");
-  [history addItem:[NSMenuItem separatorItem]];
-  AddCommand(history, @"Show Full History", "IDC_SHOW_HISTORY", @"y");
-
-  NSMenu* bookmarks = AddSubmenu(menubar, @"Bookmarks");
-  AddCommand(bookmarks, @"Bookmark This Tab…", "IDC_BOOKMARK_THIS_TAB", @"d");
-  AddCommand(bookmarks, @"Bookmark Manager", "IDC_SHOW_BOOKMARK_MANAGER", @"b", kCmdOpt);
+  AddCommand(history, @"Back", Command::kBack, @"[");
+  AddCommand(history, @"Forward", Command::kForward, @"]");
 
   NSMenu* window = AddSubmenu(menubar, @"Window");
   AddItem(window, @"Minimize", @selector(performMiniaturize:), @"m");
   AddItem(window, @"Zoom", @selector(performZoom:), @"", 0);
   [window addItem:[NSMenuItem separatorItem]];
-  AddAction(window, @"Pop Out Video", @selector(togglePopout:), @"p", kCmdShift);
+  AddCommand(window, @"Show Next Tab", Command::kNextTab, @"]", kCmdShift);
+  AddCommand(window, @"Show Previous Tab", Command::kPreviousTab, @"[", kCmdShift);
   [window addItem:[NSMenuItem separatorItem]];
-  AddCommand(window, @"Downloads", "IDC_SHOW_DOWNLOADS", @"j", kCmdShift);
-  AddCommand(window, @"Extensions", "IDC_MANAGE_EXTENSIONS", @"", 0);
-  AddCommand(window, @"Task Manager", "IDC_TASK_MANAGER", @"", 0);
+  AddCommand(window, @"Pop Out Video", Command::kTogglePopout, @"p", kCmdShift);
   [window addItem:[NSMenuItem separatorItem]];
   AddItem(window, @"Bring All to Front", @selector(arrangeInFront:), @"", 0);
   NSApp.windowsMenu = window;

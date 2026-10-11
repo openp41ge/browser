@@ -2,12 +2,18 @@
 
 #include "renderer_app.h"
 
+#include "ui/ui_scheme.h"
+
 namespace {
 
 // Written by BrowserManager::NewPageExtraInfo().
 constexpr char kInitScriptKey[] = "openp41ge.init_script";
 
 }  // namespace
+
+void RendererApp::OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) {
+  ui_scheme::Register(registrar);
+}
 
 void RendererApp::OnBrowserCreated(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDictionaryValue> extra_info) {
   if (extra_info && extra_info->HasKey(kInitScriptKey)) {
@@ -22,9 +28,24 @@ void RendererApp::OnBrowserDestroyed(CefRefPtr<CefBrowser> browser) {
 void RendererApp::OnContextCreated(CefRefPtr<CefBrowser> browser,
                                    CefRefPtr<CefFrame> frame,
                                    CefRefPtr<CefV8Context> context) {
+  if (ui_scheme::IsUiUrl(frame->GetURL())) router_->OnContextCreated(browser, frame, context);
+
   auto it = init_scripts_.find(browser->GetIdentifier());
   if (it == init_scripts_.end() || !frame->IsMain()) return;
   CefRefPtr<CefV8Value> result;
   CefRefPtr<CefV8Exception> exception;
   context->Eval(it->second, frame->GetURL(), 0, result, exception);
+}
+
+void RendererApp::OnContextReleased(CefRefPtr<CefBrowser> browser,
+                                    CefRefPtr<CefFrame> frame,
+                                    CefRefPtr<CefV8Context> context) {
+  router_->OnContextReleased(browser, frame, context);
+}
+
+bool RendererApp::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
+                                           CefRefPtr<CefFrame> frame,
+                                           CefProcessId source_process,
+                                           CefRefPtr<CefProcessMessage> message) {
+  return router_->OnProcessMessageReceived(browser, frame, source_process, message);
 }

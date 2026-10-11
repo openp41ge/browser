@@ -1,0 +1,45 @@
+/* Copyright (c) 2026 Richard Kielty. MIT License.
+ *
+ * The command palette: one field for now, in openp41ge's style.
+ */
+
+html,
+body {
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.palette {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100vh;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 15px;
+}
+input::placeholder {
+  color: var(--text-muted);
+}

@@ -5,17 +5,14 @@
 #   SOURCES <files...>       main executable sources
 #   HELPER_SOURCES <files...> CEF helper process sources
 #   [LIBRARIES <libs...>]
-#   [RESOURCES_DIR <dir> [RESOURCES_DEST <subdir>] RESOURCES <files...>])
-#                            files under <dir>, copied to
-#                            Contents/Resources[/<subdir>] keeping their
-#                            relative paths
+#   [INCLUDE_DIRS <dirs...>]) for the main executable and the helpers
 #
 # Builds a macOS app bundle for CEF: the main executable, the CEF framework,
 # and the helper app per process type ("<name> Helper (Renderer)", ...) that
 # CEF requires in Contents/Frameworks. Info.plists come from app/mac/*.in.
 # Adapted from CEF's cefsimple sample (BSD-3-Clause, the CEF Authors).
 function(add_cef_mac_app target)
-  cmake_parse_arguments(ARG "" "PRODUCT_NAME;BUNDLE_ID;VERSION;RESOURCES_DIR;RESOURCES_DEST" "SOURCES;HELPER_SOURCES;LIBRARIES;RESOURCES" ${ARGN})
+  cmake_parse_arguments(ARG "" "PRODUCT_NAME;BUNDLE_ID;VERSION" "SOURCES;HELPER_SOURCES;LIBRARIES;INCLUDE_DIRS" ${ARGN})
 
   SET_CEF_TARGET_OUT_DIR()
   list(APPEND CEF_COMPILER_FLAGS -fobjc-arc)
@@ -32,19 +29,8 @@ function(add_cef_mac_app target)
   set(info_plist "${CMAKE_CURRENT_BINARY_DIR}/${target}-Info.plist")
   configure_file("${templates}/Info.plist.in" "${info_plist}")
 
-  set(resources "")
-  foreach(resource ${ARG_RESOURCES})
-    set(path "${ARG_RESOURCES_DIR}/${resource}")
-    get_filename_component(subdir "${resource}" DIRECTORY)
-    set(location "Resources")
-    foreach(part ${ARG_RESOURCES_DEST} ${subdir})
-      set(location "${location}/${part}")
-    endforeach()
-    set_source_files_properties("${path}" PROPERTIES MACOSX_PACKAGE_LOCATION "${location}")
-    list(APPEND resources "${path}")
-  endforeach()
-
-  add_executable(${target} MACOSX_BUNDLE ${ARG_SOURCES} ${resources})
+  add_executable(${target} MACOSX_BUNDLE ${ARG_SOURCES})
+  target_include_directories(${target} PRIVATE ${ARG_INCLUDE_DIRS})
   SET_EXECUTABLE_TARGET_PROPERTIES(${target})
   add_dependencies(${target} libcef_dll_wrapper)
   target_link_libraries(${target} libcef_dll_wrapper ${CEF_STANDARD_LIBS} ${ARG_LIBRARIES})
@@ -70,6 +56,7 @@ function(add_cef_mac_app target)
     configure_file("${templates}/helper-Info.plist.in" "${helper_plist}")
 
     add_executable(${helper_target} MACOSX_BUNDLE ${ARG_HELPER_SOURCES})
+    target_include_directories(${helper_target} PRIVATE ${ARG_INCLUDE_DIRS})
     SET_EXECUTABLE_TARGET_PROPERTIES(${helper_target})
     add_dependencies(${helper_target} libcef_dll_wrapper)
     target_link_libraries(${helper_target} libcef_dll_wrapper ${CEF_STANDARD_LIBS})
@@ -87,5 +74,23 @@ function(add_cef_mac_app target)
               "${app_path}/Contents/Frameworks/${helper_name}.app"
       VERBATIM
     )
+  endforeach()
+endfunction()
+
+# add_cef_mac_resources(<target> DIR <dir> [DEST <subdir>] FILES <files...>)
+#
+# Copies files under <dir> into the app bundle's Contents/Resources[/<subdir>],
+# keeping their paths relative to <dir>.
+function(add_cef_mac_resources target)
+  cmake_parse_arguments(ARG "" "DIR;DEST" "FILES" ${ARGN})
+  foreach(file ${ARG_FILES})
+    set(path "${ARG_DIR}/${file}")
+    get_filename_component(subdir "${file}" DIRECTORY)
+    set(location "Resources")
+    foreach(part ${ARG_DEST} ${subdir})
+      set(location "${location}/${part}")
+    endforeach()
+    set_source_files_properties("${path}" PROPERTIES MACOSX_PACKAGE_LOCATION "${location}")
+    target_sources(${target} PRIVATE "${path}")
   endforeach()
 endfunction()

@@ -4,6 +4,7 @@
 #define OPENP41GE_EXPLORER_POPOUT_POPOUT_CONTROLLER_H_
 
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -12,17 +13,17 @@
 #include "devtools_client.h"
 
 // Element pop-out: moves a page element into its own window, as real DOM in
-// the same page (see app/resources/popout/core.js for the page side).
+// the same page (see packages/popout/src/core.js for the page side).
 //
-// The window is a Document Picture-in-Picture window opened by the page.
-// Chromium keeps media playing when elements move into it, and the page
-// view's delegate makes it frameless and lets the page script place it
-// (CefBrowserViewDelegate's PiP options).
+// The window is a Document Picture-in-Picture window opened by the page:
+// Chromium keeps media playing when elements move into one. The browser
+// hosts it in its own frameless, floating window (PopoutWindow), placed over
+// the element and kept to its shape; the page's -webkit-app-region: drag
+// areas move it.
 //
 // One pop-out at a time. This is the API that the browser's own commands
-// use and that the openp41ge link will use. Pop-outs that pages or
-// extensions open themselves (any Document PiP window) are followed too, so
-// the browser's handling below applies to them as well.
+// use and that the openp41ge link will use. Pop-outs that pages open
+// themselves (any Document PiP request) get the same window.
 class PopoutController : public virtual CefBaseRefCounted {
  public:
   class Observer {
@@ -55,6 +56,7 @@ class PopoutController : public virtual CefBaseRefCounted {
   using DoneCallback = std::function<void(const std::string& outcome)>;
 
   PopoutController(CefRefPtr<DevToolsClient> devtools, Observer* observer);
+  ~PopoutController() override;
 
   // Pops out an element of `page`.
   void PopOut(CefRefPtr<CefBrowser> page, const Options& options, DoneCallback done = nullptr);
@@ -70,26 +72,31 @@ class PopoutController : public virtual CefBaseRefCounted {
   // before their own scripts (holds autoplay), or empty.
   std::string ScriptForNewPages() const;
 
-  // From the pages' CefLifeSpanHandler::OnBeforePopup. Returns true if the
-  // popup is a pop-out window (a Document PiP window, whoever opened it),
-  // and gives it the pop-out's own client.
+  // From the pages' CefLifeSpanHandler::OnBeforePopup. For a Document PiP
+  // request, creates our window for it, has CEF create the PiP page inside
+  // it, gives it the pop-out's own client, and returns true.
   bool OnBeforePopup(CefRefPtr<CefBrowser> opener,
                      cef_window_open_disposition_t disposition,
+                     CefWindowInfo& window_info,
                      CefRefPtr<CefClient>& client);
 
  private:
   class WindowClient;
+  struct Native;  // The Cocoa window (popout_controller.mm).
 
   void OnWindowCreated(CefRefPtr<CefBrowser> window);
   void OnWindowClosed();
+  // Moves our window over the element (asks the page where it is).
+  void Place(int attempts_left);
 
   CefRefPtr<DevToolsClient> devtools_;
   Observer* observer_;
   CefRefPtr<CefClient> window_client_;
+  std::unique_ptr<Native> native_;
 
   CefRefPtr<CefBrowser> pending_source_;  // Asked for a window, not created yet.
   CefRefPtr<CefBrowser> source_;          // The page whose element is popped out.
-  CefRefPtr<CefBrowser> window_;          // The pop-out window.
+  CefRefPtr<CefBrowser> window_;          // The pop-out's page.
 
   IMPLEMENT_REFCOUNTING(PopoutController);
 };

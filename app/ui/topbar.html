@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Top bar</title>
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="topbar.css" />
+  </head>
+  <body>
+    <div class="bar">
+      <div class="traffic-lights"></div>
+      <button class="btn" id="back" title="Back" aria-label="Back" disabled>
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
+      </button>
+      <button class="btn" id="forward" title="Forward" aria-label="Forward" disabled>
+        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>
+      </button>
+      <button class="btn small" id="reload" title="Reload" aria-label="Reload">
+        <svg viewBox="0 0 24 24" class="reload-icon">
+          <path d="M20 11a8 8 0 1 0-2.34 5.66" />
+          <polyline points="20 4 20 11 13 11" />
+        </svg>
+        <svg viewBox="0 0 24 24" class="stop-icon" hidden><path d="M18 6 6 18M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <script type="module" src="topbar.js"></script>
+  </body>
+</html>

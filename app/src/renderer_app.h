@@ -7,15 +7,22 @@
 #include <string>
 
 #include "include/cef_app.h"
+#include "include/wrapper/cef_message_router.h"
 
-// Renderer-process callbacks. A page created with an init script in its
-// extra info (see BrowserManager::NewPageExtraInfo) runs it in each new
-// document of its main frame, before the page's own scripts.
+// Callbacks for the helper processes (the same CefApp in every process type).
+//
+// Renderer:
+// - A page created with an init script in its extra info (see
+//   BrowserManager::NewPageExtraInfo) runs it in each new document of its
+//   main frame, before the page's own scripts.
+// - The browser's own UI pages (openp41ge://ui/) get `cefQuery`, the
+//   message channel to the browser (CefMessageRouter). Web pages don't.
 class RendererApp : public CefApp, public CefRenderProcessHandler {
  public:
   RendererApp() = default;
 
   // CefApp:
+  void OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) override;
   CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() override { return this; }
 
   // CefRenderProcessHandler:
@@ -24,8 +31,17 @@ class RendererApp : public CefApp, public CefRenderProcessHandler {
   void OnContextCreated(CefRefPtr<CefBrowser> browser,
                         CefRefPtr<CefFrame> frame,
                         CefRefPtr<CefV8Context> context) override;
+  void OnContextReleased(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefFrame> frame,
+                         CefRefPtr<CefV8Context> context) override;
+  bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
+                                CefRefPtr<CefFrame> frame,
+                                CefProcessId source_process,
+                                CefRefPtr<CefProcessMessage> message) override;
 
  private:
+  CefRefPtr<CefMessageRouterRendererSide> router_ =
+      CefMessageRouterRendererSide::Create(CefMessageRouterConfig());
   std::map<int, std::string> init_scripts_;  // By browser id.
 
   IMPLEMENT_REFCOUNTING(RendererApp);
