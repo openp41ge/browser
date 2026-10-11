@@ -3,6 +3,8 @@ import { isDocumentPipSupported, popout } from '@/lib/popout';
 import { shortsPreset, youtubePreset } from './presets';
 
 const BUTTON_CLASS = 'utility-belt-pip-button';
+/** The icon button among YouTube's own Shorts controls. */
+const SHORTS_BUTTON_CLASS = 'utility-belt-pip-shorts-button';
 /** On <html> while another tab's video is popped out: the button offers to play this one there. */
 const OFFER_CLASS = 'utility-belt-pip-offer';
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -50,41 +52,86 @@ async function popOut(player: HTMLElement, host: FeatureHost) {
   report(await popout.popout({ element: player }));
 }
 
-// Built with DOM APIs, not innerHTML: YouTube enforces Trusted Types.
-function createButton(host: FeatureHost): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.className = BUTTON_CLASS;
-  button.title = 'Pop the player out into its own window, right where it is';
-
+function createIcon(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   const path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('d', ICON_PATH);
   svg.append(path);
-  const popOutLabel = document.createElement('span');
-  popOutLabel.className = `${BUTTON_CLASS}-label`;
-  popOutLabel.textContent = 'Open in picture-in-picture';
-  const offerLabel = document.createElement('span');
-  offerLabel.className = `${BUTTON_CLASS}-offer-label`;
-  offerLabel.textContent = 'Play in pop-out';
-  button.append(svg, popOutLabel, offerLabel);
+  return svg;
+}
 
+/** Wires a button to pop out the player that `findPlayer` returns. */
+function onPress(button: HTMLElement, host: FeatureHost, findPlayer: () => HTMLElement | null) {
   // Keep presses on the button from reaching the player (play/pause, hold-for-2x).
   for (const type of ['pointerdown', 'mousedown', 'dblclick']) {
     button.addEventListener(type, (event) => event.stopPropagation());
   }
   button.addEventListener('click', (event) => {
     event.stopPropagation();
-    const player = button.closest<HTMLElement>('.html5-video-player');
+    const player = findPlayer();
     if (player) popOut(player, host).catch((err) => console.warn('[utility-belt] pop-out failed:', err));
   });
+}
+
+// Built with DOM APIs, not innerHTML: YouTube enforces Trusted Types.
+function createButton(host: FeatureHost): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.className = BUTTON_CLASS;
+  button.title = 'Pop the player out into its own window, right where it is';
+
+  const popOutLabel = document.createElement('span');
+  popOutLabel.className = `${BUTTON_CLASS}-label`;
+  popOutLabel.textContent = 'Open in picture-in-picture';
+  const offerLabel = document.createElement('span');
+  offerLabel.className = `${BUTTON_CLASS}-offer-label`;
+  offerLabel.textContent = 'Play in pop-out';
+  button.append(createIcon(), popOutLabel, offerLabel);
+  onPress(button, host, () => button.closest<HTMLElement>('.html5-video-player'));
   return button;
 }
 
-/** Add the button (top centre, shown on hover) to every YouTube player lacking one. */
+/**
+ * Shorts: an icon button among YouTube's own controls (before "More
+ * actions"), built like them so it looks and sits the same.
+ */
+function createShortsButton(host: FeatureHost, controls: Element): HTMLElement {
+  const wrapper = document.createElement('div');
+  wrapper.className = SHORTS_BUTTON_CLASS;
+  const button = document.createElement('button');
+  button.className = [
+    'ytSpecButtonShapeNextHost',
+    'ytSpecButtonShapeNextText',
+    'ytSpecButtonShapeNextOverlay',
+    'ytSpecButtonShapeNextSizeL',
+    'ytSpecButtonShapeNextIconButton',
+    'ytSpecButtonShapeNextMainstageIconSize',
+    'ytSpecButtonShapeNextMainstagePadding',
+  ].join(' ');
+  button.title = 'Open in picture-in-picture';
+  button.setAttribute('aria-label', button.title);
+  const icon = document.createElement('div');
+  icon.className = 'ytSpecButtonShapeNextIcon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.append(createIcon());
+  button.append(icon);
+  wrapper.append(button);
+  // The controls sit beside the Short's player, not inside it.
+  onPress(button, host, () =>
+    controls.closest('#player-container')?.querySelector<HTMLElement>('#shorts-player') ?? null,
+  );
+  return wrapper;
+}
+
+/** Add the button to every YouTube player (and Shorts control bar) lacking one. */
 function addButtons(host: FeatureHost) {
-  for (const player of document.querySelectorAll('.html5-video-player')) {
+  for (const player of document.querySelectorAll('.html5-video-player:not(#shorts-player)')) {
     if (!player.querySelector(`:scope > .${BUTTON_CLASS}`)) player.append(createButton(host));
+  }
+  for (const controls of document.querySelectorAll('ytd-shorts-player-controls #right-controls')) {
+    if (controls.querySelector(`:scope > .${SHORTS_BUTTON_CLASS}`)) continue;
+    const button = createShortsButton(host, controls);
+    controls.insertBefore(button, controls.querySelector(':scope > #menu-button'));
   }
 }
 
@@ -135,7 +182,7 @@ export const youtubePip = defineFeature({
       document.removeEventListener('yt-navigate-finish', updateOffer);
       document.removeEventListener('visibilitychange', onVisible);
       document.documentElement.classList.remove(OFFER_CLASS);
-      for (const button of document.querySelectorAll(`.${BUTTON_CLASS}`)) button.remove();
+      for (const button of document.querySelectorAll(`.${BUTTON_CLASS}, .${SHORTS_BUTTON_CLASS}`)) button.remove();
     };
   },
 });
