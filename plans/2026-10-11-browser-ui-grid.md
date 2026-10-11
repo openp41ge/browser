@@ -54,23 +54,31 @@ What Alloy pages don't get, compared with Chrome style:
 - **Frameless window** with macOS's traffic lights in the top bar (done:
   `PageWindow`, `IsFrameless` + `WithStandardWindowButtons` +
   `GetTitlebarHeight`).
-- **One UI view per window, the "frame":** an Alloy browser view running our
-  HTML/CSS/JS (openp41ge://ui/, as the top bar does now) that fills the
-  window and draws the top bar, every tab bar, the splitters and the drag
-  previews. It lays the grid out with CSS and reports each pane's page area
-  to the shell.
-- **Pages are overlay views** on top of the frame (`CefWindow::AddOverlayView`,
-  custom docking), placed at the page areas the frame reports. A pane shows
-  its active tab's page; other tabs' pages are taken out of the window and
-  kept alive (probe: works).
-- **Drag previews over pages** (drop rings and washes) can't be drawn by the
-  frame, which sits under the pages. They're native overlay panels
-  (`CefPanel` with translucent background colours) placed from the frame's
-  layout during a drag.
-
-Why one frame view rather than a view per tab bar: one place to lay out the
-grid, run drags (mouse capture stays with the view the drag started in, even
-over pages), animate and theme; the shell only places rectangles.
+- **The window is divided into pieces that don't overlap**, arranged by
+  CEF's box layouts (like Chrome's own window):
+  - the **top bar**: a small web view of ours (openp41ge://ui/topbar.html);
+  - per pane, a **tab bar**: another small web view (openp41ge://ui/tabbar.html),
+    above
+  - the pane's **page**: the active tab's Alloy browser view. Other tabs'
+    pages are taken out of the window and kept alive (probe: works);
+  - between panes, a **divider**: a thin native view the shell resizes
+    while it's dragged.
+- **The UI is HTML/CSS/JS** in those web views (decided 2026-10-11 over
+  native AppKit or CEF's C++ views): openp41ge's look and tokens, possibly
+  its components, the same on every platform. The shell keeps the views in
+  sync (tabs, active tab, drags) over the message channel.
+- **Anything that floats over pages is its own small borderless window**
+  (as Chrome does for its address-bar dropdown): the command palette, menus.
+  Layering views inside the window doesn't work: while any overlay view
+  exists, the window's other web views get no clicks (probe, 2026-10-11).
+- **Drag previews** (drop rings and washes over pages) are the exception:
+  native overlay panels shown only for the length of a drag, when the
+  tab bar where the drag started holds the mouse anyway. Removing them
+  restores clicks (probe).
+- **Dragging a tab across panes:** the tab bar where the drag started keeps
+  receiving the mouse even outside its area (Chromium's mouse capture), and
+  reports positions to the shell, which works out the drop target and shows
+  the preview.
 
 ## Grid model (matches openp41ge)
 
@@ -156,8 +164,8 @@ Chrome style gave us these; with Alloy pages we provide them:
 
 | Need | How |
 |---|---|
-| Find in page | `CefBrowserHost::Find`, a small find bar in the frame |
-| Permission prompts (camera, mic, location, notifications) | `CefPermissionHandler`, a prompt in the frame |
+| Find in page | `CefBrowserHost::Find`, a small find bar |
+| Permission prompts (camera, mic, location, notifications) | `CefPermissionHandler`, a prompt |
 | Downloads | `CefDownloadHandler`, a downloads list |
 | HTTP auth, certificate errors | `CefRequestHandler`, prompts / error pages |
 | Context menu | CEF's default for now; ours later |
@@ -173,15 +181,17 @@ Typing an address or a search happens in a command palette over the grid
 - **Cmd+L** opens it for the focused tab: Return loads the address, or
   searches for anything that isn't one, in that tab.
 - **Cmd+T** opens it for a new tab in the focused pane.
-- It's drawn by the frame view, centred near the top, in openp41ge's style.
+- It's its own small borderless window (openp41ge://ui/palette.html),
+  centred near the top of the browser window, in openp41ge's style.
   Later it can list open tabs, history and commands.
 
 ## Steps
 
-1. **Alloy pages + frame view:** windows become a frame UI view with pages
-   as overlay views; one pane, tabs (open, switch, close, reorder), Cmd+T /
-   Cmd+W / Cmd+Shift+[ ]; the command palette (Cmd+L, Cmd+T). The current
-   top bar moves into the frame. Chrome-style code goes.
+1. **Alloy pages, one pane with tabs:** pages become Alloy; the window is
+   top bar + tab bar + page; tabs (open, switch, close, reorder within the
+   bar), Cmd+T / Cmd+W / Cmd+Shift+[ ]; the command palette (Cmd+L, Cmd+T);
+   the pop-out hosted in our own frameless window so it keeps working.
+   Chrome-style code goes.
 2. **Grid:** splitting by dragging tabs, splitters, removing empty columns,
    drop previews; persistence.
 3. **Pop-out in Alloy:** our own PiP window, placed and shaped by the
@@ -196,15 +206,14 @@ in CI rather than on a developer's screen.
 
 ## To check early (risks)
 
-- **Pages as overlay views:** that `AddOverlayView` takes Alloy browser
-  views, layers them over the frame view, and handles input and focus
-  normally. Fallback: lay pages out with CEF's box layouts (the frame then
-  becomes several views: top bar, one per tab bar).
+- ~~Pages as overlay views over one frame view~~: checked 2026-10-11; an
+  overlay view stops the window's other web views getting clicks, so the
+  window is divided into non-overlapping pieces instead (above).
 - **Hidden pages:** that pages taken out of the window keep running and
-  repaint when shown again (the probe showed them alive and resized, but
-  not repainting on screen).
+  repaint when shown again (the probes showed them alive, resized and
+  visible again).
 - **Translucent native overlays** for drag previews (`CefPanel` background
-  alpha over browser views).
+  alpha over browser views), shown only during drags.
 - **Pop-out placement:** where the PiP window's content view sits relative
   to `SetAsChild` bounds, and keyboard focus in it.
 
@@ -213,3 +222,4 @@ in CI rather than on a developer's screen.
 1. Splits are left/right only; never top/bottom.
 2. Chrome-style pages and windows are dropped entirely.
 3. Addresses are typed in a command palette (Cmd+L, Cmd+T).
+4. The UI is HTML/CSS/JS in small web views, not native UI.
