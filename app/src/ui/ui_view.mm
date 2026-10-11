@@ -16,7 +16,9 @@ class UiViewDelegate : public CefBrowserViewDelegate {
  public:
   explicit UiViewDelegate(int height) : height_(height) {}
   cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_ALLOY; }
-  CefSize GetPreferredSize(CefRefPtr<CefView> view) override { return CefSize(0, height_); }
+  // CEF ignores a preferred size with a zero side, so the width is 1 (the
+  // layouts stretch it to fit anyway).
+  CefSize GetPreferredSize(CefRefPtr<CefView> view) override { return CefSize(1, height_); }
 
  private:
   int height_;

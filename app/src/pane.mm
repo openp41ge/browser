@@ -118,3 +118,4 @@ void Pane::ShowActive() {
   }
   window_->OnActiveTabChanged(this);
 }
+
