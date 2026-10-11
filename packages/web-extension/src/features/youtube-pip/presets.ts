@@ -40,9 +40,11 @@ export const youtubePreset: Openp41gePopout.Preset = {
     [data-openp41ge-popout] .utility-belt-pip-button {
       display: none !important;
     }
-    /* Theatre mode and fullscreen don't apply to the pop-out. */
+    /* Theatre mode and fullscreen don't apply to the pop-out, and the
+       settings menu is kept out of it. */
     [data-openp41ge-popout] .ytp-size-button,
-    [data-openp41ge-popout] .ytp-fullscreen-button {
+    [data-openp41ge-popout] .ytp-fullscreen-button,
+    [data-openp41ge-popout] .ytp-settings-button {
       display: none !important;
     }
   `,
