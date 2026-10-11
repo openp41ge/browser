@@ -282,6 +282,19 @@ void BrowserManager::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   devtools_->Attach(browser);
 }
 
+bool BrowserManager::DoClose(CefRefPtr<CefBrowser> browser) {
+  CEF_REQUIRE_UI_THREAD();
+  // A tab's page has run its unload handlers and is closing. CEF would ask
+  // the page's window to close, but a tab isn't a window (and a background
+  // tab's page isn't in one): take the tab out instead. Releasing its view
+  // completes the close (OnBeforeClose).
+  if (BrowserWindow* window = WindowOf(browser)) {
+    window->OnTabClosed(browser);
+    return true;
+  }
+  return false;
+}
+
 void BrowserManager::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   devtools_->Detach(browser);

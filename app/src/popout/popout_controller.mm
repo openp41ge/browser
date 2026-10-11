@@ -17,7 +17,12 @@
 // full-screen apps), resizable at its edges. It can take the keyboard (for
 // the element's own shortcuts). A mouse-down in one of the page's
 // -webkit-app-region: drag areas moves it.
+//
+// It closes the CEF way: a close request (the page calling window.close(),
+// or our own CloseBrowser, via CEF's DoClose) asks `canClose`, which lets
+// the page run its unload handlers first.
 @interface PopoutWindow : NSWindow
+@property(nonatomic, copy) BOOL (^canClose)(void);
 - (void)setDragRegions:(const std::vector<CefDraggableRegion>&)regions;
 @end
 
@@ -46,6 +51,19 @@
     drag = true;
   }
   return drag;
+}
+
+// Frameless windows have no close button, so AppKit's own performClose:
+// would just beep.
+- (void)performClose:(id)sender {
+  if (!self.canClose || self.canClose()) [self close];
+}
+
+// Closing tears down the page's view, which is what lets CEF finish closing
+// the page (OnBeforeClose).
+- (void)close {
+  [super close];
+  self.contentView = nil;
 }
 
 - (void)sendEvent:(NSEvent*)event {
@@ -82,6 +100,11 @@ std::string OptionsJson(const PopoutController::Options& options) {
   CefRefPtr<CefValue> value = CefValue::Create();
   value->SetDictionary(dict);
   return ToJson(value);
+}
+
+// A number from JSON: whole numbers parse as ints, others as doubles.
+double Number(CefRefPtr<CefListValue> list, size_t index) {
+  return list->GetType(index) == VTYPE_INT ? list->GetInt(index) : list->GetDouble(index);
 }
 
 // CEF screen rectangles have their origin at the top left of the main
@@ -172,6 +195,16 @@ bool PopoutController::OnBeforePopup(CefRefPtr<CefBrowser> opener,
   window.level = NSFloatingWindowLevel;
   window.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary;
   window.backgroundColor = NSColor.blackColor;
+  CefRefPtr<PopoutController> self(this);
+  window.canClose = ^BOOL {
+    if (!self->window_) return YES;
+    CefRefPtr<CefBrowserHost> host = self->window_->GetHost();
+    return host->IsReadyToBeClosed() || host->TryCloseBrowser();
+  };
+  // On screen but invisible until it's placed (Place): the page inside is
+  // laid out at the window's size only once the window is on screen.
+  window.alphaValue = 0;
+  [window orderFront:nil];
   native_->window = window;
   window_info.SetAsChild((__bridge CefWindowHandle)window.contentView, CefRect(0, 0, 320, 180));
   pending_source_ = opener;
@@ -210,26 +243,28 @@ void PopoutController::Place(int attempts_left) {
             });
           } else {
             [window center];
+            window.alphaValue = 1;
             [window makeKeyAndOrderFront:nil];
           }
           return;
         }
         CefRefPtr<CefListValue> size = where->GetList("size");
-        const double width = size->GetDouble(0);
-        const double height = size->GetDouble(1);
+        const double width = Number(size, 0);
+        const double height = Number(size, 1);
         CefRefPtr<CefDictionaryValue> anchor = where->GetDictionary("anchor");
         double x = 0, y = 0;
         if (anchor->HasKey("screen")) {
-          x = anchor->GetList("screen")->GetDouble(0);
-          y = anchor->GetList("screen")->GetDouble(1);
+          x = Number(anchor->GetList("screen"), 0);
+          y = Number(anchor->GetList("screen"), 1);
         } else if (CefRefPtr<CefBrowserView> view = CefBrowserView::GetForBrowser(self->source_)) {
           // The element's position in its page, plus the page's on screen.
           const CefRect page = view->GetBoundsInScreen();
-          x = page.x + anchor->GetList("viewport")->GetDouble(0);
-          y = page.y + anchor->GetList("viewport")->GetDouble(1);
+          x = page.x + Number(anchor->GetList("viewport"), 0);
+          y = page.y + Number(anchor->GetList("viewport"), 1);
         }
         [window setFrame:ToCocoa(x, y, width, height) display:YES];
         window.contentAspectRatio = NSMakeSize(width, height);
+        window.alphaValue = 1;
         [window makeKeyAndOrderFront:nil];
       });
 }
@@ -238,10 +273,10 @@ void PopoutController::OnWindowClosed() {
   CefRefPtr<CefBrowser> source = source_;
   window_ = nullptr;
   source_ = nullptr;
-  if (native_->window) {
-    [native_->window orderOut:nil];
-    [native_->window close];
+  if (PopoutWindow* window = native_->window) {
     native_->window = nil;
+    window.canClose = nil;
+    [window close];
   }
   if (observer_) observer_->OnPopoutClosed(source);
 }

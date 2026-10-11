@@ -41,7 +41,7 @@ class BrowserWindow : public CefWindowDelegate {
 
   // Asks the tab's page to close (it may run unload handlers first).
   void CloseTab(CefRefPtr<Tab> tab);
-  // The page has closed: its tab goes, and the window if it was the last.
+  // The page is closing: its tab goes, and the window if it was the last.
   void OnTabClosed(CefRefPtr<CefBrowser> browser);
   // A page's title, address, icon or loading state changed.
   void OnTabChanged(CefRefPtr<CefBrowser> browser);
