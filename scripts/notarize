@@ -1,0 +1,36 @@
+#!/bin/bash
+# Has Apple notarize a signed app or disk image, then staples the ticket to
+# it, so Gatekeeper accepts it offline too. Waits for Apple's answer and
+# prints its log if it's rejected.
+#
+# Usage: scripts/notarize <app or dmg>
+#   Credentials from the environment: APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD
+#   (made at account.apple.com) and APPLE_TEAM_ID.
+set -euo pipefail
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <app or dmg>" >&2
+  exit 1
+fi
+target=$1
+: "${APPLE_ID:?}" "${APPLE_APP_SPECIFIC_PASSWORD:?}" "${APPLE_TEAM_ID:?}"
+credentials=(--apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID")
+
+# An app goes up zipped (ditto keeps its symlinks); a disk image as it is.
+upload=$target
+if [ -d "$target" ]; then
+  work=$(mktemp -d)
+  trap 'rm -rf "$work"' EXIT
+  upload="$work/$(basename "$target" .app).zip"
+  ditto -c -k --keepParent "$target" "$upload"
+fi
+
+result=$(xcrun notarytool submit "$upload" "${credentials[@]}" --wait --output-format json)
+echo "$result"
+id=$(plutil -extract id raw - <<<"$result")
+status=$(plutil -extract status raw - <<<"$result")
+if [ "$status" != "Accepted" ]; then
+  xcrun notarytool log "$id" "${credentials[@]}" >&2 || true
+  exit 1
+fi
+xcrun stapler staple "$target"

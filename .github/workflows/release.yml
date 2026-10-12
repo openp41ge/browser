@@ -1,0 +1,176 @@
+# Publishes a release when a tag v<version> is pushed: a universal app,
+# signed with the Developer ID certificate and notarized, in a disk image,
+# with the Sparkle appcast installed apps update from. See PLAN.md, "GitHub,
+# CI and releases".
+#
+# Tags with a suffix (v0.2.0-beta.1) become pre-releases: GitHub's "latest"
+# skips them, so installed apps don't update to them.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  APP: openp41ge explorer
+  DMG: openp41ge-explorer.dmg
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [macosarm64, macosx64]
+    runs-on: macos-latest # Apple Silicon; the Intel half is cross-compiled
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache CEF
+        uses: actions/cache@v6
+        with:
+          path: third_party/cef/${{ matrix.platform }}
+          key: cef-${{ matrix.platform }}-${{ hashFiles('CEF_VERSION') }}
+
+      - name: Fetch CEF and Sparkle
+        run: |
+          scripts/fetch-cef ${{ matrix.platform }}
+          scripts/fetch-sparkle
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCEF_PLATFORM=${{ matrix.platform }} \
+            -DEXPLORER_CHANNEL=release \
+            -DEXPLORER_VERSION="${GITHUB_REF_NAME#v}" \
+            -DEXPLORER_BUILD_NUMBER=${{ github.run_number }}
+
+      - name: Build
+        run: cmake --build build
+
+      # A release build without the update key would never update itself.
+      - name: Check the updater is built in
+        run: /usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "build/app/Release/$APP.app/Contents/Info.plist"
+
+      - name: Package
+        run: ditto -c -k --keepParent "build/app/Release/$APP.app" "$GITHUB_WORKSPACE/app.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-${{ matrix.platform }}
+          path: app.zip
+          retention-days: 7
+
+  release:
+    needs: build
+    runs-on: macos-latest
+    permissions:
+      contents: write # create the release
+      statuses: read # browser-tests' result
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch Sparkle
+        run: scripts/fetch-sparkle
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: app-*
+
+      - name: Make it universal
+        run: |
+          for platform in macosarm64 macosx64; do
+            mkdir "$platform" && ditto -x -k "app-$platform/app.zip" "$platform"
+          done
+          scripts/make-universal "macosarm64/$APP.app" "macosx64/$APP.app" "$APP.app"
+
+      # The certificate goes into a keychain of its own for this job.
+      - name: Import the signing certificate
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(openssl rand -hex 24)
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" login.keychain
+          rm "$RUNNER_TEMP/cert.p12"
+          identity=$(security find-identity -v -p codesigning "$keychain" | awk '/Developer ID Application/ { print $2; exit }')
+          echo "IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Sign and notarize the app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          scripts/sign-app "$APP.app" "$IDENTITY"
+          scripts/notarize "$APP.app"
+
+      - name: Make, sign and notarize the disk image
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          scripts/make-dmg "$APP.app" "$DMG" "$IDENTITY"
+          scripts/notarize "$DMG"
+          spctl --assess --type open --context context:primary-signature -v "$DMG"
+
+      # Nothing is published until browser-tests has passed on this commit
+      # (ci.yml asked for it when the commit was pushed).
+      - name: Wait for browser-tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for _ in $(seq 1 60); do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/statuses" \
+              --jq '[.[] | select(.context == "browser-tests")][0].state // "missing"')
+            echo "browser-tests: $state"
+            case "$state" in
+              success) exit 0 ;;
+              failure | error) exit 1 ;;
+            esac
+            sleep 30
+          done
+          exit 1
+
+      - name: Write the appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          echo "$SPARKLE_ED_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle.key"
+          scripts/make-appcast "$DMG" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/$DMG" \
+            "${VERSION#v}" ${{ github.run_number }} "$RUNNER_TEMP/sparkle.key" > appcast.xml
+          rm "$RUNNER_TEMP/sparkle.key"
+          shasum -a 256 "$DMG" appcast.xml > SHA256SUMS
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source CEF_VERSION
+          notes="Built on CEF ${CEF_VERSION%%+*} (Chromium ${CEF_VERSION##*chromium-})."
+          prerelease=()
+          [[ "$VERSION" == *-* ]] && prerelease=(--prerelease)
+          gh release create "$VERSION" "$DMG" appcast.xml SHA256SUMS \
+            --title "$VERSION" --generate-notes --notes "$notes" "${prerelease[@]}" --verify-tag
+
+      - name: Remove the keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true

@@ -16,6 +16,7 @@
 
 #include "browser_manager.h"
 #include "explorer_app.h"
+#include "updater.h"
 
 namespace {
 
@@ -122,6 +123,10 @@ NSMenu* BuildMainMenu() {
   NSMenu* menubar = [[NSMenu alloc] init];
 
   NSMenu* app = AddSubmenu(menubar, name);
+  if (NSMenuItem* updates = updater::MenuItem()) {
+    [app addItem:updates];
+    [app addItem:[NSMenuItem separatorItem]];
+  }
   AddItem(app, [@"Hide " stringByAppendingString:name], @selector(hide:), @"h");
   AddItem(app, @"Hide Others", @selector(hideOtherApplications:), @"h", kCmdOpt);
   AddItem(app, @"Show All", @selector(unhideAllApplications:), @"", 0);
@@ -220,6 +225,7 @@ NSMenu* BuildMainMenu() {
 @implementation ExplorerAppDelegate
 
 - (void)createApplication:(id)object {
+  updater::Start();
   NSApp.mainMenu = BuildMainMenu();
   [[NSApplication sharedApplication] setDelegate:self];
 }

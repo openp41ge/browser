@@ -1,0 +1,58 @@
+#!/bin/bash
+# Merges an Apple Silicon and an Intel build of the app into one universal
+# app: each executable and library becomes a fat binary (lipo), and files
+# only one build has (V8's snapshot, named per architecture) are kept.
+# Anything else the two builds disagree on is an error. Sign the result
+# afterwards (scripts/sign-app): merging invalidates the builds' signatures.
+#
+# Usage: scripts/make-universal <arm64.app> <x86_64.app> <out.app>
+set -euo pipefail
+
+if [ $# -ne 3 ]; then
+  echo "Usage: $0 <arm64.app> <x86_64.app> <out.app>" >&2
+  exit 1
+fi
+arm=$1
+intel=$2
+out=$3
+
+if [ -e "$out" ]; then
+  echo "$out already exists" >&2
+  exit 1
+fi
+# ditto keeps the framework's symlinks.
+ditto "$arm" "$out"
+
+status=0
+while IFS= read -r -d '' path; do
+  rel=${path#"$intel"/}
+  if [ -L "$path" ]; then
+    if [ "$(readlink "$path")" != "$(readlink "$out/$rel" 2>/dev/null)" ]; then
+      echo "Links differ: $rel" >&2
+      status=1
+    fi
+  elif [ ! -e "$out/$rel" ]; then
+    mkdir -p "$(dirname "$out/$rel")"
+    ditto "$path" "$out/$rel"
+  elif cmp -s "$path" "$out/$rel"; then
+    :  # The same in both (e.g. Sparkle's, already universal).
+  elif file -b "$path" | grep -q '^Mach-O'; then
+    lipo -create "$arm/$rel" "$path" -output "$out/$rel"
+  else
+    echo "Differs between the builds: $rel" >&2
+    status=1
+  fi
+done < <(find "$intel" \( -type f -o -type l \) -print0)
+
+# Everything executable in the result has both architectures.
+while IFS= read -r -d '' path; do
+  if file -b "$path" | grep -q '^Mach-O'; then
+    archs=$(lipo -archs "$path")
+    if [ "$archs" != "x86_64 arm64" ] && [ "$archs" != "arm64 x86_64" ]; then
+      echo "Not universal ($archs): ${path#"$out"/}" >&2
+      status=1
+    fi
+  fi
+done < <(find "$out" -type f -perm +111 -print0)
+
+exit $status

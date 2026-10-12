@@ -21,7 +21,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleVersion</key>
-	<string>${VERSION_SHORT}</string>
+	<string>${BUILD_NUMBER}</string>
 	<key>CFBundleShortVersionString</key>
 	<string>${VERSION_SHORT}</string>
 	<key>LSApplicationCategoryType</key>
@@ -58,5 +58,5 @@
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
-</dict>
+${PLIST_EXTRA}</dict>
 </plist>

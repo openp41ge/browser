@@ -1,0 +1,26 @@
+#!/bin/bash
+# Packages the app as a disk image to download: the app beside a link to
+# /Applications, to drag it onto. Compressed (LZFSE), and signed when given
+# an identity. The same image is what Sparkle updates from.
+#
+# Usage: scripts/make-dmg <app> <out.dmg> [identity]
+set -euo pipefail
+
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
+  echo "Usage: $0 <app> <out.dmg> [identity]" >&2
+  exit 1
+fi
+app=$1
+out=$2
+identity=${3:-}
+name=$(basename "$app" .app)
+
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+ditto "$app" "$stage/$name.app"
+ln -s /Applications "$stage/Applications"
+
+hdiutil create -quiet -volname "$name" -srcfolder "$stage" -fs APFS -format ULFO -ov "$out"
+if [ -n "$identity" ]; then
+  codesign --force --timestamp --sign "$identity" "$out"
+fi

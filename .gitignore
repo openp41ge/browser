@@ -1,8 +1,11 @@
 .DS_Store
 # CEF binary distribution fetched by scripts/fetch-cef
 /third_party/cef/
+# Sparkle, fetched by scripts/fetch-sparkle
+/third_party/sparkle/
 # Build output
 /build/
+/build-*/
 /out/
 # Node (packages/)
 node_modules/

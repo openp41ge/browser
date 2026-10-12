@@ -1,0 +1,53 @@
+#!/bin/bash
+# Signs the app for distribution: a Developer ID identity, the hardened
+# runtime, a secure timestamp, and each process's entitlements
+# (app/mac/entitlements). Inside out: libraries, frameworks and helpers
+# first, the app last. Notarization (scripts/notarize) needs all of these.
+#
+# Usage: scripts/sign-app <app> <identity>
+#   identity: a codesign identity, e.g. "Developer ID Application: Name (TEAMID)"
+#   or its SHA-1 hash.
+set -euo pipefail
+
+if [ $# -ne 2 ]; then
+  echo "Usage: $0 <app> <identity>" >&2
+  exit 1
+fi
+app=$1
+identity=$2
+root="$(cd "$(dirname "$0")/.." && pwd)"
+entitlements="$root/app/mac/entitlements"
+name=$(basename "$app" .app)
+frameworks="$app/Contents/Frameworks"
+
+sign() { codesign --force --timestamp --options runtime --sign "$identity" "$@"; }
+
+# CEF: its libraries, then the framework.
+cef="$frameworks/Chromium Embedded Framework.framework"
+for lib in "$cef"/Versions/A/Libraries/*.dylib; do sign "$lib"; done
+sign "$cef"
+
+# Sparkle (when built in): its helpers, then the framework, as Sparkle's
+# documentation lists them. The Downloader keeps its own entitlements.
+sparkle="$frameworks/Sparkle.framework"
+if [ -d "$sparkle" ]; then
+  sign "$sparkle/Versions/B/XPCServices/Installer.xpc"
+  sign --preserve-metadata=entitlements "$sparkle/Versions/B/XPCServices/Downloader.xpc"
+  sign "$sparkle/Versions/B/Autoupdate"
+  sign "$sparkle/Versions/B/Updater.app"
+  sign "$sparkle"
+fi
+
+# The helpers: renderers and the GPU process run V8 or JIT-compile shaders;
+# plugins load code that isn't ours.
+for helper in "$frameworks/$name Helper"*.app; do
+  case "$helper" in
+    *"(Renderer).app") sign --entitlements "$entitlements/helper-renderer.plist" "$helper" ;;
+    *"(GPU).app") sign --entitlements "$entitlements/helper-gpu.plist" "$helper" ;;
+    *"(Plugin).app") sign --entitlements "$entitlements/helper-plugin.plist" "$helper" ;;
+    *) sign "$helper" ;;
+  esac
+done
+
+sign --entitlements "$entitlements/app.plist" "$app"
+codesign --verify --deep --strict "$app"

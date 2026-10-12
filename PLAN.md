@@ -34,7 +34,7 @@ web extension (currently `~/Repository/internet-utility-belt`).
 | Element pop-out | The **real DOM element moves** into a **Document Picture-in-Picture** window (`documentPictureInPicture.requestWindow()`), which the browser hosts in its own frameless window. Media keeps playing (also in Alloy pages: probe 2026-10-11). Pixel mirroring was tried and rejected |
 | Shell language | C++ (CEF's first-class API) |
 | Video codecs | Ship v1 **without** proprietary codecs (H.264/AAC); standard CEF binaries |
-| Platforms | macOS on Apple Silicon first; others later |
+| Platforms | macOS (12+), Apple Silicon and Intel: releases are universal; others later |
 | Source hosting | [`openp41ge/browser`](https://github.com/openp41ge/browser) (**public**) |
 | Tests | [`openp41ge/browser-tests`](https://github.com/openp41ge/browser-tests) (**private**); see **Tests** |
 | CI and releases | GitHub Actions and **GitHub Releases** from day one; see **GitHub, CI and releases** |
@@ -189,18 +189,24 @@ a laptop.
   - upload the unsigned `.app` as an artifact
   - dispatch to `browser-tests` (skipped for fork PRs; see **Tests**)
 - **`release.yml`** runs on pushing a tag `v*`:
-  1. Build in Release mode.
+  1. Build in Release mode for Apple Silicon and Intel (the Intel half
+     cross-compiled on the same runner), and merge them into a universal app
+     (`scripts/make-universal`).
   2. Sign with the Developer ID certificate (imported into a temporary
-     keychain from secrets), notarize with `notarytool`, and staple.
-  3. Package a `.dmg` and generate `SHA256SUMS`.
+     keychain from secrets), with the hardened runtime and each process's
+     entitlements (`scripts/sign-app`), notarize with `notarytool`, and
+     staple (`scripts/notarize`).
+  3. Package a signed, notarized `.dmg` (`scripts/make-dmg`) and generate
+     `SHA256SUMS`. The `.dmg` is both the download and the update archive.
   4. Wait for `browser-tests` to pass on the tagged commit (a release is
      blocked if it fails).
   5. Sign the update with Sparkle's EdDSA key and generate `appcast.xml`.
   6. Create the **GitHub Release** with auto-generated notes, plus the
      CEF and Chromium versions, and attach the `.dmg`, `appcast.xml` and
      `SHA256SUMS`.
-  - Tags with a suffix (`v0.3.0-beta.1`) become GitHub **pre-releases** and the
-    Sparkle beta channel.
+  - Tags with a suffix (`v0.3.0-beta.1`) become GitHub **pre-releases**.
+    GitHub's `latest` skips them, so installed apps don't update to them;
+    a Sparkle beta channel comes with Phase 1.
 - **`cef-bump.yml`** runs on a schedule (Phase 1). It checks the CEF builds
   index and opens a PR bumping `CEF_VERSION`.
 
@@ -217,7 +223,7 @@ Chromium. Each release's notes state the CEF and Chromium versions it ships.
 | Secret | Purpose |
 |---|---|
 | `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | Developer ID Application certificate |
-| `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` | `notarytool` (App Store Connect API key) |
+| `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | `notarytool` (Apple ID with an app-specific password, as `openp41ge/code` uses) |
 | `SPARKLE_ED_PRIVATE_KEY` | Signing update archives |
 | `CI_APP_CLIENT_ID` (org variable), `CI_APP_PRIVATE_KEY` (org secret) | The `openp41ge-ci` GitHub App, shared only with `browser` and `browser-tests` (see below) |
 
@@ -280,10 +286,10 @@ Prove the toolchain end to end before features.
 - `browser-tests`: the first smoke tests (launch, load a fixture page, play
   video, session persists) and the status reporting back to the public repo.
 - Repo settings: branch protection, tag protection, secrets.
-- **Exit criteria:** pushing tag `v0.1.0-alpha.1` produces a GitHub
-  pre-release with a `.dmg`, and an older test release auto-updates to it.
-  Once the Apple Developer account is set up, the same pipeline produces a
-  signed, notarized stable release. The browser loads sites, plays YouTube, and keeps logins across
+- **Exit criteria:** pushing tag `v0.1.0` produces a signed, notarized,
+  universal GitHub release with a `.dmg`, and the release after it
+  auto-updates an installed `v0.1.0`. (Updating was first proven in a VM:
+  a signed build updated itself from a local appcast.) The browser loads sites, plays YouTube, and keeps logins across
   restarts. `browser-tests` gates both `master` and the release.
 
 ### Phase 1: Update automation
@@ -483,18 +489,16 @@ for macOS windowing); not Chromium internals unless Phase 7 happens.
    "openp41ge explorer" in full to avoid confusion.
 4. **Pop-out window gesture conflict:** is press-and-hold-to-drag inside the
    window right, or should dragging use a modifier key or an edge strip?
-5. **Apple Developer account:** to be provided later. Until then,
-   `release.yml` skips Developer ID signing and notarization when those
-   secrets are missing. It ad-hoc signs instead and publishes **pre-releases
-   only**, because macOS will warn about or block an un-notarized download.
-   The first stable release waits for the account.
+5. **Apple Developer account:** set up (Developer ID Application
+   certificate, team `AG73L2Q952`). `release.yml` needs its secrets (see
+   README, "Releases") before the first release.
 
 ## Next steps
 
 1. Create the `openp41ge-ci` GitHub App and its org secrets (see **GitHub, CI and releases**).
 2. Phase 0: branded CEF shell, `ci.yml` + `release.yml`, the first
    `browser-tests` smoke tests with status reporting, and the first GitHub
-   pre-release (`v0.1.0-alpha.1`), unsigned until the Apple account arrives.
+   release (`v0.1.0`), signed and notarized.
 3. Phase 1: `cef-bump.yml` and the beta/stable channels.
 4. Phase 2: DOM pop-out spike: **done**, see
    [the results](plans/2026-10-10-dom-popout-spike.md).

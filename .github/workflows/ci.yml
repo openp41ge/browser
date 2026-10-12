@@ -27,8 +27,10 @@ jobs:
           path: third_party/cef
           key: cef-macosarm64-${{ hashFiles('CEF_VERSION') }}
 
-      - name: Fetch CEF
-        run: scripts/fetch-cef
+      - name: Fetch CEF and Sparkle
+        run: |
+          scripts/fetch-cef
+          scripts/fetch-sparkle
 
       - name: Install Ninja
         run: brew install ninja

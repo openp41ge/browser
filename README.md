@@ -26,7 +26,7 @@ packages/web-extension/ Internet Utility Belt, a cross-browser extension
 
 ## Platforms
 
-macOS on Apple Silicon first.
+macOS 12 or later, on Apple Silicon and Intel (releases are universal).
 
 ## Building
 
@@ -56,6 +56,10 @@ build, so testing never touches your everyday profile; a release build
 (`-DEXPLORER_CHANNEL=release`, as CI builds) uses
 `~/Library/Application Support/openp41ge explorer`.
 
+A release build also updates itself, with [Sparkle](https://sparkle-project.org)
+(run `scripts/fetch-sparkle` first); a development build never does. Pass
+`--disable-updates` to keep a release build from checking (the tests do).
+
 The app icon is `brand/icon.svg` (a development build shows
 `brand/icon-dev.svg`, with hazard tape and a cone). After changing either,
 run `scripts/make-icons` (needs Xcode 26) to remake the app's icons in
@@ -65,7 +69,37 @@ run `scripts/make-icons` (needs Xcode 26) to remake the app's icons in
 ## Releases
 
 Builds are published on [GitHub Releases](https://github.com/openp41ge/browser/releases)
-and update automatically.
+and update automatically. Download the latest:
+`https://github.com/openp41ge/browser/releases/latest/download/openp41ge-explorer.dmg`.
+
+To release, push a tag `v<version>` (e.g. `v0.1.0`) on a commit of
+`master`; [release.yml](.github/workflows/release.yml) does the rest:
+
+1. builds the app for Apple Silicon and Intel, and merges them
+   (`scripts/make-universal`)
+2. signs it with the Developer ID certificate (`scripts/sign-app`; the
+   hardened runtime and the entitlements in `app/mac/entitlements`) and
+   has Apple notarize it (`scripts/notarize`)
+3. packages it in a signed, notarized disk image (`scripts/make-dmg`)
+4. waits for `browser-tests` to pass on the commit
+5. writes the appcast installed apps check for updates, signed with the
+   update key (`scripts/make-appcast`), and publishes the release with the
+   disk image, the appcast and `SHA256SUMS`
+
+Installed apps check
+`https://github.com/openp41ge/browser/releases/latest/download/appcast.xml`
+daily, so each release must carry its appcast. A tag with a suffix
+(`v0.2.0-beta.1`) makes a pre-release, which GitHub's "latest" (and so the
+updater) skips.
+
+The workflow needs these repository secrets:
+
+| Secret | What it is |
+|---|---|
+| `MACOS_CERT_P12` | The Developer ID Application certificate and its key, exported from Keychain Access as a `.p12`, base64-encoded |
+| `MACOS_CERT_PASSWORD` | The `.p12`'s password |
+| `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | For notarizing: the Apple ID, an app-specific password for it (account.apple.com), and the team ID (as `openp41ge/code` uses) |
+| `SPARKLE_ED_PRIVATE_KEY` | The update key's private half (`generate_keys -x`); its public half is `EXPLORER_UPDATE_KEY` in `app/CMakeLists.txt` |
 
 ## Tests
 

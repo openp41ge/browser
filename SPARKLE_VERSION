@@ -1,0 +1,5 @@
+# Pinned Sparkle release (the release channel's updater), fetched by
+# scripts/fetch-sparkle. The hash is the SHA-256 of the release's .tar.xz
+# from https://github.com/sparkle-project/Sparkle/releases
+SPARKLE_VERSION=2.10.0
+SPARKLE_SHA256=c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c

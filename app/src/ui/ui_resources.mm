@@ -29,7 +29,7 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
     CefURLParts parts;
     if (!CefParseURL(request->GetURL(), parts)) return NotFound();
     if ([folder_ isEqualToString:@"start"] && CefString(&parts.path).ToString() == site_icon::kPath) {
-      return SiteIcon(browser, frame, CefString(&parts.query));
+      return SiteIcon(browser, frame, request, CefString(&parts.query));
     }
     NSString* path = @(CefString(&parts.path).ToString().c_str());
     NSString* folder = folder_;
@@ -51,8 +51,14 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
   // icon?url=<site>, for the start page only (not a fetcher for any page).
   static CefRefPtr<CefResourceHandler> SiteIcon(CefRefPtr<CefBrowser> browser,
                                                 CefRefPtr<CefFrame> frame,
+                                                CefRefPtr<CefRequest> request,
                                                 const std::string& query) {
-    if (!frame || !IsStartUrl(frame->GetURL())) return NotFound();
+    if (!frame || !frame->IsMain()) return NotFound();
+    // The page asking. Just after it loads (e.g. reloaded), CEF may not have
+    // recorded the frame's new URL yet, so it's empty: then the page its
+    // requests are made for (set by the browser from the top-level page).
+    const std::string page = frame->GetURL();
+    if (!IsStartUrl(page.empty() ? request->GetFirstPartyForCookies().ToString() : page)) return NotFound();
     std::istringstream params(query);
     for (std::string param; std::getline(params, param, '&');) {
       if (param.rfind("url=", 0) != 0) continue;

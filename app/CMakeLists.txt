@@ -5,6 +5,8 @@ if(NOT OS_MAC)
 endif()
 
 set(EXPLORER_VERSION "${PROJECT_VERSION}" CACHE STRING "App version (set from the release tag in CI)")
+set(EXPLORER_BUILD_NUMBER "" CACHE STRING
+    "CFBundleVersion: a number that goes up with every release (set by the release workflow); default the version")
 # A release build keeps its profile in "openp41ge explorer"; a development
 # build in "openp41ge explorer development", so testing never touches the
 # profile of the browser in everyday use (or its saved site icons).
@@ -29,6 +31,35 @@ if(EXPLORER_CHANNEL STREQUAL "dev")
 else()
   set(EXPLORER_DISPLAY_NAME "openp41ge explorer")
 endif()
+# Updates (Sparkle), for release builds: checked for at the feed, each
+# signed with the key whose public half is here (PLAN.md, "GitHub, CI and
+# releases"). Development builds never update themselves.
+set(EXPLORER_UPDATE_FEED "https://github.com/openp41ge/browser/releases/latest/download/appcast.xml" CACHE STRING
+    "Sparkle appcast URL")
+set(EXPLORER_UPDATE_KEY "oO3C96DT1nDo0QrN+F6Woe0uxIcsbS1m/LiKOACuTNo=" CACHE STRING
+    "Sparkle EdDSA public key (base64); empty: no updater")
+set(EXPLORER_PLIST_EXTRA "")
+set(EXPLORER_FRAMEWORKS "")
+set(EXPLORER_UPDATES OFF)
+if(EXPLORER_CHANNEL STREQUAL "release" AND EXPLORER_UPDATE_KEY)
+  set(EXPLORER_UPDATES ON)
+  set(EXPLORER_SPARKLE "${CMAKE_SOURCE_DIR}/third_party/sparkle/Sparkle.framework")
+  if(NOT EXISTS "${EXPLORER_SPARKLE}")
+    message(FATAL_ERROR "Sparkle not found at ${EXPLORER_SPARKLE}. Run scripts/fetch-sparkle first.")
+  endif()
+  set(EXPLORER_FRAMEWORKS "${EXPLORER_SPARKLE}")
+  # Checks daily without asking first, and installs what it finds when the
+  # app quits (people can turn that off in the update window).
+  string(CONCAT EXPLORER_PLIST_EXTRA
+    "\t<key>SUFeedURL</key>\n\t<string>${EXPLORER_UPDATE_FEED}</string>\n"
+    "\t<key>SUPublicEDKey</key>\n\t<string>${EXPLORER_UPDATE_KEY}</string>\n"
+    "\t<key>SUEnableAutomaticChecks</key>\n\t<true/>\n"
+    "\t<key>SUAutomaticallyUpdate</key>\n\t<true/>\n"
+    "\t<key>SUVerifyUpdateBeforeExtraction</key>\n\t<true/>\n")
+elseif(EXPLORER_CHANNEL STREQUAL "release")
+  message(WARNING "No EXPLORER_UPDATE_KEY: this release build won't update itself.")
+endif()
+
 set(EXPLORER_SIGN_IDENTITY "" CACHE STRING
     "codesign identity for local builds (e.g. \"Apple Development\"), so macOS keeps the app's Keychain access across builds")
 
@@ -37,6 +68,9 @@ add_cef_mac_app(openp41ge_explorer
   DISPLAY_NAME "${EXPLORER_DISPLAY_NAME}"
   BUNDLE_ID "com.openp41ge.explorer"
   VERSION "${EXPLORER_VERSION}"
+  BUILD_NUMBER "${EXPLORER_BUILD_NUMBER}"
+  FRAMEWORKS ${EXPLORER_FRAMEWORKS}
+  PLIST_EXTRA "${EXPLORER_PLIST_EXTRA}"
   SIGN_IDENTITY "${EXPLORER_SIGN_IDENTITY}"
   ICON_DIR "${EXPLORER_ICON_DIR}"
   SOURCES
@@ -78,6 +112,8 @@ add_cef_mac_app(openp41ge_explorer
     src/tab_bar.mm
     src/top_bar.h
     src/top_bar.mm
+    src/updater.h
+    src/updater.mm
     src/ui/site_icon.cc
     src/ui/site_icon.h
     src/ui/ui_resources.mm
@@ -99,6 +135,9 @@ add_cef_mac_app(openp41ge_explorer
 
 if(EXPLORER_CHANNEL STREQUAL "dev")
   target_compile_definitions(openp41ge_explorer PRIVATE EXPLORER_DEV_BUILD=1)
+endif()
+if(EXPLORER_UPDATES)
+  target_compile_definitions(openp41ge_explorer PRIVATE EXPLORER_UPDATES=1)
 endif()
 
 # The pop-out's page-side scripts (packages/popout).

@@ -10,6 +10,9 @@
 #   HELPER_SOURCES <files...> CEF helper process sources
 #   [LIBRARIES <libs...>]
 #   [INCLUDE_DIRS <dirs...>] for the main executable and the helpers
+#   [FRAMEWORKS <paths...>]  other frameworks (.framework folders) the app
+#                            links and carries in Contents/Frameworks
+#   [PLIST_EXTRA <xml>]      more keys for the app's Info.plist
 #   [SIGN_IDENTITY <identity>]) a codesign identity to sign the bundle with
 #                            after each build; empty: the linker's ad hoc
 #                            signature
@@ -19,7 +22,7 @@
 # CEF requires in Contents/Frameworks. Info.plists come from app/mac/*.in.
 # Adapted from CEF's cefsimple sample (BSD-3-Clause, the CEF Authors).
 function(add_cef_mac_app target)
-  cmake_parse_arguments(ARG "" "PRODUCT_NAME;DISPLAY_NAME;BUNDLE_ID;VERSION;SIGN_IDENTITY;ICON_DIR" "SOURCES;HELPER_SOURCES;LIBRARIES;INCLUDE_DIRS" ${ARGN})
+  cmake_parse_arguments(ARG "" "PRODUCT_NAME;DISPLAY_NAME;BUNDLE_ID;VERSION;BUILD_NUMBER;SIGN_IDENTITY;ICON_DIR;PLIST_EXTRA" "SOURCES;HELPER_SOURCES;LIBRARIES;INCLUDE_DIRS;FRAMEWORKS" ${ARGN})
 
   SET_CEF_TARGET_OUT_DIR()
   list(APPEND CEF_COMPILER_FLAGS -fobjc-arc)
@@ -30,6 +33,12 @@ function(add_cef_mac_app target)
   # Variables substituted into the Info.plist templates.
   set(BUNDLE_ID "${ARG_BUNDLE_ID}")
   set(VERSION_SHORT "${ARG_VERSION}")
+  # CFBundleVersion: what updates compare, so it only ever goes up.
+  set(BUILD_NUMBER "${ARG_BUILD_NUMBER}")
+  if(NOT BUILD_NUMBER)
+    set(BUILD_NUMBER "${ARG_VERSION}")
+  endif()
+  set(PLIST_EXTRA "${ARG_PLIST_EXTRA}")
 
   set(EXECUTABLE_NAME "${ARG_PRODUCT_NAME}")
   set(PRODUCT_NAME "${ARG_PRODUCT_NAME}")
@@ -56,6 +65,13 @@ function(add_cef_mac_app target)
   SET_EXECUTABLE_TARGET_PROPERTIES(${target})
   add_dependencies(${target} libcef_dll_wrapper)
   target_link_libraries(${target} libcef_dll_wrapper ${CEF_STANDARD_LIBS} ${ARG_LIBRARIES})
+  foreach(framework_path ${ARG_FRAMEWORKS})
+    get_filename_component(framework_dir "${framework_path}" DIRECTORY)
+    get_filename_component(framework_name "${framework_path}" NAME_WE)
+    target_compile_options(${target} PRIVATE "-F${framework_dir}")
+    target_link_options(${target} PRIVATE "-F${framework_dir}" "-Wl,-rpath,@executable_path/../Frameworks")
+    target_link_libraries(${target} "-framework ${framework_name}")
+  endforeach()
   set_target_properties(${target} PROPERTIES
     OUTPUT_NAME "${ARG_PRODUCT_NAME}"
     MACOSX_BUNDLE_INFO_PLIST "${info_plist}"
@@ -79,6 +95,18 @@ function(add_cef_mac_app target)
     COMMAND ln -sfn "Versions/Current/Resources" "${framework}/Resources"
     VERBATIM
   )
+
+  # The other frameworks, copied afresh (ditto keeps their symlinks).
+  foreach(framework_path ${ARG_FRAMEWORKS})
+    get_filename_component(framework_file "${framework_path}" NAME)
+    add_custom_command(
+      TARGET ${target}
+      POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E rm -rf "${app_path}/Contents/Frameworks/${framework_file}"
+      COMMAND ditto "${framework_path}" "${app_path}/Contents/Frameworks/${framework_file}"
+      VERBATIM
+    )
+  endforeach()
 
   foreach(suffix_list ${CEF_HELPER_APP_SUFFIXES})
     string(REPLACE ":" ";" suffix_list ${suffix_list})
@@ -125,6 +153,10 @@ function(add_cef_mac_app target)
   if(ARG_SIGN_IDENTITY)
     set(sign codesign --force --timestamp=none --sign "${ARG_SIGN_IDENTITY}")
     set(commands COMMAND ${sign} "${app_path}/Contents/Frameworks/Chromium Embedded Framework.framework")
+    foreach(framework_path ${ARG_FRAMEWORKS})
+      get_filename_component(framework_file "${framework_path}" NAME)
+      list(APPEND commands COMMAND ${sign} --deep "${app_path}/Contents/Frameworks/${framework_file}")
+    endforeach()
     foreach(suffix_list ${CEF_HELPER_APP_SUFFIXES})
       string(REPLACE ":" ";" suffix_list ${suffix_list})
       list(GET suffix_list 0 name_suffix)

@@ -1,0 +1,35 @@
+#!/bin/bash
+# Downloads and unpacks the pinned Sparkle release into third_party/sparkle:
+# Sparkle.framework (built into release builds) and its tools in bin/
+# (sign_update, for the release workflow). Skips the download if it's
+# already present.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=/dev/null
+source "$ROOT/SPARKLE_VERSION"
+
+DEST="$ROOT/third_party/sparkle"
+STAMP="$DEST/.sparkle_version"
+if [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$SPARKLE_VERSION" ]; then
+  echo "Sparkle $SPARKLE_VERSION already present"
+  exit 0
+fi
+
+URL="https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+echo "Downloading Sparkle $SPARKLE_VERSION"
+curl -fsSL --retry 3 -o "$TMP/sparkle.tar.xz" "$URL"
+ACTUAL="$(shasum -a 256 "$TMP/sparkle.tar.xz" | cut -d' ' -f1)"
+if [ "$ACTUAL" != "$SPARKLE_SHA256" ]; then
+  echo "SHA-256 mismatch: expected $SPARKLE_SHA256, got $ACTUAL" >&2
+  exit 1
+fi
+
+echo "Unpacking to third_party/sparkle"
+rm -rf "$DEST"
+mkdir -p "$DEST"
+tar -xJf "$TMP/sparkle.tar.xz" -C "$DEST"
+echo "$SPARKLE_VERSION" > "$STAMP"
