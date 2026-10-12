@@ -30,7 +30,7 @@ web extension (currently `~/Repository/internet-utility-belt`).
 |---|---|
 | Name | **openp41ge explorer**: bundle id `com.openp41ge.explorer` (matches the app's `com.openp41ge.app`) |
 | Engine | CEF binary distributions (no Electron, no Chromium fork) |
-| Browser style | **Alloy-style pages in our own windows** (decided 2026-10-11): our own UI (top bar, pane grid, tabs, command palette); no Chrome UI, no Google features. Chrome style was used during the spike and dropped: one Chrome-style page per window, and pages can't move between windows. See [plans/2026-10-11-browser-ui-grid.md](plans/2026-10-11-browser-ui-grid.md) |
+| Browser style | **Alloy-style pages in our own windows** (decided 2026-10-11): our own UI (top bar, pane grid, tabs, start page); no Chrome UI, no Google features. Chrome style was used during the spike and dropped: one Chrome-style page per window, and pages can't move between windows. See [plans/2026-10-11-browser-ui-grid.md](plans/2026-10-11-browser-ui-grid.md) |
 | Element pop-out | The **real DOM element moves** into a **Document Picture-in-Picture** window (`documentPictureInPicture.requestWindow()`), which the browser hosts in its own frameless window. Media keeps playing (also in Alloy pages: probe 2026-10-11). Pixel mirroring was tried and rejected |
 | Shell language | C++ (CEF's first-class API) |
 | Video codecs | Ship v1 **without** proprietary codecs (H.264/AAC); standard CEF binaries |
@@ -97,7 +97,7 @@ As of CEF M128+ (see [CEF issue #3685](https://github.com/chromiumembedded/cef/i
 
 **Decision (2026-10-11): Alloy-style pages in our own windows.** Every page
 is an Alloy-style `CefBrowserView`; the browser draws all of its UI itself
-(top bar, pane grid, tabs, command palette). No Chrome UI and no Google
+(top bar, pane grid, tabs, start page). No Chrome UI and no Google
 features ship. Details: [plans/2026-10-11-browser-ui-grid.md](plans/2026-10-11-browser-ui-grid.md).
 
 **History:** Alloy was tried first (2026-10-10) and set aside on the
@@ -372,8 +372,8 @@ the shell over CEF's message router, so it's hackable with the same web
 tools as Openp41ge.
 
 - **Tabs and navigation:** a top bar (back, forward, reload), a grid of
-  panes split left/right with a tab bar each (like openp41ge), and a command
-  palette for addresses and search.
+  panes split left/right with a tab bar each (like openp41ge), and a start
+  page in new tabs for addresses and search.
 - **Pages:** find-in-page, zoom, popups and new windows
 - **Prompts and errors:** permission prompts, auth dialogs, certificate and
   network error pages

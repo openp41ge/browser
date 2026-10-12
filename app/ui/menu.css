@@ -1,0 +1,46 @@
+/* Copyright (c) 2026 Richard Kielty. MIT License.
+ *
+ * A menu (its own small window): rows of commands with separators, after
+ * the openp41ge app's menus.
+ */
+
+html,
+body {
+  overflow: hidden;
+  user-select: none;
+  background: var(--bg-primary);
+}
+
+.menu {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 220px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-divider);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  outline: none;
+}
+.item:focus {
+  background: var(--bg-active);
+}
+.item:disabled {
+  color: var(--text-muted);
+}
+
+.separator {
+  height: 1px;
+  margin: 0;
+  background: var(--border-divider);
+}

@@ -1,0 +1,97 @@
+/* Copyright (c) 2026 Richard Kielty. MIT License.
+ *
+ * Suggestions under a tab's address (its own small window): a row per
+ * page or site (its title and address, and a ✕ to forget it) or search, the
+ * selected one highlighted, and the one under the pointer. Square, like the
+ * rest of the browser's UI.
+ */
+
+html,
+body {
+  overflow: hidden;
+  user-select: none;
+  background: var(--bg-primary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: 1px solid var(--border-divider);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  cursor: default;
+}
+.row:hover {
+  background: var(--bg-hover);
+}
+.row.selected {
+  background: var(--bg-active);
+}
+
+.row > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.title,
+.detail {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.title {
+  flex: 0 1 auto;
+  color: var(--text-primary);
+}
+.detail {
+  flex: 1 1 0;
+  min-width: 60px;
+  color: var(--text-secondary);
+}
+
+/* Forgets the row (at its end). */
+.remove {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  margin-right: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+}
+.row:hover .remove,
+.row.selected .remove {
+  color: var(--text-secondary);
+}
+.remove:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+.remove svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}

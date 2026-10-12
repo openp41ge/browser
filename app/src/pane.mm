@@ -7,17 +7,41 @@
 #include "include/views/cef_box_layout.h"
 #include "include/views/cef_fill_layout.h"
 
+#include "browser_manager.h"
 #include "browser_window.h"
+
+namespace {
+
+}  // namespace
+
+// A pane is the size the window's grid gives it (BrowserWindow::PaneSize),
+// so the grid's layout puts it straight at that size.
+class Pane::Delegate : public CefPanelDelegate {
+ public:
+  explicit Delegate(Pane* pane) : pane_(pane) {}
+  void Detach() { pane_ = nullptr; }
+
+  CefSize GetPreferredSize(CefRefPtr<CefView> view) override {
+    return pane_ ? pane_->window()->PaneSize(pane_) : CefSize(1, 1);
+  }
+  CefSize GetMinimumSize(CefRefPtr<CefView> view) override { return CefSize(1, 1); }
+
+ private:
+  Pane* pane_;  // Null once the pane has gone.
+  IMPLEMENT_REFCOUNTING(Delegate);
+};
 
 Pane::Pane(BrowserWindow* window) : window_(window), tab_bar_(new TabBar(this)) {}
 
 Pane::~Pane() {
   tab_bar_->Detach();
+  if (delegate_) delegate_->Detach();
 }
 
 CefRefPtr<CefPanel> Pane::panel() {
   if (!panel_) {
-    panel_ = CefPanel::CreatePanel(nullptr);
+    delegate_ = new Delegate(this);
+    panel_ = CefPanel::CreatePanel(delegate_);
     CefBoxLayoutSettings column;
     column.horizontal = false;
     CefRefPtr<CefBoxLayout> layout = panel_->SetToBoxLayout(column);
@@ -96,12 +120,48 @@ void Pane::Move(int id, int index) {
   UpdateTabBar();
 }
 
+void Pane::RequestActivate(int id) {
+  window_->SetActivePane(this);
+  Activate(id);
+}
+
+int Pane::InsertIndexAt(int x) const {
+  int index = 0;
+  for (const auto& [id, middle] : tab_middles_) {
+    if (middle < x) ++index;
+  }
+  return index;
+}
+
+int Pane::IndexOf(int id) const {
+  for (size_t i = 0; i < tabs_.size(); ++i) {
+    if (tabs_[i]->id() == id) return static_cast<int>(i);
+  }
+  return -1;
+}
+
 void Pane::RequestClose(int id) {
   if (CefRefPtr<Tab> tab = Find(id)) window_->CloseTab(tab);
 }
 
+void Pane::RequestNavigate(int id, const std::string& url) {
+  CefRefPtr<Tab> tab = Find(id);
+  CefRefPtr<CefBrowser> browser = tab ? tab->browser() : nullptr;
+  if (!browser) return;
+  if (History* history = window_->history()) history->AddTyped(url);
+  browser->GetMainFrame()->LoadURL(url);
+  RequestActivate(id);
+  tab->view()->RequestFocus();
+}
+
+void Pane::EditAddress(int id) {
+  tab_bar_->EditAddress(id);
+  tab_bar_->view()->RequestFocus();
+}
+
 void Pane::RequestNewTab() {
-  window_->ShowPalette(/*new_tab=*/true, this);
+  window_->SetActivePane(this);
+  window_->NewTab(this);
 }
 
 void Pane::UpdateTabBar() {

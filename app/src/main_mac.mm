@@ -4,7 +4,9 @@
 // Entry point for the browser process on macOS.
 
 #import <Cocoa/Cocoa.h>
+#include <dispatch/dispatch.h>
 
+#include <csignal>
 #include <string>
 
 #include "include/cef_application_mac.h"
@@ -20,7 +22,8 @@ namespace {
 constexpr char kProductName[] = "openp41ge explorer";
 
 // `--user-data-dir=<path>` if given (tests use a throwaway profile),
-// otherwise ~/Library/Application Support/openp41ge explorer.
+// otherwise ~/Library/Application Support/openp41ge explorer (a development
+// build: "openp41ge explorer development", apart from the release's).
 std::string AppDataDir(int argc, char* argv[]) {
   CefRefPtr<CefCommandLine> command_line = CefCommandLine::CreateCommandLine();
   command_line->InitFromArgv(argc, argv);
@@ -31,7 +34,11 @@ std::string AppDataDir(int argc, char* argv[]) {
   NSString* support = NSSearchPathForDirectoriesInDomains(
                           NSApplicationSupportDirectory, NSUserDomainMask, YES)
                           .firstObject;
+#if defined(EXPLORER_DEV_BUILD)
+  return std::string(support.UTF8String) + "/" + kProductName + " development";
+#else
   return std::string(support.UTF8String) + "/" + kProductName;
+#endif
 }
 
 }  // namespace
@@ -110,7 +117,8 @@ NSMenu* BuildMainMenu() {
   constexpr auto kCmdOpt = NSEventModifierFlagCommand | NSEventModifierFlagOption;
   constexpr auto kCmdCtrl = NSEventModifierFlagCommand | NSEventModifierFlagControl;
 
-  NSString* name = @(kProductName);
+  // As the Dock shows it (Info.plist: "Chromium" for a development build).
+  NSString* name = NSBundle.mainBundle.infoDictionary[@"CFBundleName"] ?: @(kProductName);
   NSMenu* menubar = [[NSMenu alloc] init];
 
   NSMenu* app = AddSubmenu(menubar, name);
@@ -123,7 +131,7 @@ NSMenu* BuildMainMenu() {
   NSMenu* file = AddSubmenu(menubar, @"File");
   AddCommand(file, @"New Tab", Command::kNewTab, @"t");
   AddCommand(file, @"New Window", Command::kNewWindow, @"n");
-  AddCommand(file, @"Open Location…", Command::kOpenLocation, @"l");
+  AddCommand(file, @"New Private Window", Command::kNewPrivateWindow, @"n", kCmdShift);
   [file addItem:[NSMenuItem separatorItem]];
   AddCommand(file, @"Close Tab", Command::kCloseTab, @"w");
   AddCommand(file, @"Close Window", Command::kCloseWindow, @"w", kCmdShift);
@@ -264,6 +272,17 @@ int main(int argc, char* argv[]) {
       return CefGetExitCode();
     }
 
+    // SIGTERM (`kill`, the tests): quit as the Quit menu item does, so the
+    // app closes its windows and keeps what it must before shutting down
+    // (left to Chromium, the process would end without returning here).
+    signal(SIGTERM, SIG_IGN);
+    dispatch_source_t sigterm =
+        dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGTERM, 0, dispatch_get_main_queue());
+    dispatch_source_set_event_handler(sigterm, ^{
+      [NSApp terminate:nil];
+    });
+    dispatch_resume(sigterm);
+
     ExplorerAppDelegate* delegate = [[ExplorerAppDelegate alloc] init];
     NSApp.delegate = delegate;
     [delegate performSelectorOnMainThread:@selector(createApplication:)
@@ -271,6 +290,7 @@ int main(int argc, char* argv[]) {
                             waitUntilDone:NO];
 
     CefRunMessageLoop();  // Blocks until the last browser closes.
+    if (BrowserManager* manager = BrowserManager::Get()) manager->OnMessageLoopEnded();
     CefShutdown();
     delegate = nil;
   }

@@ -11,8 +11,7 @@
 #include "include/wrapper/cef_message_router.h"
 
 // A piece of the browser's own UI: web content from openp41ge://ui/ (app/ui)
-// in an Alloy-style browser view (the top bar, a pane's tab bar, the command
-// palette).
+// in an Alloy-style browser view (the top bar, a pane's tab bar).
 //
 // It talks to the browser over CEF's message router (`cefQuery`, see
 // app/ui/channel.js): the page sends messages ({"type": "…", …}), and keeps
@@ -23,20 +22,19 @@ class UiView : public CefClient,
                public CefContextMenuHandler,
                public CefDragHandler,
                public CefLifeSpanHandler,
+               public CefPermissionHandler,
                public CefRequestHandler,
                public CefMessageRouterBrowserSide::Handler {
  public:
   enum class Background { kGutter, kSurface };
 
-  // `page` is a file in app/ui, e.g. "topbar.html". `height` is the view's
-  // preferred height, or 0 to fill whatever space its layout gives it.
-  UiView(std::string page, int height, Background background);
+  // `page` is a file in app/ui, e.g. "topbar.html". `preferred_size` is what
+  // the view asks its layout for (the layout stretches the other way, e.g. a
+  // bar's width); CEF ignores a size with a zero side.
+  UiView(std::string page, CefSize preferred_size, Background background);
 
   // The view, created on first call.
   CefRefPtr<CefBrowserView> view();
-  // Or, instead of a view: the page as a native child of `window_info`'s
-  // parent (for UI in windows of our own, like the command palette).
-  void CreateBrowser(const CefWindowInfo& window_info);
   CefRefPtr<CefBrowser> browser() const { return browser_; }
   // Sends a message to the page (dropped until the page is listening).
   void Send(CefRefPtr<CefDictionaryValue> message);
@@ -46,6 +44,7 @@ class UiView : public CefClient,
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
   CefRefPtr<CefDragHandler> GetDragHandler() override { return this; }
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
+  CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
@@ -62,6 +61,14 @@ class UiView : public CefClient,
   void OnDraggableRegionsChanged(CefRefPtr<CefBrowser> browser,
                                  CefRefPtr<CefFrame> frame,
                                  const std::vector<CefDraggableRegion>& regions) override;
+
+  // CefPermissionHandler: the UI may load from the local network (e.g. a
+  // tab's favicon on a local site); anything else is refused, unprompted.
+  bool OnShowPermissionPrompt(CefRefPtr<CefBrowser> browser,
+                              uint64_t prompt_id,
+                              const CefString& requesting_origin,
+                              uint32_t requested_permissions,
+                              CefRefPtr<CefPermissionPromptCallback> callback) override;
 
   // CefLifeSpanHandler:
   bool OnBeforePopup(CefRefPtr<CefBrowser> browser,
@@ -112,7 +119,7 @@ class UiView : public CefClient,
 
  private:
   std::string url_;
-  int height_;
+  CefSize preferred_size_;
   Background background_;
   CefRefPtr<CefBrowserView> view_;
   CefRefPtr<CefBrowser> browser_;

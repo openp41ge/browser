@@ -2,9 +2,13 @@
 
 #include "browser_manager.h"
 
+#import <Cocoa/Cocoa.h>
+
 #include <algorithm>
 
 #include "include/cef_app.h"
+#include "include/cef_parser.h"
+#include "include/cef_request_context.h"
 #include "include/wrapper/cef_helpers.h"
 
 #include "ui/ui_scheme.h"
@@ -15,6 +19,19 @@ BrowserManager* g_manager = nullptr;
 
 // Key read by the renderer (renderer_app.cc).
 constexpr char kInitScriptKey[] = "openp41ge.init_script";
+
+// The browser keeps its own history (History); Chromium would keep another
+// (<profile>/History, with its favicons and top sites) that nothing reads,
+// and that forgetting a page in ours wouldn't touch.
+void DisableChromiumHistory(CefRefPtr<CefRequestContext> context) {
+  constexpr char kSavingDisabled[] = "history.saving_disabled";
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetBool(true);
+  CefString error;
+  if (!context->SetPreference(kSavingDisabled, value, error)) {
+    LOG(ERROR) << "Could not set " << kSavingDisabled << ": " << error.ToString();
+  }
+}
 
 // Every page: Alloy style. Popups become tabs (see OnPopupViewCreated);
 // dev tools get CEF's own window.
@@ -47,9 +64,11 @@ class PageViewDelegate : public CefBrowserViewDelegate {
 BrowserManager::BrowserManager()
     : devtools_(new DevToolsClient()),
       popout_(new PopoutController(devtools_, this)),
-      view_delegate_(new PageViewDelegate(this)) {
+      view_delegate_(new PageViewDelegate(this)),
+      history_(std::make_unique<History>(CefRequestContext::GetGlobalContext()->GetCachePath())) {
   DCHECK(!g_manager);
   g_manager = this;
+  DisableChromiumHistory(CefRequestContext::GetGlobalContext());
 }
 
 BrowserManager* BrowserManager::Get() {
@@ -58,19 +77,43 @@ BrowserManager* BrowserManager::Get() {
 
 // --- Windows and tabs -------------------------------------------------------
 
-void BrowserManager::OpenWindow(const std::string& url) {
+void BrowserManager::OpenWindow(const std::string& url, bool is_private) {
   CEF_REQUIRE_UI_THREAD();
   // Cascade new windows a little so they don't sit exactly on top.
   const int offset = static_cast<int>(windows_.size() % 8) * 40;
-  CefRefPtr<BrowserWindow> window = new BrowserWindow(this, CefRect(120 + offset, 80 + offset, 1280, 800), url);
+  CefRefPtr<BrowserWindow> window =
+      new BrowserWindow(this, CefRect(120 + offset, 80 + offset, 1280, 800), is_private, url);
   windows_.push_back(window);
   CefWindow::CreateTopLevelWindow(window);
 }
 
-CefRefPtr<Tab> BrowserManager::CreateTab(const std::string& url) {
+void BrowserManager::OpenWindowWithTab(CefRefPtr<Tab> tab, const CefRect& bounds, bool is_private) {
+  CEF_REQUIRE_UI_THREAD();
+  CefRefPtr<BrowserWindow> window = new BrowserWindow(this, bounds, is_private, tab);
+  windows_.push_back(window);
+  CefWindow::CreateTopLevelWindow(window);
+}
+
+BrowserWindow* BrowserManager::WindowAt(const CefPoint& screen) const {
+  // Front to back, as they're stacked on screen.
+  for (NSWindow* ns in NSApp.orderedWindows) {
+    if (!ns.visible || ns.miniaturized) continue;
+    for (const CefRefPtr<BrowserWindow>& window : windows_) {
+      CefRefPtr<CefWindow> cef = window->window();
+      if (!cef || ((__bridge NSView*)cef->GetWindowHandle()).window != ns) continue;
+      const CefRect r = cef->GetBoundsInScreen();
+      if (screen.x >= r.x && screen.y >= r.y && screen.x < r.x + r.width && screen.y < r.y + r.height) {
+        return window.get();
+      }
+    }
+  }
+  return nullptr;
+}
+
+CefRefPtr<Tab> BrowserManager::CreateTab(const std::string& url, bool is_private) {
   CefBrowserSettings settings;
-  CefRefPtr<CefBrowserView> view =
-      CefBrowserView::CreateBrowserView(this, url, settings, NewPageExtraInfo(), nullptr, view_delegate_);
+  CefRefPtr<CefBrowserView> view = CefBrowserView::CreateBrowserView(
+      this, url, settings, NewPageExtraInfo(), is_private ? PrivateContext() : nullptr, view_delegate_);
   CefRefPtr<Tab> tab = new Tab(next_tab_id_++, view);
   tab->url = url;
   return tab;
@@ -100,6 +143,11 @@ void BrowserManager::OnWindowDestroyed(BrowserWindow* window) {
                                 [&](const CefRefPtr<BrowserWindow>& w) { return w.get() == window; }),
                  windows_.end());
   if (current_ == window) current_ = windows_.empty() ? nullptr : windows_.back().get();
+  // The last private window: its profile goes once its pages have (they
+  // hold it too), and with it everything they kept.
+  if (std::none_of(windows_.begin(), windows_.end(), [](const CefRefPtr<BrowserWindow>& w) { return w->is_private(); })) {
+    private_context_ = nullptr;
+  }
   if (windows_.empty()) {
     popout_->Close();
     CefQuitMessageLoop();
@@ -123,6 +171,22 @@ void BrowserManager::CloseAll() {
   if (windows_.empty()) CefQuitMessageLoop();
 }
 
+void BrowserManager::OnMessageLoopEnded() {
+  history_->SaveNow();
+}
+
+CefRefPtr<CefRequestContext> BrowserManager::PrivateContext() {
+  if (!private_context_) {
+    // No cache path: in memory only.
+    CefRequestContextSettings settings;
+    private_context_ = CefRequestContext::CreateContext(settings, nullptr);
+    DisableChromiumHistory(private_context_);
+    // Its own start page (scheme handlers are per profile).
+    ui_scheme::RegisterHandlerFactory(private_context_, /*is_private=*/true);
+  }
+  return private_context_;
+}
+
 CefRefPtr<CefDictionaryValue> BrowserManager::NewPageExtraInfo() const {
   const std::string script = popout_->ScriptForNewPages();
   if (script.empty()) return nullptr;
@@ -138,6 +202,7 @@ bool BrowserManager::CanRun(Command command) const {
   switch (command) {
     case Command::kNewTab:
     case Command::kNewWindow:
+    case Command::kNewPrivateWindow:
       return true;
     case Command::kBack:
       return page && page->CanGoBack();
@@ -162,15 +227,16 @@ void BrowserManager::Run(Command command) {
     OpenWindow(std::string());
     return;
   }
+  if (command == Command::kNewPrivateWindow) {
+    OpenWindow(std::string(), /*is_private=*/true);
+    return;
+  }
   if (!current_) return;
   CefRefPtr<Tab> tab = current_->active_tab();
   CefRefPtr<CefBrowser> page = tab ? tab->browser() : nullptr;
   switch (command) {
     case Command::kNewTab:
-      current_->ShowPalette(/*new_tab=*/true);
-      break;
-    case Command::kOpenLocation:
-      current_->ShowPalette(/*new_tab=*/false);
+      current_->NewTab();
       break;
     case Command::kCloseTab:
       if (tab) current_->CloseTab(tab);
@@ -293,6 +359,13 @@ void BrowserManager::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   if (BrowserWindow* window = WindowOf(browser)) window->OnTabClosed(browser);
 }
 
+// The pane whose page has the keyboard is the one commands act on.
+void BrowserManager::OnGotFocus(CefRefPtr<CefBrowser> browser) {
+  for (const CefRefPtr<BrowserWindow>& window : windows_) {
+    if (Pane* pane = window->Locate(browser)) window->SetActivePane(pane);
+  }
+}
+
 // --- Page state -------------------------------------------------------------
 
 void BrowserManager::OnAddressChange(CefRefPtr<CefBrowser> browser,
@@ -302,6 +375,10 @@ void BrowserManager::OnAddressChange(CefRefPtr<CefBrowser> browser,
   BrowserWindow* window = WindowOf(browser, &tab);
   if (!window || !frame->IsMain()) return;
   tab->url = url;
+  if (tab->visited != tab->url) {
+    tab->visited = tab->url;
+    if (History* history = window->history()) history->AddVisit(tab->url);
+  }
   window->OnTabChanged(browser);
 }
 
@@ -310,6 +387,30 @@ void BrowserManager::OnTitleChange(CefRefPtr<CefBrowser> browser, const CefStrin
   BrowserWindow* window = WindowOf(browser, &tab);
   if (!window) return;
   tab->title = title;
+  if (History* history = window->history()) history->SetTitle(tab->url, tab->title);
+  window->OnTabChanged(browser);
+}
+
+// Where a page's favicon is if it declares none: /favicon.ico on its origin,
+// for web pages (as Chrome's favicon fetching assumes; CEF reports only the
+// icons a page declares).
+static std::string DefaultFavicon(const std::string& url) {
+  CefURLParts parts;
+  if (!CefParseURL(url, parts)) return std::string();
+  const std::string scheme = CefString(&parts.scheme);
+  if (scheme != "http" && scheme != "https") return std::string();
+  return CefString(&parts.origin).ToString() + "favicon.ico";
+}
+
+void BrowserManager::OnLoadStart(CefRefPtr<CefBrowser> browser,
+                                 CefRefPtr<CefFrame> frame,
+                                 TransitionType transition_type) {
+  CefRefPtr<Tab> tab;
+  BrowserWindow* window = WindowOf(browser, &tab);
+  if (!window || !frame->IsMain()) return;
+  // A new document: until it declares icons (OnFaviconURLChange), its
+  // origin's default.
+  tab->favicon = DefaultFavicon(frame->GetURL());
   window->OnTabChanged(browser);
 }
 
@@ -317,7 +418,7 @@ void BrowserManager::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std
   CefRefPtr<Tab> tab;
   BrowserWindow* window = WindowOf(browser, &tab);
   if (!window) return;
-  tab->favicon = icon_urls.empty() ? std::string() : icon_urls.front().ToString();
+  tab->favicon = icon_urls.empty() ? DefaultFavicon(browser->GetMainFrame()->GetURL()) : icon_urls.front().ToString();
   window->OnTabChanged(browser);
 }
 
@@ -330,6 +431,37 @@ void BrowserManager::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
   if (!window) return;
   tab->loading = is_loading;
   window->OnTabChanged(browser);
+}
+
+// Links opened "in a new tab" or "window" from a page: Cmd-click (a
+// background tab), Cmd-Shift-click (a foreground tab), Shift-click (a new
+// window), and middle-click. As Chrome does, beside the opener's tab.
+bool BrowserManager::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
+                                      CefRefPtr<CefFrame> frame,
+                                      const CefString& target_url,
+                                      WindowOpenDisposition target_disposition,
+                                      bool user_gesture) {
+  CEF_REQUIRE_UI_THREAD();
+  const std::string url = target_url;
+  switch (target_disposition) {
+    case CEF_WOD_NEW_FOREGROUND_TAB:
+    case CEF_WOD_NEW_BACKGROUND_TAB: {
+      BrowserWindow* window = WindowOf(browser);
+      Pane* pane = window ? window->Locate(browser) : nullptr;
+      if (!pane) return false;
+      CefRefPtr<Tab> tab = window->OpenTab(url, pane, target_disposition == CEF_WOD_NEW_FOREGROUND_TAB);
+      if (target_disposition == CEF_WOD_NEW_FOREGROUND_TAB) tab->view()->RequestFocus();
+      return true;
+    }
+    case CEF_WOD_NEW_WINDOW: {
+      // A private window's links open private windows.
+      BrowserWindow* window = WindowOf(browser);
+      OpenWindow(url, window && window->is_private());
+      return true;
+    }
+    default:
+      return false;  // In this tab.
+  }
 }
 
 bool BrowserManager::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,

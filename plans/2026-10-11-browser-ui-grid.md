@@ -41,7 +41,7 @@ What Alloy pages don't get, compared with Chrome style:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ ● ● ●   ‹ ›  ⟳                       top bar (35px)          │
+│ ● ● ●   ‹ ›  ⟳  title                top bar (35px)        ⋮ │
 ├────────────────────┬─────────────────────────────────────────┤
 │ Tab A │ Tab B │  + │ Tab C │                              +  │  tab bar per pane (35px)
 ├────────────────────┼─────────────────────────────────────────┤
@@ -68,7 +68,8 @@ What Alloy pages don't get, compared with Chrome style:
   its components, the same on every platform. The shell keeps the views in
   sync (tabs, active tab, drags) over the message channel.
 - **Anything that floats over pages is its own small borderless window**
-  (as Chrome does for its address-bar dropdown): the command palette, menus.
+  (as Chrome does for its address-bar dropdown): menus (`MenuWindow`,
+  openp41ge://ui/menu.html; the top bar's ⋮ opens one).
   Layering views inside the window doesn't work: while any overlay view
   exists, the window's other web views get no clicks (probe, 2026-10-11).
 - **Drag previews** (drop rings and washes over pages) are the exception:
@@ -105,9 +106,11 @@ and widths.
 
 - 35px, `--bg-surface` background, 1px `--border-divider` bottom border,
   horizontal scrolling with the scrollbar hidden and edge fades.
-- Tabs: min 120px, 12px text, `border-right: 1px solid #333`. Active tab
-  `background: var(--border-divider)`, text `#eee`; inactive `#888`. A
-  34×34 ✕ close button. Long titles scroll on hover.
+- Tabs: a fixed 220px, showing the site (the full address on hover and
+  while editing), 12px text, a `--border-divider` right border. Active tab
+  `background: var(--border-divider)`: the grey of every border and the
+  lines between columns, so they blend. A 30px ✕ close button (a spinner
+  while loading).
 - A `+` at the right opens a new tab in that pane.
 - Favicon and loading state on each tab (browser addition).
 
@@ -170,26 +173,31 @@ Chrome style gave us these; with Alloy pages we provide them:
 | HTTP auth, certificate errors | `CefRequestHandler`, prompts / error pages |
 | Context menu | CEF's default for now; ours later |
 | Zoom, print, dev tools | `CefBrowserHost` (`SetZoomLevel`, `Print`, `ShowDevTools`) |
-| New tab page | Ours (openp41ge://ui/newtab) |
-| Address entry | The command palette (see below) |
+| Start page | Ours (openp41ge://start/): shortcuts for now, customisable later |
+| Address entry | The tab itself (see below) |
 
-## Command palette
+## Start page
 
-Typing an address or a search happens in a command palette over the grid
-(decided 2026-10-11), not in a toolbar:
+New tabs open on a start page (decided 2026-10-11, replacing a command
+palette over the grid), with the tab's own address focused: a tab is its
+address bar. Return loads the address, or searches for anything that isn't
+one, in that tab; double-clicking a tab edits its address.
 
-- **Cmd+L** opens it for the focused tab: Return loads the address, or
-  searches for anything that isn't one, in that tab.
-- **Cmd+T** opens it for a new tab in the focused pane.
-- It's its own small borderless window (openp41ge://ui/palette.html),
-  centred near the top of the browser window, in openp41ge's style.
-  Later it can list open tabs, history and commands.
+- openp41ge://start/ (app/ui/start): an ordinary page in the tab, with no
+  channel to the browser: a row of shortcuts (+ adds one).
+- **Completing addresses:** the browser keeps the pages it's been to
+  (`History`, `<profile>/Address History.json`: visits, typed counts, when).
+  As an address is typed, the best page or site starting with it completes
+  it inline, and suggestions (history, and a search) show under the tab in
+  their own window (`SuggestionsPopup`) that never takes the keyboard.
+- A new window, Cmd+T and a tab bar's + all open one.
+- Customisable later.
 
 ## Steps
 
 1. **Alloy pages, one pane with tabs:** pages become Alloy; the window is
    top bar + tab bar + page; tabs (open, switch, close, reorder within the
-   bar), Cmd+T / Cmd+W / Cmd+Shift+[ ]; the command palette (Cmd+L, Cmd+T);
+   bar), Cmd+T / Cmd+W / Cmd+Shift+[ ];
    the pop-out hosted in our own frameless window so it keeps working.
    Chrome-style code goes.
 2. **Grid:** splitting by dragging tabs, splitters, removing empty columns,
@@ -221,5 +229,7 @@ in CI rather than on a developer's screen.
 
 1. Splits are left/right only; never top/bottom.
 2. Chrome-style pages and windows are dropped entirely.
-3. Addresses are typed in a command palette (Cmd+L, Cmd+T).
+3. Addresses are typed in the tab itself; new tabs open on a start page
+   with it focused (a command palette, then a search field on the start
+   page, came first).
 4. The UI is HTML/CSS/JS in small web views, not native UI.

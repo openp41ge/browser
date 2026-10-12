@@ -40,8 +40,27 @@ cmake --build build
 open "build/app/Release/openp41ge explorer.app"
 ```
 
+macOS asks for the app's Keychain item (Chromium Safe Storage) again after
+every build, because each build's ad hoc signature is new. To stop that,
+sign local builds with your development certificate, and choose "Always
+Allow" once:
+
+```sh
+cmake -S . -B build -DEXPLORER_SIGN_IDENTITY="Apple Development"
+```
+
 Pass `--url=<url>` to the app's executable to open a specific page. The
-profile lives in `~/Library/Application Support/openp41ge explorer`.
+profile (with the start page's saved site icons, in `Site Icons`) lives in
+`~/Library/Application Support/openp41ge explorer development` for a local
+build, so testing never touches your everyday profile; a release build
+(`-DEXPLORER_CHANNEL=release`, as CI builds) uses
+`~/Library/Application Support/openp41ge explorer`.
+
+The app icon is `brand/icon.svg` (a development build shows
+`brand/icon-dev.svg`, with hazard tape and a cone). After changing either,
+run `scripts/make-icons` (needs Xcode 26) to remake the app's icons in
+`app/mac/release` and `app/mac/dev`: an `Assets.car` for macOS 26 and an
+`AppIcon.icns` for earlier versions.
 
 ## Releases
 

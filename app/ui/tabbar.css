@@ -36,12 +36,12 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 120px;
-  max-width: 220px;
+  /* Room for the address placeholder ("Search or enter address") in full. */
+  width: 220px;
   height: 34px;
   box-sizing: border-box;
   padding-left: 8px;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-divider);
   color: var(--text-muted);
   font-size: 12px;
   cursor: default;
@@ -50,6 +50,9 @@ body {
   background: var(--border-divider);
   color: var(--text-primary);
 }
+/* The focused tab (the active tab of the window's active pane) is marked by
+ * a bar floating across its top edge, which the window draws (FocusBar):
+ * this page can't draw outside itself. */
 .tab.dragging {
   opacity: 0.4;
 }
@@ -60,12 +63,30 @@ body {
   height: 16px;
   object-fit: contain;
 }
-.icon.loading {
+/* While the page loads, in ✕'s place (✕ comes back on hover). */
+.spinner {
+  display: none;
+  flex: none;
+  width: 30px;
+  height: 34px;
+}
+.spinner::after {
+  content: '';
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 10px 8px;
   box-sizing: border-box;
   border: 2px solid var(--text-muted);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+.tab.loading:not(:hover) .spinner {
+  display: block;
+}
+.tab.loading:not(:hover) .close {
+  display: none;
 }
 @keyframes spin {
   to {
@@ -73,12 +94,39 @@ body {
   }
 }
 
-.title {
+/* The tab's address: plain text until it's being edited. */
+.icon-slot {
+  display: flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+svg.icon {
+  fill: currentColor;
+}
+.address {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   text-overflow: ellipsis;
+  pointer-events: none;
+}
+.address::placeholder {
+  color: var(--text-muted);
+}
+/* Editing looks the same: only the caret and selection show. */
+.tab.editing .address {
+  color: var(--text-primary);
+  text-overflow: clip;
+  pointer-events: auto;
+  user-select: text;
+  cursor: text;
 }
 
 .close {
@@ -86,7 +134,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
+  width: 30px;
   height: 34px;
   padding: 0;
   border: 0;
@@ -109,7 +157,7 @@ body {
   height: 34px;
   padding: 0;
   border: 0;
-  border-left: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-divider);
   background: var(--bg-surface);
   color: var(--text-secondary);
 }
@@ -118,10 +166,17 @@ body {
   color: var(--text-primary);
 }
 
-.close svg,
 .add svg {
   width: 13px;
   height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.close svg {
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;

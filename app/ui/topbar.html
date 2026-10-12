@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Top bar</title>
-    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="shared/theme.css" />
     <link rel="stylesheet" href="topbar.css" />
   </head>
   <body>
@@ -16,11 +16,19 @@
         <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>
       </button>
       <button class="btn small" id="reload" title="Reload" aria-label="Reload">
-        <svg viewBox="0 0 24 24" class="reload-icon">
-          <path d="M20 11a8 8 0 1 0-2.34 5.66" />
-          <polyline points="20 4 20 11 13 11" />
+        <svg viewBox="0 0 24 24">
+          <path d="M20 12a8 8 0 1 0-2.34 5.66" />
+          <polyline points="20 5 20 12 13 12" />
         </svg>
-        <svg viewBox="0 0 24 24" class="stop-icon" hidden><path d="M18 6 6 18M6 6l12 12" /></svg>
+      </button>
+      <div class="title" id="title"></div>
+      <div class="private-badge" id="private" title="Private window: nothing it keeps outlives it" hidden>Private</div>
+      <button class="btn small" id="menu" title="Menu" aria-label="Menu" aria-haspopup="menu">
+        <svg viewBox="0 -960 960 960" class="filled">
+          <path
+            d="M480-160q-33 0-56.5-23.5T400-240q0-33 23.5-56.5T480-320q33 0 56.5 23.5T560-240q0 33-23.5 56.5T480-160Zm0-240q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm0-240q-33 0-56.5-23.5T400-720q0-33 23.5-56.5T480-800q33 0 56.5 23.5T560-720q0 33-23.5 56.5T480-640Z"
+          />
+        </svg>
       </button>
     </div>
     <script type="module" src="topbar.js"></script>

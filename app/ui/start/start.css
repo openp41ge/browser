@@ -1,0 +1,243 @@
+/* Copyright (c) 2026 Richard Kielty. MIT License.
+ *
+ * The start page: a row of shortcuts a little above the middle.
+ */
+
+body {
+  background: var(--bg-primary);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28vh 16px 32px;
+}
+
+/* --- Shortcuts ----------------------------------------------------------- */
+
+:root {
+  --valid: #3fb950;
+  --invalid: #f85149;
+}
+
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  max-width: 560px;
+  margin-top: 28px;
+}
+
+.item {
+  position: relative;
+}
+
+/* A shortcut's card: its tile, and its name under it. */
+.shortcut,
+.add-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 84px;
+  padding: 12px 4px 10px;
+  box-sizing: border-box;
+}
+.shortcut {
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-decoration: none;
+}
+a.shortcut:hover,
+a.shortcut:focus-visible {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+.tile img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.letter {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.label {
+  width: 100%;
+  height: 16px;
+  line-height: 16px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+/* +: just a tile, where the next shortcut's tile goes (the space under it
+   is where its name goes). */
+.add-slot[hidden] {
+  display: none;
+}
+.add-slot::after {
+  content: '';
+  height: 16px;
+}
+.add {
+  padding: 0;
+  border: 1px dashed var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.add:hover,
+.add:focus-visible {
+  border-color: var(--text-secondary);
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  outline: none;
+}
+.add svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The draft: looks like the shortcut it'll be; its name is a bare field. */
+.draft input.label {
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  caret-color: var(--border-focus);
+}
+.draft input.label::placeholder {
+  color: var(--text-muted);
+}
+.draft .tile {
+  transition: box-shadow 0.15s;
+}
+.draft.valid .tile {
+  box-shadow: inset 0 0 0 2px var(--valid);
+}
+.draft.invalid .tile {
+  box-shadow: inset 0 0 0 2px var(--invalid);
+}
+
+/* Centred on the shortcut's top right corner (the shortcut fills its
+ * item), over the row's other items. */
+.remove {
+  position: absolute;
+  z-index: 1;
+  top: -10px;
+  right: -10px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  /* A ring of the page's colour sets it off the tile it overlaps. */
+  box-shadow: 0 0 0 2px var(--bg-primary);
+  background: var(--bg-active);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.item:hover .remove,
+.remove:focus-visible {
+  display: flex;
+}
+.remove svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+/* --- Confirming a removal ------------------------------------------------ */
+
+:root {
+  --danger: #f85149;
+}
+
+.confirm {
+  width: 320px;
+  box-sizing: border-box;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+.confirm::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+.confirm h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.confirm p {
+  margin: 0 0 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.confirm .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.confirm button {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.confirm button:hover {
+  background: var(--bg-active);
+}
+.confirm button:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+.confirm button.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+.confirm button.danger:hover {
+  filter: brightness(1.1);
+  background: var(--danger);
+}

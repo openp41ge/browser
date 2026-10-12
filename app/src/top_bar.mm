@@ -2,9 +2,38 @@
 
 #include "top_bar.h"
 
+#include "browser_manager.h"
 #include "browser_window.h"
+#include "menu_window.h"
 
-TopBar::TopBar(BrowserWindow* owner) : UiView("topbar.html", kHeight, Background::kGutter), owner_(owner) {}
+namespace {
+
+using Command = BrowserManager::Command;
+
+// The menu button's menu: browser commands, as in the menu bar.
+std::vector<MenuWindow::Item> MenuItems() {
+  BrowserManager* manager = BrowserManager::Get();
+  std::vector<MenuWindow::Item> items;
+  auto add = [&](Command command, const char* label) {
+    items.push_back({static_cast<int>(command), label, manager && manager->CanRun(command)});
+  };
+  auto separator = [&] { items.push_back({}); };
+  add(Command::kNewTab, "New Tab");
+  add(Command::kNewWindow, "New Window");
+  add(Command::kNewPrivateWindow, "New Private Window");
+  separator();
+  add(Command::kZoomIn, "Zoom In");
+  add(Command::kZoomOut, "Zoom Out");
+  add(Command::kZoomReset, "Actual Size");
+  separator();
+  add(Command::kPrint, "Print…");
+  add(Command::kDevTools, "Developer Tools");
+  return items;
+}
+
+}  // namespace
+
+TopBar::TopBar(BrowserWindow* owner) : UiView("topbar.html", CefSize(1, kHeight), Background::kGutter), owner_(owner) {}
 
 void TopBar::Update() {
   CefRefPtr<CefBrowser> page = owner_ ? owner_->active_browser() : nullptr;
@@ -12,7 +41,9 @@ void TopBar::Update() {
   message->SetString("type", "state");
   message->SetBool("canGoBack", page && page->CanGoBack());
   message->SetBool("canGoForward", page && page->CanGoForward());
-  message->SetBool("loading", page && page->IsLoading());
+  CefRefPtr<Tab> tab = owner_ ? owner_->active_tab() : nullptr;
+  message->SetString("title", tab ? tab->title : std::string());
+  message->SetBool("private", owner_ && owner_->is_private());
   Send(message);
 }
 
@@ -24,8 +55,13 @@ bool TopBar::OnMessage(const std::string& type, CefRefPtr<CefDictionaryValue> me
     if (page) page->GoForward();
   } else if (type == "reload") {
     if (page) page->Reload();
-  } else if (type == "stop") {
-    if (page) page->StopLoad();
+  } else if (type == "menu") {
+    CefPoint point(message->GetInt("x"), message->GetInt("y"));
+    if (owner_ && owner_->window() && view()->ConvertPointToScreen(point)) {
+      MenuWindow::Show(owner_->window(), point, MenuItems(), [](int id) {
+        if (BrowserManager* manager = BrowserManager::Get()) manager->Run(static_cast<Command>(id));
+      });
+    }
   } else {
     return false;
   }

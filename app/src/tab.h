@@ -22,6 +22,8 @@ class Tab : public CefBaseRefCounted {
   std::string url;
   std::string favicon;
   bool loading = false;
+  // The address last recorded in History (a reload isn't another visit).
+  std::string visited;
 
  private:
   int id_;

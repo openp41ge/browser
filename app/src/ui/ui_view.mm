@@ -11,17 +11,15 @@
 
 namespace {
 
-// Alloy style, at the UI's height (0: no preference, fill).
+// Alloy style, at the UI's preferred size.
 class UiViewDelegate : public CefBrowserViewDelegate {
  public:
-  explicit UiViewDelegate(int height) : height_(height) {}
+  explicit UiViewDelegate(CefSize size) : size_(size) {}
   cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_ALLOY; }
-  // CEF ignores a preferred size with a zero side, so the width is 1 (the
-  // layouts stretch it to fit anyway).
-  CefSize GetPreferredSize(CefRefPtr<CefView> view) override { return CefSize(1, height_); }
+  CefSize GetPreferredSize(CefRefPtr<CefView> view) override { return size_; }
 
  private:
-  int height_;
+  CefSize size_;
   IMPLEMENT_REFCOUNTING(UiViewDelegate);
 };
 
@@ -37,8 +35,8 @@ cef_color_t Color(UiView::Background background) {
 
 }  // namespace
 
-UiView::UiView(std::string page, int height, Background background)
-    : url_(std::string(ui_scheme::kOrigin) + page), height_(height), background_(background) {
+UiView::UiView(std::string page, CefSize preferred_size, Background background)
+    : url_(std::string(ui_scheme::kOrigin) + page), preferred_size_(preferred_size), background_(background) {
   router_ = CefMessageRouterBrowserSide::Create(CefMessageRouterConfig());
   router_->AddHandler(this, false);
 }
@@ -47,15 +45,9 @@ CefRefPtr<CefBrowserView> UiView::view() {
   if (!view_) {
     CefBrowserSettings settings;
     settings.background_color = Color(background_);
-    view_ = CefBrowserView::CreateBrowserView(this, url_, settings, nullptr, nullptr, new UiViewDelegate(height_));
+    view_ = CefBrowserView::CreateBrowserView(this, url_, settings, nullptr, nullptr, new UiViewDelegate(preferred_size_));
   }
   return view_;
-}
-
-void UiView::CreateBrowser(const CefWindowInfo& window_info) {
-  CefBrowserSettings settings;
-  settings.background_color = Color(background_);
-  CefBrowserHost::CreateBrowser(window_info, this, url_, settings, nullptr, nullptr);
 }
 
 void UiView::Send(CefRefPtr<CefDictionaryValue> message) {
@@ -115,6 +107,18 @@ void UiView::OnDraggableRegionsChanged(CefRefPtr<CefBrowser> browser,
                                        CefRefPtr<CefFrame> frame,
                                        const std::vector<CefDraggableRegion>& regions) {
   OnDragRegions(regions);
+}
+
+bool UiView::OnShowPermissionPrompt(CefRefPtr<CefBrowser> browser,
+                                    uint64_t prompt_id,
+                                    const CefString& requesting_origin,
+                                    uint32_t requested_permissions,
+                                    CefRefPtr<CefPermissionPromptCallback> callback) {
+  constexpr uint32_t kLocalNetwork = CEF_PERMISSION_TYPE_LOCAL_NETWORK | CEF_PERMISSION_TYPE_LOOPBACK_NETWORK;
+  const bool allowed =
+      ui_scheme::IsUiUrl(browser->GetMainFrame()->GetURL()) && (requested_permissions & ~kLocalNetwork) == 0;
+  callback->Continue(allowed ? CEF_PERMISSION_RESULT_ACCEPT : CEF_PERMISSION_RESULT_DENY);
+  return true;
 }
 
 void UiView::OnBeforeClose(CefRefPtr<CefBrowser> browser) {

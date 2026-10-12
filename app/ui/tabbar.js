@@ -1,61 +1,275 @@
 // Copyright (c) 2026 Richard Kielty. MIT License.
 //
-// A pane's tab bar: shows the pane's tabs, activates one on click, closes
-// with ✕ (or a middle click), reorders by dragging, and asks for a new tab
+// A pane's tab bar: shows the pane's tabs by their sites, activates one
+// on click, closes with ✕ (or a middle click), drags tabs (to reorder, to
+// another pane, or to a pane's edge to split it), and asks for a new tab
 // with +.
+//
+// A tab's site is its address bar: double-click it to edit the full address
+// (selected), Return to go there (or search), Escape or clicking away to
+// leave it. Tabs are a fixed width.
+//
+// As an address is typed, the browser offers pages and sites from history:
+// the best one that starts with what's typed completes it inline (the rest
+// selected, so typing on replaces it), and they're listed under the tab
+// (src/suggestions_popup.h) with a search for what's typed. The arrow keys
+// move through them; Tab takes the inline completion; Return or a click
+// goes to the one selected.
 
 import { listen, send } from './channel.js';
+import { toAddress, toUrl } from './shared/address.js';
 
 const strip = document.getElementById('tabs');
 const fades = { left: document.querySelector('.fade.left'), right: document.querySelector('.fade.right') };
 
 let tabs = [];
 let active = -1;
+// The tab whose address is being edited: { id, field, typed, inline, rows,
+// selected } (typed: what was typed, without any inline completion; rows:
+// the suggestions shown, if any).
+let editing = null;
+// The most suggestions listed.
+const MAX_ROWS = 7;
 
-// Pages that show no address in their tab's tooltip.
-const BLANK_PAGES = new Set(['about:blank']);
+// Pages with no address to show (the field shows its placeholder).
+const BLANK_PAGES = new Set(['about:blank', 'openp41ge://start/']);
+
+/** What a tab shows of its address: the site (host and port, without www.). */
+function displayAddress(url) {
+  if (!url || BLANK_PAGES.has(url)) return '';
+  try {
+    const { protocol, host } = new URL(url);
+    if ((protocol === 'https:' || protocol === 'http:') && host) return host.replace(/^www\./, '');
+  } catch {}
+  return url;
+}
+
+// A tab's element, made once and updated in place (so editing survives
+// updates while a page loads).
+const elements = new Map();
+
+// Material Symbols' "globe" (Apache 2.0), for pages without a favicon.
+const DEFAULT_ICON =
+  '<svg class="icon" viewBox="0 -960 960 960" aria-hidden="true"><path d="M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM440-162v-78q-33 0-56.5-23.5T360-320v-40L168-552q-3 18-5.5 36t-2.5 36q0 121 79.5 212T440-162Zm276-102q41-45 62.5-100.5T800-480q0-98-54.5-179T600-776v16q0 33-23.5 56.5T520-680h-80v80q0 17-11.5 28.5T400-560h-80v80h240q17 0 28.5 11.5T600-440v120h40q26 0 47 15.5t29 40.5Z"/></svg>';
+
+function tabElement(tab) {
+  let parts = elements.get(tab.id);
+  if (!parts) {
+    const el = document.createElement('div');
+    el.className = 'tab';
+    el.dataset.id = tab.id;
+    el.setAttribute('role', 'tab');
+
+    // The site's favicon once it has loaded, else a globe.
+    const icon = document.createElement('span');
+    icon.className = 'icon-slot';
+    icon.innerHTML = DEFAULT_ICON;
+    // Where ✕ goes: a spinner instead while the page loads (✕ on hover).
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner';
+
+    const field = document.createElement('input');
+    field.className = 'address';
+    field.type = 'text';
+    field.readOnly = true;
+    field.tabIndex = -1;
+    field.spellcheck = false;
+    field.autocomplete = 'off';
+    field.placeholder = 'Search or enter address';
+    field.setAttribute('aria-label', 'Address');
+    field.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        go(editing?.rows?.[editing.selected]?.url ?? (field.value.trim() && toUrl(field.value)));
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        endEdit();
+      } else if (event.key === 'Tab' && editing?.field === field) {
+        // Accepts the inline completion; never leaves the address.
+        event.preventDefault();
+        acceptCompletion();
+      } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && editing?.rows?.length) {
+        event.preventDefault();
+        select(editing.selected + (event.key === 'ArrowDown' ? 1 : -1));
+      }
+    });
+    field.addEventListener('input', (event) => {
+      if (editing?.field !== field) return;
+      editing.typed = field.value;
+      // Completed inline only while typing at the end (not after deleting).
+      editing.inline = event.inputType?.startsWith('insert') && field.selectionStart === field.value.length;
+      if (!editing.typed.trim()) {
+        hideSuggestions();
+        return;
+      }
+      send({ type: 'suggest', text: editing.typed });
+    });
+    field.addEventListener('blur', () => {
+      if (editing?.field === field) endEdit();
+    });
+
+    const close = document.createElement('button');
+    close.className = 'close';
+    close.title = 'Close Tab';
+    close.setAttribute('aria-label', 'Close Tab');
+    close.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>';
+    close.addEventListener('click', (event) => {
+      event.stopPropagation();
+      send({ type: 'close', id: Number(el.dataset.id) });
+    });
+
+    el.append(icon, field, close, spinner);
+    parts = { el, icon, field, favicon: null };
+    elements.set(tab.id, parts);
+  }
+
+  const { el, icon, field } = parts;
+  el.classList.toggle('active', tab.id === active);
+  el.setAttribute('aria-selected', String(tab.id === active));
+  el.title = BLANK_PAGES.has(tab.url) ? 'New Tab' : tab.url;
+  if (editing?.field !== field) field.value = displayAddress(tab.url);
+
+  el.classList.toggle('loading', tab.loading);
+  if (parts.favicon !== tab.favicon) {
+    parts.favicon = tab.favicon;
+    icon.innerHTML = DEFAULT_ICON;
+    if (tab.favicon) {
+      const img = document.createElement('img');
+      img.className = 'icon';
+      img.alt = '';
+      img.addEventListener('load', () => {
+        if (parts.favicon === tab.favicon) icon.replaceChildren(img);
+      });
+      img.src = tab.favicon;
+    }
+  }
+  return el;
+}
 
 function render() {
-  strip.replaceChildren(
-    ...tabs.map((tab) => {
-      const el = document.createElement('div');
-      el.className = `tab${tab.id === active ? ' active' : ''}`;
-      el.dataset.id = tab.id;
-      el.setAttribute('role', 'tab');
-      el.setAttribute('aria-selected', String(tab.id === active));
-      el.title = BLANK_PAGES.has(tab.url) ? tab.title || 'New Tab' : `${tab.title}\n${tab.url}`;
-
-      let icon;
-      if (tab.loading) {
-        icon = document.createElement('span');
-        icon.className = 'icon loading';
-      } else if (tab.favicon) {
-        icon = document.createElement('img');
-        icon.className = 'icon';
-        icon.src = tab.favicon;
-        icon.alt = '';
-        icon.addEventListener('error', () => icon.replaceWith(document.createElement('span')));
-      }
-      const title = document.createElement('span');
-      title.className = 'title';
-      title.textContent = tab.title || (BLANK_PAGES.has(tab.url) || !tab.url ? 'New Tab' : tab.url);
-
-      const close = document.createElement('button');
-      close.className = 'close';
-      close.title = 'Close Tab';
-      close.setAttribute('aria-label', 'Close Tab');
-      close.innerHTML = '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>';
-      close.addEventListener('click', (event) => {
-        event.stopPropagation();
-        send({ type: 'close', id: tab.id });
-      });
-
-      el.append(...(icon ? [icon] : []), title, close);
-      return el;
-    }),
-  );
-  strip.querySelector('.tab.active')?.scrollIntoView({ inline: 'nearest' });
+  const ids = new Set(tabs.map((tab) => tab.id));
+  for (const [id, { el }] of elements) {
+    if (ids.has(id)) continue;
+    if (editing?.id === id) editing = null;
+    el.remove();
+    elements.delete(id);
+  }
+  const els = tabs.map(tabElement);
+  // Re-order only if needed: moving an element drops its focus.
+  if (els.some((el, i) => strip.children[i] !== el) || strip.children.length !== els.length) {
+    strip.replaceChildren(...els);
+  }
+  if (!editing) strip.querySelector('.tab.active')?.scrollIntoView({ inline: 'nearest' });
   updateFades();
+}
+
+function startEdit(id) {
+  const parts = elements.get(id);
+  if (!parts) return;
+  if (editing?.id === id) return;
+  endEdit();
+  const tab = tabs.find((t) => t.id === id);
+  editing = { id, field: parts.field, typed: '', inline: false, rows: null, selected: 0 };
+  parts.el.classList.add('editing');
+  parts.field.readOnly = false;
+  parts.field.value = tab && !BLANK_PAGES.has(tab.url) ? tab.url : '';
+  parts.field.focus();
+  parts.field.select();
+}
+
+/** Goes to `url` in the tab being edited. */
+function go(url) {
+  const id = editing?.id;
+  endEdit();
+  if (url && id !== undefined) send({ type: 'navigate', id, url });
+}
+
+// --- Suggestions ---------------------------------------------------------------
+
+/** What was typed, as an address or a search: the row Return takes by default. */
+function typedRow(typed) {
+  const address = toAddress(typed);
+  return address
+    ? { kind: 'address', title: typed.trim(), url: address }
+    : { kind: 'search', title: typed.trim(), detail: 'Google Search', url: toUrl(typed) };
+}
+
+/** The browser's matches for what was typed: complete it inline and list them. */
+function showMatches(text, matches) {
+  if (!editing || text !== editing.typed) return; // Typed on since.
+  const { field, typed } = editing;
+  const rows = matches.map((m) => ({ kind: 'history', title: m.title || m.text, detail: m.title ? m.text : '', url: m.url, text: m.text }));
+  const top = matches[0];
+  // What was typed, without a scheme or "www." (as the matches' text is).
+  const bare = typed.replace(/^\s*(https?:\/\/)?(www\.)?/i, '');
+  if (editing.inline && top?.completes && !/\s/.test(typed) && top.text.toLowerCase().startsWith(bare.toLowerCase())) {
+    field.value = typed + top.text.slice(bare.length);
+    field.setSelectionRange(typed.length, field.value.length);
+    // The completion first, what was typed (a search, say) last.
+    editing.rows = [...rows, typedRow(typed)].slice(0, MAX_ROWS);
+  } else {
+    editing.rows = [typedRow(typed), ...rows].slice(0, MAX_ROWS);
+  }
+  editing.selected = 0;
+  showSuggestions();
+}
+
+/** Takes the inline completion as typed (the caret to its end), and looks again. */
+function acceptCompletion() {
+  const { field } = editing;
+  if (field.selectionStart === field.selectionEnd || field.selectionEnd !== field.value.length) return;
+  field.setSelectionRange(field.value.length, field.value.length);
+  editing.typed = field.value;
+  editing.inline = true;
+  send({ type: 'suggest', text: editing.typed });
+}
+
+/** Selects row `index`: the address shows it (what was typed, for that row). */
+function select(index) {
+  const { rows, field } = editing;
+  editing.selected = Math.max(0, Math.min(rows.length - 1, index));
+  const row = rows[editing.selected];
+  field.value = row.text ?? editing.typed;
+  field.setSelectionRange(field.value.length, field.value.length);
+  showSuggestions();
+}
+
+function showSuggestions() {
+  const parts = elements.get(editing.id);
+  if (!parts) return;
+  const r = parts.el.getBoundingClientRect();
+  send({
+    type: 'suggest-show',
+    rows: editing.rows.map(({ kind, title, detail }) => ({ kind, title, detail: detail ?? '' })),
+    selected: editing.selected,
+    x: Math.round(r.left),
+    y: Math.round(r.top),
+    width: Math.round(r.width),
+    height: Math.round(r.height),
+    popupWidth: Math.max(Math.round(r.width), 480),
+  });
+}
+
+function hideSuggestions() {
+  if (!editing?.rows) return;
+  editing.rows = null;
+  send({ type: 'suggest-hide' });
+}
+
+/** Leaves the address as it was. */
+function endEdit() {
+  const ended = editing;
+  if (!ended) return;
+  hideSuggestions();
+  editing = null;
+  const parts = elements.get(ended.id);
+  if (!parts) return;
+  parts.el.classList.remove('editing');
+  parts.field.readOnly = true;
+  const tab = tabs.find((t) => t.id === ended.id);
+  parts.field.value = displayAddress(tab?.url);
+  parts.field.scrollLeft = 0;
+  parts.field.blur();
 }
 
 function updateFades() {
@@ -65,11 +279,39 @@ function updateFades() {
 strip.addEventListener('scroll', updateFades);
 addEventListener('resize', updateFades);
 
-// Click to activate; middle click to close; drag to reorder (after 3px).
+// Where the tabs are, for the window to work out where a dragged tab would
+// be inserted (its middle, in this bar's coordinates); and where the active
+// tab's focus bar goes (half its width, centred; the part in view), which
+// the window draws over its top edge.
+function reportLayout() {
+  const tabs = [...strip.querySelectorAll('.tab')].map((el) => {
+    const r = el.getBoundingClientRect();
+    return { id: Number(el.dataset.id), middle: Math.round(r.left + r.width / 2) };
+  });
+  const message = { type: 'layout', tabs };
+  const active = strip.querySelector('.tab.active');
+  if (active) {
+    const r = active.getBoundingClientRect();
+    const view = strip.getBoundingClientRect();
+    // Less the tab's divider, as it shows.
+    const left = Math.max(r.left + active.clientWidth / 4, view.left);
+    const right = Math.min(r.left + (active.clientWidth * 3) / 4, view.right);
+    if (right > left) message.focusBar = { x: Math.round(left), width: Math.round(right - left) };
+  }
+  send(message);
+}
+strip.addEventListener('scroll', reportLayout);
+addEventListener('resize', reportLayout);
+
+// Click to activate; middle click to close. Dragging (after 3px) moves a
+// tab: the window works out where it lands (this bar, another pane's, or a
+// pane's edge to split it) from where the pointer is; the mouse stays with
+// this bar while the button is down, even outside it.
 let drag = null;
 strip.addEventListener('mousedown', (event) => {
   const el = event.target.closest('.tab');
-  if (!el || event.target.closest('.close')) return;
+  // In the address being edited: placing the caret, selecting.
+  if (!el || event.target.closest('.close') || el.classList.contains('editing')) return;
   const id = Number(el.dataset.id);
   if (event.button === 1) {
     event.preventDefault();
@@ -77,52 +319,71 @@ strip.addEventListener('mousedown', (event) => {
     return;
   }
   if (event.button !== 0) return;
-  if (id !== active) send({ type: 'activate', id });
-  drag = { id, el, startX: event.clientX, moved: false, index: -1, line: null };
+  // The address is only for editing (double-click); the tab takes the press.
+  event.preventDefault();
+  send({ type: 'activate', id });
+  drag = { id, el, startX: event.clientX, startY: event.clientY, moved: false, frame: 0, at: null };
 });
-
-/** Where a tab dropped at clientX would go: before the tab whose middle is past it. */
-function insertIndex(x) {
-  const els = [...strip.querySelectorAll('.tab')];
-  const i = els.findIndex((el) => {
-    const r = el.getBoundingClientRect();
-    return x < r.left + r.width / 2;
-  });
-  return i < 0 ? els.length : i;
-}
 
 addEventListener('mousemove', (event) => {
   if (!drag) return;
-  if (!drag.moved && Math.abs(event.clientX - drag.startX) < 3) return;
+  if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 3) return;
   drag.moved = true;
   document.body.style.cursor = 'grabbing';
   drag.el.classList.add('dragging');
-  const index = insertIndex(event.clientX);
-  const from = tabs.findIndex((t) => t.id === drag.id);
-  // Dropping it where it is (either side of itself) changes nothing.
-  drag.index = index === from || index === from + 1 ? -1 : index;
-  drag.line?.remove();
-  drag.line = null;
-  if (drag.index < 0) return;
-  const els = [...strip.querySelectorAll('.tab')];
-  const x = drag.index < els.length ? els[drag.index].offsetLeft : els.at(-1).offsetLeft + els.at(-1).offsetWidth;
-  drag.line = document.createElement('div');
-  drag.line.className = 'insert';
-  drag.line.style.left = `${x - strip.scrollLeft}px`;
-  document.querySelector('.bar').append(drag.line);
+  drag.at = { x: Math.round(event.clientX), y: Math.round(event.clientY) };
+  // At most once a frame.
+  if (drag.frame) return;
+  drag.frame = requestAnimationFrame(() => {
+    if (!drag) return;
+    drag.frame = 0;
+    send({ type: 'drag', id: drag.id, ...drag.at });
+  });
 });
 
-addEventListener('mouseup', () => {
-  if (!drag) return;
-  const { id, moved, index, line, el } = drag;
+function endDrag() {
+  const ended = drag;
   drag = null;
-  line?.remove();
-  el.classList.remove('dragging');
+  if (ended.frame) cancelAnimationFrame(ended.frame);
+  ended.el.classList.remove('dragging');
   document.body.style.cursor = '';
-  if (!moved || index < 0) return;
-  const from = tabs.findIndex((t) => t.id === id);
-  send({ type: 'move', id, index: index > from ? index - 1 : index });
+  showHint(-1);
+  return ended;
+}
+
+strip.addEventListener('dblclick', (event) => {
+  const el = event.target.closest('.tab');
+  if (!el || event.target.closest('.close') || el.classList.contains('editing')) return;
+  startEdit(Number(el.dataset.id));
 });
+
+addEventListener('mouseup', (event) => {
+  if (!drag) return;
+  const ended = endDrag();
+  if (ended.moved) send({ type: 'drop', id: ended.id, x: Math.round(event.clientX), y: Math.round(event.clientY) });
+});
+
+addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !drag) return;
+  const ended = endDrag();
+  if (ended.moved) send({ type: 'drag-cancel' });
+});
+
+// Where a dragged tab would go in this bar (-1: nowhere): a line before tab
+// `index` (or after the last).
+let hint = null;
+function showHint(index) {
+  hint?.remove();
+  hint = null;
+  if (index < 0) return;
+  const els = [...strip.querySelectorAll('.tab')];
+  if (!els.length) return;
+  const x = index < els.length ? els[index].offsetLeft : els.at(-1).offsetLeft + els.at(-1).offsetWidth;
+  hint = document.createElement('div');
+  hint.className = 'insert';
+  hint.style.left = `${x - strip.scrollLeft}px`;
+  document.querySelector('.bar').append(hint);
+}
 
 // Vertical wheel scrolls the tabs sideways.
 strip.addEventListener(
@@ -138,8 +399,30 @@ strip.addEventListener(
 document.getElementById('add').addEventListener('click', () => send({ type: 'new-tab' }));
 
 listen((message) => {
-  if (message.type !== 'tabs') return;
-  tabs = message.tabs;
-  active = message.active;
-  render();
+  if (message.type === 'tabs') {
+    tabs = message.tabs;
+    active = message.active;
+    document.body.classList.toggle('focused', message.focused);
+    render();
+    reportLayout();
+    // A new tab: its address, ready to type in.
+    if (message.edit !== undefined) startEdit(message.edit);
+  } else if (message.type === 'suggestions') {
+    showMatches(message.text, message.matches);
+  } else if (message.type === 'suggestion-picked') {
+    const row = editing?.rows?.[message.index];
+    if (row) go(row.url);
+  } else if (message.type === 'suggestion-removed') {
+    // Forgotten, then the suggestions again without it.
+    const row = editing?.rows?.[message.index];
+    if (row?.kind !== 'history') return;
+    send({ type: 'forget', text: row.text });
+    // Without any completion or row it was showing.
+    const { field, typed } = editing;
+    field.value = typed;
+    field.setSelectionRange(typed.length, typed.length);
+    send({ type: 'suggest', text: editing.typed });
+  } else if (message.type === 'hint') {
+    showHint(message.index);
+  }
 });

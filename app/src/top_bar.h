@@ -8,10 +8,13 @@
 class BrowserWindow;
 
 // A window's top bar (app/ui/topbar.html): the traffic lights' space, back,
-// forward and reload for the active tab. Its empty parts drag the window.
+// forward and reload for the active tab, its title, and the menu button. Its
+// empty parts (and the title) drag the window.
 //
-// Messages from the page: back, forward, reload, stop.
-// Messages to it: {"type": "state", "canGoBack", "canGoForward", "loading"}.
+// Messages from the page: back, forward, reload, and {"type": "menu",
+// x, y}: show the window's menu with its top right there (page coordinates).
+// Messages to it: {"type": "state", "canGoBack", "canGoForward",
+// "title"}.
 class TopBar : public UiView {
  public:
   // Matches the openp41ge app's title bar.

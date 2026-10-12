@@ -1,0 +1,53 @@
+#!/bin/bash
+# Makes the app's icons from brand/icon.svg (release) and brand/icon-dev.svg
+# (development builds): app/mac/release/ and app/mac/dev/, each holding
+# Assets.car (the icon for macOS 26, from an Icon Composer .icon) and
+# AppIcon.icns (the same icon for older macOS). They're committed, so builds
+# don't need this; run it after changing an SVG. Needs Xcode 26 (actool).
+#
+# The .icon: the brand tile's colour is its background, and what's on the
+# tile is its artwork, scaled to the full canvas (macOS applies the shape).
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+make() {
+  local svg=$1 out=$2
+  local icon="$work/$out/AppIcon.icon"
+  mkdir -p "$icon/Assets" "app/mac/$out"
+  # The artwork: the tile itself dropped (the background fill replaces it),
+  # the rest scaled from the tile's 100 units to the 1024 canvas.
+  sed -e '/fill="#1F2329" stroke="#343A44"/d' -e 's/translate(100 100) scale(8.24)/scale(10.24)/' \
+    "brand/$svg" >"$icon/Assets/artwork.svg"
+  cat >"$icon/icon.json" <<'JSON'
+{
+  "fill" : {
+    "solid" : "srgb:0.12157,0.13725,0.16078,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "artwork.svg",
+          "name" : "artwork"
+        }
+      ]
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}
+JSON
+  xcrun actool "$icon" --compile "$work/$out" --platform macosx --minimum-deployment-target 12.0 \
+    --app-icon AppIcon --output-partial-info-plist "$work/$out/partial.plist" >/dev/null
+  cp "$work/$out/Assets.car" "$work/$out/AppIcon.icns" "app/mac/$out/"
+  echo "app/mac/$out/Assets.car, AppIcon.icns"
+}
+
+make icon.svg release
+make icon-dev.svg dev

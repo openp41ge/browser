@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>New Tab</title>
+    <link rel="stylesheet" href="shared/theme.css" />
+    <link rel="stylesheet" href="start.css" />
+  </head>
+  <body>
+    <main>
+      <nav class="shortcuts" id="shortcuts" aria-label="Shortcuts">
+        <div class="item add-slot" id="add-slot">
+          <button class="tile add" id="add" type="button" title="Add shortcut" aria-label="Add shortcut">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+        </div>
+      </nav>
+    </main>
+
+    <dialog class="confirm" id="confirm-remove" aria-labelledby="confirm-title">
+      <form method="dialog">
+        <h2 id="confirm-title">Remove shortcut?</h2>
+        <p id="confirm-text"></p>
+        <div class="actions">
+          <button value="cancel" autofocus>Cancel</button>
+          <button value="remove" class="danger">Remove</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="start.js"></script>
+  </body>
+</html>
