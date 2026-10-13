@@ -11,6 +11,11 @@ namespace {
 // Matches from history offered under a tab's address.
 constexpr size_t kMaxSuggestions = 6;
 
+// A page's top-level headings, for filtering tabs by them (the first few).
+constexpr char kHeadings[] =
+    "[...document.querySelectorAll('h1')].map((h) => h.textContent.trim().replace(/\\s+/g, ' '))"
+    ".filter(Boolean).slice(0, 10)";
+
 }  // namespace
 
 TabBar::TabBar(Pane* owner) : UiView("tabbar.html", CefSize(1, kHeight), Background::kSurface), owner_(owner) {}
@@ -22,6 +27,7 @@ void TabBar::Update() {
     CefRefPtr<CefDictionaryValue> t = CefDictionaryValue::Create();
     t->SetInt("id", tab->id());
     t->SetString("url", tab->url);
+    t->SetString("title", tab->title);
     t->SetString("favicon", tab->favicon);
     t->SetBool("loading", tab->loading);
     tabs->SetDictionary(tabs->GetSize(), t);
@@ -95,6 +101,21 @@ bool TabBar::OnMessage(const std::string& type, CefRefPtr<CefDictionaryValue> me
     reply->SetString("text", text);
     reply->SetList("matches", matches);
     Send(reply);
+  } else if (type == "headings") {
+    // The filter is open: each tab's page's headings, as they come.
+    CefRefPtr<TabBar> self(this);
+    for (const CefRefPtr<Tab>& tab : owner_->tabs()) {
+      CefRefPtr<CefBrowser> page = tab->browser();
+      if (!page) continue;
+      const int id = tab->id();
+      window->manager()->devtools()->Evaluate(page, kHeadings, {}, [self, id](CefRefPtr<CefValue> value) {
+        CefRefPtr<CefDictionaryValue> reply = CefDictionaryValue::Create();
+        reply->SetString("type", "headings");
+        reply->SetInt("id", id);
+        reply->SetList("headings", value && value->GetType() == VTYPE_LIST ? value->GetList()->Copy() : CefListValue::Create());
+        self->Send(reply);
+      });
+    }
   } else if (type == "forget") {
     // A suggestion's ✕: gone from history (the page then asks again).
     if (History* history = window->history()) history->Remove(message->GetString("text"));

@@ -7,7 +7,10 @@
 //
 // A tab's site is its address bar: double-click it to edit the full address
 // (selected), Return to go there (or search), Escape or clicking away to
-// leave it. Tabs are a fixed width.
+// leave it. Tabs are 220px wide, narrowed to 80% then 60% when that's what
+// it takes for them all to fit; past that they scroll, and a filter button
+// shows before "+": it opens into a field that shows only the tabs whose
+// site, title or headings (the page's h1s) have what's typed.
 //
 // As an address is typed, the browser offers pages and sites from history:
 // the best one that starts with what's typed completes it inline (the rest
@@ -19,11 +22,16 @@
 import { listen, send } from './channel.js';
 import { toAddress, toUrl } from './shared/address.js';
 
+const bar = document.querySelector('.bar');
 const strip = document.getElementById('tabs');
+const filterField = document.getElementById('query');
 const fades = { left: document.querySelector('.fade.left'), right: document.querySelector('.fade.right') };
 
 let tabs = [];
 let active = -1;
+// The filter, while it's open: what's typed, and each tab's page's headings
+// (by tab id; the browser sends them).
+let filter = null;
 // The tab whose address is being edited: { id, field, typed, inline, rows,
 // selected } (typed: what was typed, without any inline completion; rows:
 // the suggestions shown, if any).
@@ -159,9 +167,97 @@ function render() {
   if (els.some((el, i) => strip.children[i] !== el) || strip.children.length !== els.length) {
     strip.replaceChildren(...els);
   }
+  fit();
+  applyFilter();
   if (!editing) strip.querySelector('.tab.active')?.scrollIntoView({ inline: 'nearest' });
   updateFades();
 }
+
+// --- Widths and the filter ---------------------------------------------------
+
+// A tab's width, and the narrower ones tried (80%, 60%) before they scroll.
+const TAB_WIDTHS = [220, 176, 132];
+// "+", at the right.
+const ADD_WIDTH = 34;
+
+/** The widest tabs that all fit; the narrowest (scrolling) if none do. */
+function fit() {
+  const room = bar.clientWidth - ADD_WIDTH;
+  const width = TAB_WIDTHS.find((w) => tabs.length * w <= room) ?? TAB_WIDTHS.at(-1);
+  strip.style.setProperty('--tab-width', `${width}px`);
+  bar.classList.toggle('overflowing', tabs.length * width > room);
+}
+
+function openFilter() {
+  if (filter) return;
+  filter = { text: '', headings: new Map() };
+  bar.classList.add('filtering');
+  filterField.tabIndex = 0;
+  filterField.focus();
+  send({ type: 'headings' });
+}
+
+function closeFilter() {
+  if (!filter) return;
+  filter = null;
+  filterField.value = '';
+  filterField.tabIndex = -1;
+  filterField.blur();
+  bar.classList.remove('filtering');
+  applyFilter();
+  strip.querySelector('.tab.active')?.scrollIntoView({ inline: 'nearest' });
+  updateFades();
+  reportLayout();
+}
+
+/** Whether `tab` has every word typed in its site, title or headings. */
+function matchesFilter(tab) {
+  const words = filter?.text.toLowerCase().split(/\s+/).filter(Boolean) ?? [];
+  if (!words.length) return true;
+  let host = '';
+  try {
+    host = new URL(tab.url).host;
+  } catch {}
+  const text = [host, tab.title ?? '', ...(filter.headings.get(tab.id) ?? [])].join('\n').toLowerCase();
+  return words.every((word) => text.includes(word));
+}
+
+function applyFilter() {
+  for (const tab of tabs) {
+    const parts = elements.get(tab.id);
+    if (parts) parts.el.hidden = !matchesFilter(tab);
+  }
+}
+
+document.getElementById('find').addEventListener('click', () => (filter ? closeFilter() : openFilter()));
+filterField.addEventListener('input', () => {
+  if (!filter) return;
+  filter.text = filterField.value;
+  applyFilter();
+  strip.scrollLeft = 0;
+  updateFades();
+  reportLayout();
+});
+filterField.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeFilter();
+  } else if (event.key === 'Enter') {
+    // The first tab that matches.
+    event.preventDefault();
+    const first = strip.querySelector('.tab:not([hidden])');
+    if (first) send({ type: 'activate', id: Number(first.dataset.id) });
+  }
+});
+// Clicking away leaves it open only while there's something typed.
+filterField.addEventListener('blur', () => {
+  if (filter && !filter.text.trim()) closeFilter();
+});
+addEventListener('resize', () => {
+  fit();
+  updateFades();
+  reportLayout();
+});
 
 function startEdit(id) {
   const parts = elements.get(id);
@@ -277,31 +373,37 @@ function updateFades() {
   fades.right.classList.toggle('shown', strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1);
 }
 strip.addEventListener('scroll', updateFades);
-addEventListener('resize', updateFades);
+
+// The focus bar's width.
+const FOCUS_BAR_WIDTH = 50;
 
 // Where the tabs are, for the window to work out where a dragged tab would
-// be inserted (its middle, in this bar's coordinates); and where the active
-// tab's focus bar goes (half its width, centred; the part in view), which
-// the window draws over its top edge.
+// be inserted (its middle, in this bar's coordinates; a tab the filter hides
+// is where the one before it ends); and where the active tab's focus bar
+// goes (50px, centred; the part in view), which the window draws over its
+// top edge.
 function reportLayout() {
+  let end = 0;
   const tabs = [...strip.querySelectorAll('.tab')].map((el) => {
+    if (el.hidden) return { id: Number(el.dataset.id), middle: Math.round(end) };
     const r = el.getBoundingClientRect();
+    end = r.right;
     return { id: Number(el.dataset.id), middle: Math.round(r.left + r.width / 2) };
   });
   const message = { type: 'layout', tabs };
-  const active = strip.querySelector('.tab.active');
+  const active = strip.querySelector('.tab.active:not([hidden])');
   if (active) {
     const r = active.getBoundingClientRect();
     const view = strip.getBoundingClientRect();
-    // Less the tab's divider, as it shows.
-    const left = Math.max(r.left + active.clientWidth / 4, view.left);
-    const right = Math.min(r.left + (active.clientWidth * 3) / 4, view.right);
+    // The middle of the tab less its divider, as it shows.
+    const middle = r.left + active.clientWidth / 2;
+    const left = Math.max(middle - FOCUS_BAR_WIDTH / 2, view.left);
+    const right = Math.min(middle + FOCUS_BAR_WIDTH / 2, view.right);
     if (right > left) message.focusBar = { x: Math.round(left), width: Math.round(right - left) };
   }
   send(message);
 }
 strip.addEventListener('scroll', reportLayout);
-addEventListener('resize', reportLayout);
 
 // Click to activate; middle click to close. Dragging (after 3px) moves a
 // tab: the window works out where it lands (this bar, another pane's, or a
@@ -400,6 +502,11 @@ document.getElementById('add').addEventListener('click', () => send({ type: 'new
 
 listen((message) => {
   if (message.type === 'tabs') {
+    // While filtering, a page that has finished loading may have new
+    // headings: ask again.
+    if (filter && message.tabs.some((t) => !t.loading && tabs.find((old) => old.id === t.id)?.loading)) {
+      send({ type: 'headings' });
+    }
     tabs = message.tabs;
     active = message.active;
     document.body.classList.toggle('focused', message.focused);
@@ -422,6 +529,12 @@ listen((message) => {
     field.value = typed;
     field.setSelectionRange(typed.length, typed.length);
     send({ type: 'suggest', text: editing.typed });
+  } else if (message.type === 'headings') {
+    if (!filter) return;
+    filter.headings.set(message.id, message.headings);
+    applyFilter();
+    updateFades();
+    reportLayout();
   } else if (message.type === 'hint') {
     showHint(message.index);
   }

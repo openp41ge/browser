@@ -2,7 +2,9 @@
  *
  * A pane's tab bar, after openp41ge's tab-bar (openp41ge-sdk-uikit): 35px,
  * the surface background, a divider underneath; 12px tabs with a right
- * border, the active one highlighted; a 34px "+" at the right.
+ * border, the active one highlighted; a 34px "+" at the right. While the
+ * tabs overflow, a filter button before it, which opens leftward into a
+ * field.
  */
 
 html,
@@ -12,6 +14,9 @@ body {
 }
 
 .bar {
+  /* What's kept at the right, past the tabs: "+", and the filter while the
+   * tabs overflow (34px; 220px while it's open). */
+  --reserved: 34px;
   position: relative;
   height: 35px;
   box-sizing: border-box;
@@ -22,7 +27,7 @@ body {
 .tabs {
   display: flex;
   height: 34px;
-  margin-right: 34px;
+  margin-right: var(--reserved);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -36,8 +41,9 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  /* Room for the address placeholder ("Search or enter address") in full. */
-  width: 220px;
+  /* Room for the address placeholder ("Search or enter address") in full,
+   * until there are too many tabs: tabbar.js narrows them (--tab-width). */
+  width: var(--tab-width, 220px);
   height: 34px;
   box-sizing: border-box;
   padding-left: 8px;
@@ -53,6 +59,9 @@ body {
 /* The focused tab (the active tab of the window's active pane) is marked by
  * a bar floating across its top edge, which the window draws (FocusBar):
  * this page can't draw outside itself. */
+.tab[hidden] {
+  display: none;
+}
 .tab.dragging {
   opacity: 0.4;
 }
@@ -198,11 +207,83 @@ svg.icon {
   background: linear-gradient(to right, var(--bg-surface), transparent);
 }
 .fade.right {
-  right: 34px;
+  right: var(--reserved);
   background: linear-gradient(to left, var(--bg-surface), transparent);
 }
 .fade.shown {
   opacity: 1;
+}
+
+/* Filtering tabs: a button while the tabs overflow, opening leftward into
+ * a field (over where the tabs were). */
+.bar.overflowing {
+  --reserved: 68px;
+}
+.bar.filtering {
+  --reserved: 254px;
+}
+.filter {
+  position: absolute;
+  top: 0;
+  right: 34px;
+  display: none;
+  align-items: center;
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+  transition: width 0.15s ease-out;
+}
+.bar.overflowing .filter,
+.bar.filtering .filter {
+  display: flex;
+}
+.bar.filtering .filter {
+  width: 220px;
+}
+.query {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 0 0 8px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  visibility: hidden;
+}
+.query::placeholder {
+  color: var(--text-muted);
+}
+.bar.filtering .query {
+  visibility: visible;
+}
+.find {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 33px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.find:hover,
+.bar.filtering .find {
+  color: var(--text-primary);
+}
+.find:hover {
+  background: var(--hover-bg);
+}
+.find svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 /* Where a dragged tab will land. */
