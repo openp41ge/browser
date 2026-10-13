@@ -36,12 +36,28 @@ class BrowserManager;
 //
 // A private window's pages use the private profile (see BrowserManager), and
 // aren't recorded in History; its tabs move only to other private windows.
+// A window as it was when it closed, to bring back (Reopen Closed Window):
+// its frame, and each pane's tabs' addresses and which one was active.
+struct WindowLayout {
+  struct PaneTabs {
+    std::vector<std::string> urls;
+    int active = 0;
+  };
+  CefRect bounds;
+  std::vector<PaneTabs> panes;
+  int active_pane = 0;
+};
+
 class BrowserWindow : public CefWindowDelegate {
  public:
   BrowserWindow(BrowserManager* manager, CefRect bounds, bool is_private, std::string first_url);
   // A window for a tab taken from another one.
   BrowserWindow(BrowserManager* manager, CefRect bounds, bool is_private, CefRefPtr<Tab> first_tab);
+  // A closed window, back as it was (its pages reload).
+  BrowserWindow(BrowserManager* manager, WindowLayout layout);
 
+  // Tells this window apart from others, including ones since closed.
+  int id() const { return id_; }
   CefRefPtr<CefWindow> window() const { return window_; }
   BrowserManager* manager() const { return manager_; }
   bool is_private() const { return is_private_; }
@@ -54,6 +70,9 @@ class BrowserWindow : public CefWindowDelegate {
   // Opens `url` as a new tab in `pane` (default: the active pane), after its
   // active tab.
   CefRefPtr<Tab> OpenTab(const std::string& url, Pane* pane = nullptr, bool activate = true);
+  // Brings back a closed tab: `url` at `index` in the pane at `pane_index`,
+  // or in a new pane there if its pane went with it, and shows it.
+  void ReopenTab(const std::string& url, int pane_index, int index, bool pane_closed);
   // Adds a page CEF created (a popup) as a tab beside `opener`'s.
   void AdoptPopup(CefRefPtr<CefBrowser> opener, CefRefPtr<CefBrowserView> view, bool activate);
   // Where `browser`'s tab is, if it's one of this window's.
@@ -174,11 +193,16 @@ class BrowserWindow : public CefWindowDelegate {
   // Puts the divider handles over the divider lines (after any layout).
   void UpdateDividerHandles();
 
+  // The window's panes and tabs, to reopen it once it's closed.
+  WindowLayout Snapshot() const;
+
   BrowserManager* manager_;  // Lives as long as the app.
+  const int id_;
   CefRect bounds_;
   const bool is_private_;
   std::string first_url_;
   CefRefPtr<Tab> first_tab_;
+  WindowLayout restore_;  // A closed window being reopened (panes empty if not).
   CefRefPtr<CefWindow> window_;
   CefRefPtr<TopBar> top_bar_;
   CefRefPtr<CefPanel> grid_;

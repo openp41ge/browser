@@ -72,6 +72,9 @@ std::string AppDataDir(int argc, char* argv[]) {
   if (command == BrowserManager::Command::kTogglePopout) {
     item.title = manager->popout()->IsOpen() ? @"Put Back Pop-out" : @"Pop Out Video";
   }
+  if (command == BrowserManager::Command::kReopenClosed) {
+    item.title = manager->NextReopenIsWindow() ? @"Reopen Closed Window" : @"Reopen Closed Tab";
+  }
   return manager->CanRun(command);
 }
 
@@ -137,6 +140,7 @@ NSMenu* BuildMainMenu() {
   AddCommand(file, @"New Tab", Command::kNewTab, @"t");
   AddCommand(file, @"New Window", Command::kNewWindow, @"n");
   AddCommand(file, @"New Private Window", Command::kNewPrivateWindow, @"n", kCmdShift);
+  AddCommand(file, @"Reopen Closed Tab", Command::kReopenClosed, @"t", kCmdShift);
   [file addItem:[NSMenuItem separatorItem]];
   AddCommand(file, @"Close Tab", Command::kCloseTab, @"w");
   AddCommand(file, @"Close Window", Command::kCloseWindow, @"w", kCmdShift);

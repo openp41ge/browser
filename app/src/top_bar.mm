@@ -21,6 +21,8 @@ std::vector<MenuWindow::Item> MenuItems() {
   add(Command::kNewTab, "New Tab");
   add(Command::kNewWindow, "New Window");
   add(Command::kNewPrivateWindow, "New Private Window");
+  add(Command::kReopenClosed,
+      manager && manager->NextReopenIsWindow() ? "Reopen Closed Window" : "Reopen Closed Tab");
   separator();
   add(Command::kZoomIn, "Zoom In");
   add(Command::kZoomOut, "Zoom Out");

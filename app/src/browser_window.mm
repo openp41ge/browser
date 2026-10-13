@@ -64,13 +64,27 @@ class GridDelegate : public CefPanelDelegate {
 
 BrowserWindow::BrowserWindow(BrowserManager* manager, CefRect bounds, bool is_private, std::string first_url)
     : manager_(manager),
+      id_(manager->NewWindowId()),
       bounds_(bounds),
       is_private_(is_private),
       first_url_(std::move(first_url)),
       top_bar_(new TopBar(this)) {}
 
 BrowserWindow::BrowserWindow(BrowserManager* manager, CefRect bounds, bool is_private, CefRefPtr<Tab> first_tab)
-    : manager_(manager), bounds_(bounds), is_private_(is_private), first_tab_(first_tab), top_bar_(new TopBar(this)) {}
+    : manager_(manager),
+      id_(manager->NewWindowId()),
+      bounds_(bounds),
+      is_private_(is_private),
+      first_tab_(first_tab),
+      top_bar_(new TopBar(this)) {}
+
+BrowserWindow::BrowserWindow(BrowserManager* manager, WindowLayout layout)
+    : manager_(manager),
+      id_(manager->NewWindowId()),
+      bounds_(layout.bounds),
+      is_private_(false),
+      restore_(std::move(layout)),
+      top_bar_(new TopBar(this)) {}
 
 History* BrowserWindow::history() const {
   return is_private_ ? nullptr : manager_->history();
@@ -124,7 +138,24 @@ void BrowserWindow::OnWindowCreated(CefRefPtr<CefWindow> window) {
   preview_ = std::make_unique<DropPreview>(window);
   focus_bar_ = std::make_unique<FocusBar>(window);
 
-  if (first_tab_) {
+  if (!restore_.panes.empty()) {
+    // A closed window, back: its panes, their tabs, and the active ones.
+    std::vector<CefRefPtr<Tab>> active;
+    for (size_t i = 0; i < restore_.panes.size(); ++i) {
+      Pane* pane = i == 0 ? active_pane_ : AddPane(static_cast<int>(i));
+      const WindowLayout::PaneTabs& tabs = restore_.panes[i];
+      for (size_t j = 0; j < tabs.urls.size(); ++j) {
+        CefRefPtr<Tab> tab = OpenTab(tabs.urls[j], pane, /*activate=*/false);
+        if (static_cast<int>(j) == tabs.active) pane->Activate(tab->id());
+      }
+    }
+    Pane* pane = panes_[std::clamp<size_t>(restore_.active_pane, 0, panes_.size() - 1)].get();
+    restore_ = WindowLayout();
+    SetActivePane(pane);
+    manager_->OnWindowCreated(this);
+    window->Show();
+    if (CefRefPtr<Tab> tab = active_tab()) tab->view()->RequestFocus();
+  } else if (first_tab_) {
     // A tab dragged out of another window.
     active_pane_->Add(first_tab_, 0, /*activate=*/true);
     first_tab_ = nullptr;
@@ -164,6 +195,31 @@ CefRefPtr<Tab> BrowserWindow::OpenTab(const std::string& url, Pane* pane, bool a
   return tab;
 }
 
+void BrowserWindow::ReopenTab(const std::string& url, int pane_index, int index, bool pane_closed) {
+  pane_index = std::clamp(pane_index, 0, static_cast<int>(panes_.size()) - (pane_closed ? 0 : 1));
+  Pane* pane = pane_closed ? AddPane(pane_index) : panes_[pane_index].get();
+  CefRefPtr<Tab> tab = manager_->CreateTab(url, is_private_);
+  pane->Add(tab, index, /*activate=*/true);
+  SetActivePane(pane);
+  if (window_) window_->Activate();
+  tab->view()->RequestFocus();
+}
+
+WindowLayout BrowserWindow::Snapshot() const {
+  WindowLayout layout;
+  layout.bounds = window_ ? window_->GetBounds() : bounds_;
+  for (const std::unique_ptr<Pane>& pane : panes_) {
+    WindowLayout::PaneTabs tabs;
+    for (const CefRefPtr<Tab>& tab : pane->tabs()) {
+      if (tab == pane->active_tab()) tabs.active = static_cast<int>(tabs.urls.size());
+      tabs.urls.push_back(tab->url);
+    }
+    if (pane.get() == active_pane_) layout.active_pane = static_cast<int>(layout.panes.size());
+    if (!tabs.urls.empty()) layout.panes.push_back(std::move(tabs));
+  }
+  return layout;
+}
+
 void BrowserWindow::AdoptPopup(CefRefPtr<CefBrowser> opener, CefRefPtr<CefBrowserView> view, bool activate) {
   CefRefPtr<Tab> opener_tab;
   Pane* pane = Locate(opener, &opener_tab);
@@ -189,6 +245,11 @@ void BrowserWindow::OnTabClosed(CefRefPtr<CefBrowser> browser) {
   CefRefPtr<Tab> tab;
   Pane* pane = Locate(browser, &tab);
   if (!pane) return;
+  // A tab closed on its own (not with its window) can be reopened.
+  if (!closing_ && !is_private_) {
+    manager_->RememberClosedTab(this, tab->url, IndexOf(pane), pane->IndexOf(tab->id()),
+                                pane->tabs().size() == 1 && panes_.size() > 1);
+  }
   pane->Remove(tab);
   if (pane->tabs().empty() && panes_.size() > 1) RemovePane(pane);
   bool any = false;
@@ -730,6 +791,8 @@ bool BrowserWindow::CanClose(CefRefPtr<CefWindow> window) {
   for (const std::unique_ptr<Pane>& pane : panes_) {
     tabs.insert(tabs.end(), pane->tabs().begin(), pane->tabs().end());
   }
+  // A window closed with its tabs can be reopened, all of them.
+  if (!closing_ && !tabs.empty() && !is_private_) manager_->RememberClosedWindow(Snapshot());
   closing_ = closing_ || !tabs.empty();
   for (const CefRefPtr<Tab>& tab : tabs) CloseTab(tab);
   return tabs.empty();

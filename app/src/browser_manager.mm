@@ -154,6 +154,59 @@ void BrowserManager::OnWindowDestroyed(BrowserWindow* window) {
   }
 }
 
+// --- Reopen Closed Tab --------------------------------------------------------
+
+namespace {
+// As many as Chrome keeps.
+constexpr size_t kMaxClosed = 25;
+}  // namespace
+
+void BrowserManager::RememberClosedTab(const BrowserWindow* window,
+                                       const std::string& url,
+                                       int pane_index,
+                                       int index,
+                                       bool pane_closed) {
+  // A tab that only ever showed the start page has nothing to bring back.
+  if (url.empty() || url == ui_scheme::kStartUrl) return;
+  Remember(ClosedTab{url, window->id(), pane_index, index, pane_closed});
+}
+
+void BrowserManager::RememberClosedWindow(WindowLayout layout) {
+  Remember(std::move(layout));
+}
+
+void BrowserManager::Remember(std::variant<ClosedTab, WindowLayout> item) {
+  // Not what closes as the app quits.
+  if (closing_) return;
+  closed_.push_back(std::move(item));
+  if (closed_.size() > kMaxClosed) closed_.erase(closed_.begin());
+}
+
+bool BrowserManager::NextReopenIsWindow() const {
+  return !closed_.empty() && std::holds_alternative<WindowLayout>(closed_.back());
+}
+
+void BrowserManager::ReopenClosed() {
+  if (closed_.empty()) return;
+  std::variant<ClosedTab, WindowLayout> item = std::move(closed_.back());
+  closed_.pop_back();
+  if (WindowLayout* layout = std::get_if<WindowLayout>(&item)) {
+    CefRefPtr<BrowserWindow> window = new BrowserWindow(this, std::move(*layout));
+    windows_.push_back(window);
+    CefWindow::CreateTopLevelWindow(window);
+    return;
+  }
+  const ClosedTab& tab = std::get<ClosedTab>(item);
+  // Back in its window if that's still open, else in a new one.
+  for (const CefRefPtr<BrowserWindow>& window : windows_) {
+    if (window->id() == tab.window_id) {
+      window->ReopenTab(tab.url, tab.pane_index, tab.index, tab.pane_closed);
+      return;
+    }
+  }
+  OpenWindow(tab.url);
+}
+
 BrowserWindow* BrowserManager::WindowOf(CefRefPtr<CefBrowser> browser, CefRefPtr<Tab>* tab) const {
   for (const CefRefPtr<BrowserWindow>& window : windows_) {
     if (window->Locate(browser, tab)) return window.get();
@@ -204,6 +257,8 @@ bool BrowserManager::CanRun(Command command) const {
     case Command::kNewWindow:
     case Command::kNewPrivateWindow:
       return true;
+    case Command::kReopenClosed:
+      return !closed_.empty();
     case Command::kBack:
       return page && page->CanGoBack();
     case Command::kForward:
@@ -229,6 +284,10 @@ void BrowserManager::Run(Command command) {
   }
   if (command == Command::kNewPrivateWindow) {
     OpenWindow(std::string(), /*is_private=*/true);
+    return;
+  }
+  if (command == Command::kReopenClosed) {
+    ReopenClosed();
     return;
   }
   if (!current_) return;

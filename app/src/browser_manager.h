@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "include/cef_client.h"
@@ -24,6 +25,9 @@
 // - A link's context menu opens it in a new tab, window or private window.
 // - Element pop-out (PopoutController): while something is popped out, new
 //   pages hold autoplay.
+// - Reopen Closed Tab (Cmd-Shift-T) brings back the last tab or window
+//   closed, as Chrome does: a tab where it was, a window with its panes and
+//   tabs. Not private ones, nor what closed as the app quit.
 // - Private windows: their pages share a profile kept only in memory (a
 //   request context with no cache path: cookies, site data, cache), created
 //   for the first private window and let go with the last, so nothing of it
@@ -58,6 +62,7 @@ class BrowserManager : public CefClient,
     kViewSource,
     kPrint,
     kTogglePopout,
+    kReopenClosed,
   };
 
   BrowserManager();
@@ -78,6 +83,8 @@ class BrowserManager : public CefClient,
   // closing, SIGTERM): keeps what must be kept, before CEF shuts down.
   void OnMessageLoopEnded();
   bool IsClosing() const { return closing_; }
+  // Whether Reopen Closed Tab would bring back a window (for its title).
+  bool NextReopenIsWindow() const;
 
   // A new tab's page, loading `url`; in the private profile if `is_private`.
   CefRefPtr<Tab> CreateTab(const std::string& url, bool is_private);
@@ -88,6 +95,11 @@ class BrowserManager : public CefClient,
   History* history() const { return history_.get(); }
 
   // From BrowserWindow.
+  int NewWindowId() { return next_window_id_++; }
+  // A tab closed on its own: its address, and where it was.
+  void RememberClosedTab(const BrowserWindow* window, const std::string& url, int pane_index, int index, bool pane_closed);
+  // A window closed with its tabs.
+  void RememberClosedWindow(WindowLayout layout);
   void OnWindowCreated(BrowserWindow* window);
   void OnWindowActivated(BrowserWindow* window);
   void OnWindowDestroyed(BrowserWindow* window);
@@ -187,6 +199,18 @@ class BrowserManager : public CefClient,
   std::vector<CefRefPtr<BrowserWindow>> windows_;
   BrowserWindow* current_ = nullptr;
   int next_tab_id_ = 1;
+  int next_window_id_ = 1;
+  // What Reopen Closed Tab brings back, the last closed last.
+  struct ClosedTab {
+    std::string url;
+    int window_id;
+    int pane_index;
+    int index;
+    bool pane_closed;  // It was its pane's last tab.
+  };
+  std::vector<std::variant<ClosedTab, WindowLayout>> closed_;
+  void ReopenClosed();
+  void Remember(std::variant<ClosedTab, WindowLayout> item);
   // Whether the popup being created should become the active tab.
   bool popup_foreground_ = true;
   bool closing_ = false;
