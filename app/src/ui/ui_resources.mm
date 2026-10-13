@@ -93,11 +93,7 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
   // channel to ask).
   static CefRefPtr<CefResourceHandler> AboutInfo() {
     NSDictionary* plist = NSBundle.mainBundle.infoDictionary;
-#if defined(EXPLORER_DEV_BUILD)
-    NSString* channel = @"dev";
-#else
-    NSString* channel = @"release";
-#endif
+    NSString* channel = plist[@"ExplorerChannel"] ?: @"dev";
     NSDictionary* info = @{
       @"version" : plist[@"CFBundleShortVersionString"] ?: @"",
       @"build" : plist[@"CFBundleVersion"] ?: @"",

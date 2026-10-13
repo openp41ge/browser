@@ -23,9 +23,10 @@ void Start();
 // "Check for Updates…" for the app menu; nil without a running updater.
 NSMenuItem* MenuItem();
 
-// The version of an update that's waiting for the user, or empty. (A
-// development build has none, unless it's run with
-// --pretend-update-available=<version>, for the tests and UI work.)
+// The version of an update that's waiting for the user, or empty. Run with
+// --pretend-update-available=<version>, the app shows one as if it were
+// waiting (for the tests and UI work; choosing it checks for real, if
+// there's an updater).
 std::string AvailableVersion();
 // Runs on the UI thread whenever that changes.
 void SetObserver(std::function<void()> changed);

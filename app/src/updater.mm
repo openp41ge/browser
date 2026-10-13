@@ -21,6 +21,11 @@ void SetAvailable(std::string version) {
   if (g_changed) g_changed();
 }
 
+// --pretend-update-available=<version>: shows that as waiting.
+void PretendIfAsked() {
+  SetAvailable(CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("pretend-update-available"));
+}
+
 }  // namespace
 
 #if defined(EXPLORER_UPDATES)
@@ -67,6 +72,7 @@ ExplorerUpdateReminders* g_reminders = nil;
 }  // namespace
 
 void Start() {
+  PretendIfAsked();
   if (CefCommandLine::GetGlobalCommandLine()->HasSwitch("disable-updates")) return;
   g_reminders = [[ExplorerUpdateReminders alloc] init];
   g_controller = [[SPUStandardUpdaterController alloc] initWithStartingUpdater:YES
@@ -91,8 +97,7 @@ void ShowUpdate() {
 #else
 
 void Start() {
-  // No updater; the tests and UI work can pretend there's an update.
-  SetAvailable(CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("pretend-update-available"));
+  PretendIfAsked();
 }
 
 NSMenuItem* MenuItem() {

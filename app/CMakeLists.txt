@@ -38,7 +38,8 @@ set(EXPLORER_UPDATE_FEED "https://github.com/openp41ge/browser/releases/latest/d
     "Sparkle appcast URL")
 set(EXPLORER_UPDATE_KEY "oO3C96DT1nDo0QrN+F6Woe0uxIcsbS1m/LiKOACuTNo=" CACHE STRING
     "Sparkle EdDSA public key (base64); empty: no updater")
-set(EXPLORER_PLIST_EXTRA "")
+# The build's channel, for the app (About) and the tests to read.
+set(EXPLORER_PLIST_EXTRA "\t<key>ExplorerChannel</key>\n\t<string>${EXPLORER_CHANNEL}</string>\n")
 set(EXPLORER_FRAMEWORKS "")
 set(EXPLORER_UPDATES OFF)
 if(EXPLORER_CHANNEL STREQUAL "release" AND EXPLORER_UPDATE_KEY)
@@ -48,9 +49,9 @@ if(EXPLORER_CHANNEL STREQUAL "release" AND EXPLORER_UPDATE_KEY)
     message(FATAL_ERROR "Sparkle not found at ${EXPLORER_SPARKLE}. Run scripts/fetch-sparkle first.")
   endif()
   set(EXPLORER_FRAMEWORKS "${EXPLORER_SPARKLE}")
-  # Checks daily without asking first, and installs what it finds when the
-  # app quits (people can turn that off in the update window).
-  string(CONCAT EXPLORER_PLIST_EXTRA
+  # Checks daily without asking first; what it finds waits for the user to
+  # accept it (src/updater.h), never installing on its own.
+  string(APPEND EXPLORER_PLIST_EXTRA
     "\t<key>SUFeedURL</key>\n\t<string>${EXPLORER_UPDATE_FEED}</string>\n"
     "\t<key>SUPublicEDKey</key>\n\t<string>${EXPLORER_UPDATE_KEY}</string>\n"
     "\t<key>SUEnableAutomaticChecks</key>\n\t<true/>\n"
