@@ -198,6 +198,9 @@ a laptop.
      staple (`scripts/notarize`).
   3. Package a signed, notarized `.dmg` (`scripts/make-dmg`) and generate
      `SHA256SUMS`. The `.dmg` is both the download and the update archive.
+     dmgbuild writes its Finder window (the app, an Applications link to
+     drag it onto, and a branded background) without scripting Finder, so
+     it runs headless.
   4. Wait for `browser-tests` to pass on the tagged commit (a release is
      blocked if it fails).
   5. Sign the update with Sparkle's EdDSA key and generate `appcast.xml`.
@@ -384,6 +387,15 @@ tools as Openp41ge.
 - **Prompts and errors:** permission prompts, auth dialogs, certificate and
   network error pages
 - **Data:** downloads with a downloads list, history, bookmarks
+- **Our own keychain item:** CEF 154 keeps its encryption key (cookies and
+  other stored secrets) in the keychain as "Chromium Safe Storage", the same
+  item every unbranded Chromium or CEF app uses. If one of those already
+  made it, macOS asks to share it, in a prompt naming Chromium. CEF 156 adds
+  `CefSettings.keychain_service_name` and `keychain_account_name` (API
+  15600): when it's stable, name the item per channel ("openp41ge explorer
+  Safe Storage", and the development name for dev builds). Data encrypted
+  with the old key (cookies, mostly) is lost once, so do it while users are
+  few.
 
 **Google features stay off** (see the decision above): smoke tests check
 that sign-in, sync and Translate don't appear.

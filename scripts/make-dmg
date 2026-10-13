@@ -1,7 +1,13 @@
 #!/bin/bash
 # Packages the app as a disk image to download: the app beside a link to
-# /Applications, to drag it onto. Compressed (LZFSE), and signed when given
-# an identity. The same image is what Sparkle updates from.
+# /Applications, to drag it onto, in a Finder window laid out for that (no
+# toolbar or sidebar; a background showing what to do). dmgbuild writes the
+# window's layout itself, so this runs headless, on CI too. Compressed
+# (LZFSE), and signed when given an identity. The same image is what Sparkle
+# updates from.
+#
+# The layout is app/mac/dmg/settings.py; the background is drawn by
+# app/mac/dmg/background.swift. Run scripts/fetch-dmgbuild first.
 #
 # Usage: scripts/make-dmg <app> <out.dmg> [identity]
 set -euo pipefail
@@ -10,17 +16,24 @@ if [ $# -lt 2 ] || [ $# -gt 3 ]; then
   echo "Usage: $0 <app> <out.dmg> [identity]" >&2
   exit 1
 fi
-app=$1
+app=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
 out=$2
 identity=${3:-}
 name=$(basename "$app" .app)
+root="$(cd "$(dirname "$0")/.." && pwd)"
+dmgbuild="$root/third_party/dmgbuild/bin/dmgbuild"
+if [ ! -x "$dmgbuild" ]; then
+  echo "dmgbuild is missing: run scripts/fetch-dmgbuild" >&2
+  exit 1
+fi
 
-stage=$(mktemp -d)
-trap 'rm -rf "$stage"' EXIT
-ditto "$app" "$stage/$name.app"
-ln -s /Applications "$stage/Applications"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+# background.png and background@2x.png; dmgbuild combines them.
+swift "$root/app/mac/dmg/background.swift" "$work"
 
-hdiutil create -quiet -volname "$name" -srcfolder "$stage" -fs APFS -format ULFO -ov "$out"
+"$dmgbuild" -s "$root/app/mac/dmg/settings.py" \
+  -D app="$app" -D background="$work/background.png" "$name" "$out"
 if [ -n "$identity" ]; then
   codesign --force --timestamp --sign "$identity" "$out"
 fi

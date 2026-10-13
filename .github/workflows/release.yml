@@ -79,8 +79,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Fetch Sparkle
-        run: scripts/fetch-sparkle
+      # dmgbuild (scripts/make-dmg) needs Python 3.10 or later.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Fetch Sparkle and dmgbuild
+        run: |
+          scripts/fetch-sparkle
+          scripts/fetch-dmgbuild
 
       - uses: actions/download-artifact@v8
         with:

@@ -1,0 +1,21 @@
+#!/bin/bash
+# Installs the pinned dmgbuild (app/mac/dmg/requirements.txt) into a Python
+# environment of its own in third_party/dmgbuild, for scripts/make-dmg.
+# Needs Python 3.10 or later as python3. Skips the install if it's already
+# present.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REQUIREMENTS="$ROOT/app/mac/dmg/requirements.txt"
+DEST="$ROOT/third_party/dmgbuild"
+STAMP="$DEST/.requirements"
+if [ -f "$STAMP" ] && cmp -s "$STAMP" "$REQUIREMENTS"; then
+  echo "dmgbuild already present"
+  exit 0
+fi
+
+echo "Installing dmgbuild into third_party/dmgbuild"
+rm -rf "$DEST"
+python3 -m venv "$DEST"
+"$DEST/bin/pip" install --quiet --disable-pip-version-check --require-hashes -r "$REQUIREMENTS"
+cp "$REQUIREMENTS" "$STAMP"

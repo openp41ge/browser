@@ -80,7 +80,11 @@ To release, push a tag `v<version>` (e.g. `v0.1.0`) on a commit of
 2. signs it with the Developer ID certificate (`scripts/sign-app`; the
    hardened runtime and the entitlements in `app/mac/entitlements`) and
    has Apple notarize it (`scripts/notarize`)
-3. packages it in a signed, notarized disk image (`scripts/make-dmg`)
+3. packages it in a signed, notarized disk image (`scripts/make-dmg`, with
+   [dmgbuild](https://github.com/dmgbuild/dmgbuild) pinned in
+   `app/mac/dmg/requirements.txt`; its window's layout is
+   `app/mac/dmg/settings.py` and its background is drawn by
+   `app/mac/dmg/background.swift`)
 4. waits for `browser-tests` to pass on the commit
 5. writes the appcast installed apps check for updates, signed with the
    update key (`scripts/make-appcast`), and publishes the release with the
