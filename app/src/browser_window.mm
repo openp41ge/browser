@@ -776,16 +776,16 @@ void BrowserWindow::CancelTabDrag() {
 }
 
 void BrowserWindow::UpdateTitle() {
-  // The window's title names it in the Window menu and Mission Control.
-  // A development build's say so (its Dock name is the engine's, "Chromium"),
-  // as the openp41ge app's do: "openp41ge browser development — <page>".
+  // The window's title names it in the Window menu and Mission Control:
+  // "openp41ge explorer — <page>". A development build's say so (its Dock
+  // name is the engine's, "Chromium"), as the openp41ge app's do.
   CefRefPtr<Tab> tab = active_tab();
 #if defined(EXPLORER_DEV_BUILD)
-  constexpr char kDevName[] = "openp41ge browser development";
-  const std::string title = tab && !tab->title.empty() ? std::string(kDevName) + " — " + tab->title : kDevName;
+  constexpr char kName[] = "openp41ge browser development";
 #else
-  const std::string title = tab && !tab->title.empty() ? tab->title : "openp41ge explorer";
+  constexpr char kName[] = "openp41ge explorer";
 #endif
+  const std::string title = tab && !tab->title.empty() ? std::string(kName) + " — " + tab->title : kName;
   if (window_) window_->SetTitle(is_private_ ? title + " (Private)" : title);
 }
 
