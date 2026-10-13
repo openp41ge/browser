@@ -69,6 +69,33 @@ CefRefPtr<CefBrowserView> UiView::view() {
   return view_;
 }
 
+namespace {
+
+// Pages made with CreateIn not yet closed, and what's waiting for them.
+int g_own_window_pages = 0;
+std::function<void()> g_when_closed;
+
+}  // namespace
+
+void UiView::WhenOwnWindowPagesClosed(std::function<void()> done) {
+  if (g_own_window_pages == 0) {
+    done();
+    return;
+  }
+  g_when_closed = std::move(done);
+}
+
+void UiView::CreateIn(CefWindowHandle parent, const CefRect& bounds) {
+  ++g_own_window_pages;
+  own_window_ = true;
+  CefWindowInfo info;
+  info.SetAsChild(parent, bounds);
+  info.runtime_style = CEF_RUNTIME_STYLE_ALLOY;
+  CefBrowserSettings settings;
+  settings.background_color = Color(background_);
+  CefBrowserHost::CreateBrowser(info, this, url_, settings, nullptr, nullptr);
+}
+
 void UiView::Send(CefRefPtr<CefDictionaryValue> message) {
   if (!listener_) return;
   CefRefPtr<CefValue> value = CefValue::Create();
@@ -144,6 +171,11 @@ void UiView::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   listener_ = nullptr;
   browser_ = nullptr;
   router_->OnBeforeClose(browser);
+  if (own_window_ && --g_own_window_pages == 0 && g_when_closed) {
+    std::function<void()> done = std::move(g_when_closed);
+    g_when_closed = nullptr;
+    done();
+  }
 }
 
 bool UiView::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,

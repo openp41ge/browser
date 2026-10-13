@@ -3,6 +3,7 @@
 #ifndef OPENP41GE_EXPLORER_UI_UI_VIEW_H_
 #define OPENP41GE_EXPLORER_UI_UI_VIEW_H_
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -40,6 +41,13 @@ class UiView : public CefClient,
 
   // The view, created on first call.
   CefRefPtr<CefBrowserView> view();
+  // Or instead, the page in a native view of our own (`parent`, at `bounds`
+  // in it): for a window that isn't a CEF window (see FindBar). Such a page
+  // closes on its own (CloseBrowser), not with a CEF window, so the app
+  // waits for them (WhenOwnWindowPagesClosed) before it quits.
+  void CreateIn(CefWindowHandle parent, const CefRect& bounds);
+  // Runs `done` once no page made with CreateIn is open (now, if none is).
+  static void WhenOwnWindowPagesClosed(std::function<void()> done);
   CefRefPtr<CefBrowser> browser() const { return browser_; }
   // Sends a message to the page (dropped until the page is listening).
   void Send(CefRefPtr<CefDictionaryValue> message);
@@ -123,6 +131,7 @@ class UiView : public CefClient,
   virtual void OnDragRegions(const std::vector<CefDraggableRegion>& regions) {}
 
  private:
+  bool own_window_ = false;  // Made with CreateIn.
   std::string url_;
   CefSize preferred_size_;
   Background background_;

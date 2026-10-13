@@ -2,7 +2,8 @@
  *
  * Find in page: a 35px row over the bottom of a pane's page, like the tab
  * bar turned over (its divider on top): the field, the match count, and
- * 34px buttons for the previous and next match and to close.
+ * 34px buttons for the previous and next match and to close. 8px more at
+ * each end, clear of the window's rounded corners.
  */
 
 html,
@@ -18,6 +19,7 @@ body {
   box-sizing: border-box;
   background: var(--bg-surface);
   border-top: 1px solid var(--border-divider);
+  padding-left: 8px;
   font-size: 12px;
 }
 
@@ -60,9 +62,15 @@ body {
   background: transparent;
   color: var(--text-secondary);
 }
+/* The grey of the borders, so a hovered button blends with its divider. */
 .button:hover:not(:disabled) {
-  background: var(--hover-bg);
+  background: var(--border-divider);
   color: var(--text-primary);
+}
+/* The last button: its icon in 34px, then 8px. */
+#close {
+  width: 42px;
+  padding-right: 8px;
 }
 .button:disabled {
   color: var(--text-muted);

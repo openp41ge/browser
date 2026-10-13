@@ -164,7 +164,8 @@ void BrowserManager::OnWindowDestroyed(BrowserWindow* window) {
   }
   if (windows_.empty()) {
     popout_->Close();
-    CefQuitMessageLoop();
+    // Once our UI's pages in windows of their own (find rows) have closed.
+    UiView::WhenOwnWindowPagesClosed([] { CefQuitMessageLoop(); });
   }
 }
 

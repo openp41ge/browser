@@ -814,8 +814,9 @@ void BrowserWindow::OnWindowDestroyed(CefRefPtr<CefWindow> window) {
   if (suggestions_) suggestions_->Close();
   suggestions_ = nullptr;
   suggesting_ = nullptr;
-  manager_->OnWindowDestroyed(this);
+  // The panes' find rows start closing, before the app might quit.
   panes_.clear();
+  manager_->OnWindowDestroyed(this);
   active_pane_ = nullptr;
   window_ = nullptr;
 }
