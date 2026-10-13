@@ -54,7 +54,8 @@ if(EXPLORER_CHANNEL STREQUAL "release" AND EXPLORER_UPDATE_KEY)
     "\t<key>SUFeedURL</key>\n\t<string>${EXPLORER_UPDATE_FEED}</string>\n"
     "\t<key>SUPublicEDKey</key>\n\t<string>${EXPLORER_UPDATE_KEY}</string>\n"
     "\t<key>SUEnableAutomaticChecks</key>\n\t<true/>\n"
-    "\t<key>SUAutomaticallyUpdate</key>\n\t<true/>\n"
+    "\t<key>SUAutomaticallyUpdate</key>\n\t<false/>\n"
+    "\t<key>SUAllowsAutomaticUpdates</key>\n\t<false/>\n"
     "\t<key>SUVerifyUpdateBeforeExtraction</key>\n\t<true/>\n")
 elseif(EXPLORER_CHANNEL STREQUAL "release")
   message(WARNING "No EXPLORER_UPDATE_KEY: this release build won't update itself.")

@@ -36,7 +36,7 @@ class FindBar : public CefBaseRefCounted {
 
   // Where it goes: over the bottom of the page (CEF screen coordinates),
   // and which of the browser window's edges that's on. On those it's inset
-  // by the window's outline (a pixel, which macOS draws along the edge), so
+  // by the window's outline (a point, which macOS draws along the edge), so
   // the outline still shows; at the window's bottom corners it's rounded as
   // they are.
   struct Placement {

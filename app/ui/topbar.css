@@ -96,6 +96,19 @@ body {
   display: none;
 }
 
+/* An update waiting: the menu button says so, after its dots. */
+.btn.has-update {
+  width: auto;
+  gap: 4px;
+  padding: 0 8px 0 5px;
+}
+.update {
+  color: var(--border-focus);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* Reload's circular icon reads larger than the chevrons at the same size;
  * the menu's dots match it. */
 .btn.small svg {

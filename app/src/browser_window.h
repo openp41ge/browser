@@ -75,6 +75,8 @@ class BrowserWindow : public CefWindowDelegate {
   void ReopenTab(const std::string& url, int pane_index, int index, bool pane_closed);
   // Adds a page CEF created (a popup) as a tab beside `opener`'s.
   void AdoptPopup(CefRefPtr<CefBrowser> opener, CefRefPtr<CefBrowserView> view, bool activate);
+  // The top bar shows the latest state (e.g. an update is available).
+  void UpdateTopBar() { if (top_bar_) top_bar_->Update(); }
   // Every tab, pane by pane.
   std::vector<CefRefPtr<Tab>> tabs() const;
   // Where `browser`'s tab is, if it's one of this window's.

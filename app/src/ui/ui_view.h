@@ -42,10 +42,13 @@ class UiView : public CefClient,
   // The view, created on first call.
   CefRefPtr<CefBrowserView> view();
   // Or instead, the page in a native view of our own (`parent`, at `bounds`
-  // in it): for a window that isn't a CEF window (see FindBar). Such a page
-  // closes on its own (CloseBrowser), not with a CEF window, so the app
-  // waits for them (WhenOwnWindowPagesClosed) before it quits.
+  // in it, filling it as it's resized): for a window of our own rather than
+  // a CEF window, which macOS draws with rounded corners (see FindBar,
+  // MenuWindow). Such a page doesn't close with a CEF window: CloseInWindow
+  // closes it and then the window it's in, and the app waits for them
+  // (WhenOwnWindowPagesClosed) before it quits.
   void CreateIn(CefWindowHandle parent, const CefRect& bounds);
+  void CloseInWindow();
   // Runs `done` once no page made with CreateIn is open (now, if none is).
   static void WhenOwnWindowPagesClosed(std::function<void()> done);
   CefRefPtr<CefBrowser> browser() const { return browser_; }
@@ -99,7 +102,10 @@ class UiView : public CefClient,
                      bool* no_javascript_access) override {
     return true;  // The browser's UI opens no windows of its own.
   }
-  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override { browser_ = browser; }
+  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
+  // A page made with CreateIn closes the window it's in (CEF would ask it to
+  // close itself, which a borderless window can't), and is gone with it.
+  bool DoClose(CefRefPtr<CefBrowser> browser) override;
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
 
   // CefRequestHandler:
@@ -131,7 +137,9 @@ class UiView : public CefClient,
   virtual void OnDragRegions(const std::vector<CefDraggableRegion>& regions) {}
 
  private:
-  bool own_window_ = false;  // Made with CreateIn.
+  bool own_window_ = false;      // Made with CreateIn.
+  const void* host_window_ = nullptr;  // Its window (an NSWindow, retained) until it's closed.
+  bool close_pending_ = false;  // Asked to close before it was made.
   std::string url_;
   CefSize preferred_size_;
   Background background_;

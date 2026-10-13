@@ -67,6 +67,7 @@ class BrowserManager : public CefClient,
     kFind,
     kFindNext,
     kFindPrevious,
+    kUpdate,
   };
 
   BrowserManager();

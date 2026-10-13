@@ -218,7 +218,11 @@ a laptop.
 **Auto-update:** the app's Sparkle feed URL is
 `https://github.com/openp41ge/browser/releases/latest/download/appcast.xml`,
 which GitHub redirects to the newest release's asset. No separate update
-server is needed.
+server is needed. The app checks it daily, and an update it finds waits for
+the user to accept it (decided 2026-10-13), as Chrome's do: the top bar's
+menu button says "Update available", and its menu starts with the update,
+which opens Sparkle's window for it (what's new, Install Update). Nothing
+installs without that.
 
 **Versioning:** the app uses its own semver (`v0.1.0`, …), independent of
 Chromium. Each release's notes state the CEF and Chromium versions it ships.

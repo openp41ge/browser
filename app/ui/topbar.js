@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Richard Kielty. MIT License.
 //
 // The top bar: back, forward and reload for the window's active tab (the
-// focused one), its title, a private window's badge, and the menu button.
+// focused one), its title, a private window's badge, and the menu button
+// (which says "Update available" while an update waits for the user).
 
 import { listen, send } from './channel.js';
 
@@ -12,6 +13,7 @@ const reload = $('reload');
 const title = $('title');
 const menu = $('menu');
 const privateBadge = $('private');
+const updateLabel = $('update');
 
 function applyState(state) {
   back.disabled = !state.canGoBack;
@@ -19,6 +21,10 @@ function applyState(state) {
   title.textContent = state.title;
   title.title = state.title;
   privateBadge.hidden = !state.private;
+  // An update waiting: the menu (which starts with it) says so.
+  updateLabel.hidden = !state.update;
+  menu.classList.toggle('has-update', !!state.update);
+  menu.title = state.update ? `Menu: update to ${state.update} available` : 'Menu';
 }
 
 back.addEventListener('click', () => send({ type: 'back' }));

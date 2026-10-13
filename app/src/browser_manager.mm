@@ -12,6 +12,7 @@
 #include "include/wrapper/cef_helpers.h"
 
 #include "ui/ui_live_reload.h"
+#include "updater.h"
 #include "ui/ui_scheme.h"
 #include "ui/ui_view.h"
 
@@ -73,6 +74,10 @@ BrowserManager::BrowserManager()
   DisableChromiumHistory(CefRequestContext::GetGlobalContext());
   // A development build's UI, as it's edited (ui_live_reload.h).
   ui_live_reload::Watch([this] { ReloadUi(); });
+  // An update waiting for the user shows in every window's top bar.
+  updater::SetObserver([this] {
+    for (const CefRefPtr<BrowserWindow>& window : windows_) window->UpdateTopBar();
+  });
 }
 
 void BrowserManager::ReloadUi() {
@@ -274,6 +279,8 @@ bool BrowserManager::CanRun(Command command) const {
       return true;
     case Command::kReopenClosed:
       return !closed_.empty();
+    case Command::kUpdate:
+      return !updater::AvailableVersion().empty();
     case Command::kBack:
       return page && page->CanGoBack();
     case Command::kForward:
@@ -308,6 +315,10 @@ void BrowserManager::Run(Command command) {
   }
   if (command == Command::kReopenClosed) {
     ReopenClosed();
+    return;
+  }
+  if (command == Command::kUpdate) {
+    updater::ShowUpdate();
     return;
   }
   if (!current_) return;

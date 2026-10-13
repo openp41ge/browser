@@ -88,12 +88,41 @@ void UiView::WhenOwnWindowPagesClosed(std::function<void()> done) {
 void UiView::CreateIn(CefWindowHandle parent, const CefRect& bounds) {
   ++g_own_window_pages;
   own_window_ = true;
+  host_window_ = CFBridgingRetain(((__bridge NSView*)parent).window);
   CefWindowInfo info;
   info.SetAsChild(parent, bounds);
   info.runtime_style = CEF_RUNTIME_STYLE_ALLOY;
   CefBrowserSettings settings;
   settings.background_color = Color(background_);
   CefBrowserHost::CreateBrowser(info, this, url_, settings, nullptr, nullptr);
+}
+
+void UiView::CloseInWindow() {
+  if (browser_) {
+    browser_->GetHost()->CloseBrowser(true);
+  } else {
+    close_pending_ = true;  // Once it's made (OnAfterCreated).
+  }
+}
+
+void UiView::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
+  browser_ = browser;
+  if (!own_window_) return;
+  ((__bridge NSView*)browser->GetHost()->GetWindowHandle()).autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+  if (close_pending_) browser->GetHost()->CloseBrowser(true);
+}
+
+bool UiView::DoClose(CefRefPtr<CefBrowser> browser) {
+  if (!own_window_) return false;
+  // Its view out of the window, which tears the page down; then the window.
+  [(__bridge NSView*)browser->GetHost()->GetWindowHandle() removeFromSuperview];
+  if (host_window_) {
+    NSWindow* window = CFBridgingRelease(host_window_);
+    host_window_ = nullptr;
+    [window.parentWindow removeChildWindow:window];
+    [window close];
+  }
+  return true;
 }
 
 void UiView::Send(CefRefPtr<CefDictionaryValue> message) {

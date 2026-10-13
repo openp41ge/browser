@@ -26,9 +26,10 @@ CGFloat WindowCornerRadius() {
   return 10;
 }
 
-// The outline macOS draws along a window's edges: one pixel of its screen.
+// The outline macOS draws along a window's edges, inside its dark edge: a
+// light hairline a point wide (most visible in dark mode).
 CGFloat WindowOutline(NSWindow* window) {
-  return 1 / (window.backingScaleFactor > 0 ? window.backingScaleFactor : 1);
+  return 1;
 }
 
 // CEF screen coordinates (origin at the main screen's top left) as a Cocoa
@@ -49,40 +50,6 @@ class FindBar::Page : public UiView {
   explicit Page(FindBar* owner) : UiView("findbar.html", CefSize(1, kHeight), Background::kSurface), owner_(owner) {}
 
   void Detach() { owner_ = nullptr; }
-  // Its window, closed once the page has (the page is in it).
-  void CloseWithWindow(NSWindow* window) {
-    window_ = window;
-    if (CefRefPtr<CefBrowser> page = browser()) {
-      page->GetHost()->CloseBrowser(true);
-    } else {
-      [window_ close];
-      window_ = nil;
-    }
-  }
-
-  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override {
-    UiView::OnAfterCreated(browser);
-    // The page fills the window, at whatever size it's given.
-    NSView* view = (__bridge NSView*)browser->GetHost()->GetWindowHandle();
-    view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-  }
-
-  // Its window has no close button for CEF to press (performClose:), so the
-  // page closes it itself, and finishes closing as it goes (see DoClose in
-  // cef_life_span_handler.h).
-  bool DoClose(CefRefPtr<CefBrowser> browser) override {
-    // Its view out of the window, which tears the page down; then the window.
-    [(__bridge NSView*)browser->GetHost()->GetWindowHandle() removeFromSuperview];
-    [window_ close];
-    window_ = nil;
-    return true;
-  }
-
-  void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
-    UiView::OnBeforeClose(browser);
-    [window_ close];
-    window_ = nil;
-  }
 
  protected:
   void OnConnected() override {
@@ -102,8 +69,7 @@ class FindBar::Page : public UiView {
   }
 
  private:
-  FindBar* owner_;           // Null once the find bar has gone.
-  NSWindow* window_ = nil;   // While closing.
+  FindBar* owner_;  // Null once the find bar has gone.
 
   IMPLEMENT_REFCOUNTING(Page);
 };
@@ -204,9 +170,9 @@ void FindBar::Hide() {
 void FindBar::Close() {
   Hide();
   callbacks_ = {};
-  if (FindBarWindow* window = native_->window) {
+  if (native_->window) {
     native_->window = nil;
-    page_->CloseWithWindow(window);
+    page_->CloseInWindow();  // Its window with it.
   }
 }
 

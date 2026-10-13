@@ -4,6 +4,7 @@
 #define OPENP41GE_EXPLORER_MENU_WINDOW_H_
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -14,15 +15,17 @@
 // Our own menu (app/ui/menu.html), e.g. the top bar's: a small borderless
 // window of its own over the browser window (anything that floats over pages
 // is a window: views layered in the window would stop the pages getting
-// clicks). It closes once an item is chosen, on Escape, or when it loses
-// focus (a click anywhere else).
+// clicks). It's a plain window of ours, not a CEF window, which macOS would
+// draw with rounded corners that cut across the menu's square border
+// (UiView::CreateIn). It closes once an item is chosen, on Escape, or when
+// it loses the keyboard (a click anywhere else).
 //
 // Messages from the page: {"type": "size", "width", "height"} (once it has
 // laid out its items; the window is shown then), {"type": "run", "id"},
 // {"type": "close"}.
 // Messages to it: {"type": "items", "items": [{id, label, enabled} |
 // {separator: true}]}.
-class MenuWindow : public CefWindowDelegate {
+class MenuWindow : public CefBaseRefCounted {
  public:
   struct Item {
     int id = -1;  // -1: a separator.
@@ -38,22 +41,12 @@ class MenuWindow : public CefWindowDelegate {
 
   ~MenuWindow() override;
 
-  // CefWindowDelegate:
-  void OnWindowCreated(CefRefPtr<CefWindow> window) override;
-  void OnWindowActivationChanged(CefRefPtr<CefWindow> window, bool active) override;
-  void OnWindowDestroyed(CefRefPtr<CefWindow> window) override;
-  CefRefPtr<CefWindow> GetParentWindow(CefRefPtr<CefWindow> window, bool* is_menu, bool* can_activate_menu) override;
-  cef_runtime_style_t GetWindowRuntimeStyle() override { return CEF_RUNTIME_STYLE_ALLOY; }
-  CefRect GetInitialBounds(CefRefPtr<CefWindow> window) override;
-  bool IsFrameless(CefRefPtr<CefWindow> window) override { return true; }
-  bool CanResize(CefRefPtr<CefWindow> window) override { return false; }
-  bool CanMinimize(CefRefPtr<CefWindow> window) override { return false; }
-  bool CanMaximize(CefRefPtr<CefWindow> window) override { return false; }
-
  private:
   class Page;
+  struct Native;
 
   MenuWindow(CefRefPtr<CefWindow> parent, CefPoint top_right, std::vector<Item> items, RunCallback run);
+  void Open();
 
   // From the page.
   void OnConnected();
@@ -66,7 +59,7 @@ class MenuWindow : public CefWindowDelegate {
   std::vector<Item> items_;
   RunCallback run_;
   CefRefPtr<Page> page_;
-  CefRefPtr<CefWindow> window_;
+  std::unique_ptr<Native> native_;
   bool shown_ = false;
 
   IMPLEMENT_REFCOUNTING(MenuWindow);

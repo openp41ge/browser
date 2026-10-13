@@ -56,8 +56,12 @@ build, so testing never touches your everyday profile; a release build
 (`-DEXPLORER_CHANNEL=release`, as CI builds) uses
 `~/Library/Application Support/openp41ge explorer`.
 
-A release build also updates itself, with [Sparkle](https://sparkle-project.org)
-(run `scripts/fetch-sparkle` first); a development build never does. Pass
+A release build checks for updates daily, with
+[Sparkle](https://sparkle-project.org) (run `scripts/fetch-sparkle` first),
+and offers what it finds: the top bar's menu button says "Update available"
+and its menu starts with the update; nothing installs until the user
+accepts. A development build never checks; run it with
+`--pretend-update-available=<version>` to see the offer (the tests do). Pass
 `--disable-updates` to keep a release build from checking (the tests do).
 
 The app icon is `brand/icon.svg` (a development build shows
@@ -70,7 +74,7 @@ run `scripts/make-icons` (needs Xcode 26) to remake the app's icons in
 
 Builds are published on [GitHub Releases](https://github.com/openp41ge/browser/releases)
 as `openp41ge-explorer-<version>-universal.dmg` (one app for Apple Silicon
-and Intel Macs), and installed apps update themselves.
+and Intel Macs), and installed apps offer each new one.
 
 To release, push a tag `v<version>` (e.g. `v0.1.0`) on a commit of
 `master`; [release.yml](.github/workflows/release.yml) does the rest:

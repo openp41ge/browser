@@ -5,6 +5,7 @@
 #include "browser_manager.h"
 #include "browser_window.h"
 #include "menu_window.h"
+#include "updater.h"
 
 namespace {
 
@@ -14,10 +15,16 @@ using Command = BrowserManager::Command;
 std::vector<MenuWindow::Item> MenuItems() {
   BrowserManager* manager = BrowserManager::Get();
   std::vector<MenuWindow::Item> items;
-  auto add = [&](Command command, const char* label) {
+  auto add = [&](Command command, const std::string& label) {
     items.push_back({static_cast<int>(command), label, manager && manager->CanRun(command)});
   };
   auto separator = [&] { items.push_back({}); };
+  // An update waiting for the user, first (the button says so too).
+  const std::string update = updater::AvailableVersion();
+  if (!update.empty()) {
+    add(Command::kUpdate, "Update to " + update);
+    separator();
+  }
   add(Command::kNewTab, "New Tab");
   add(Command::kNewWindow, "New Window");
   add(Command::kNewPrivateWindow, "New Private Window");
@@ -47,6 +54,7 @@ void TopBar::Update() {
   CefRefPtr<Tab> tab = owner_ ? owner_->active_tab() : nullptr;
   message->SetString("title", tab ? tab->title : std::string());
   message->SetBool("private", owner_ && owner_->is_private());
+  message->SetString("update", updater::AvailableVersion());
   Send(message);
 }
 
