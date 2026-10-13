@@ -1,5 +1,7 @@
 2026-10-10 (revised 2026-10-11)
 
+**Status: done.** Pop-out is in the browser. Its window model (Chrome-style pages) was replaced by [Alloy pages in our own grid](2026-10-11-browser-ui-grid.md).
+
 # Element pop-out in the browser
 
 Takes the [DOM pop-out spike](2026-10-10-dom-popout-spike.md) into the

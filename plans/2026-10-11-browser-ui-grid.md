@@ -31,7 +31,7 @@ So: **every page is an Alloy-style browser view, and Chrome style is
 dropped entirely** (decided 2026-10-11). A CEF source build isn't needed.
 What Alloy pages don't get, compared with Chrome style:
 
-- **Chrome extensions.** Our own features are injected by the browser
+- **Chrome extensions.** The browser gets an extension system of its own
   instead (see **Features**).
 - **Chrome's UI:** settings, history, downloads, password manager,
   permission prompts, find bar, and Google features (wanted off anyway). We
@@ -60,7 +60,8 @@ What Alloy pages don't get, compared with Chrome style:
   - per pane, a **tab bar**: another small web view (openp41ge://ui/tabbar.html),
     above
   - the pane's **page**: the active tab's Alloy browser view. Other tabs'
-    pages are taken out of the window and kept alive (probe: works);
+    pages stay in the pane, hidden, so a tab opened behind loads straight
+    away (CEF only creates a page once its view is in a window);
   - between panes, a **divider**: a thin native view the shell resizes
     while it's dragged.
 - **The UI is HTML/CSS/JS** in those web views (decided 2026-10-11 over
@@ -90,8 +91,8 @@ columns.
 
 - **Columns:** each has tabs (in order), an active tab and a width. Widths
   are shared (`flex: 1`) until a splitter is dragged.
-- **Minimum column width** 200px; a column is at most 50% of the window
-  while being resized.
+- **Minimum column width** 320px (the grid scrolls sideways when columns
+  don't fit); a column is at most 50% of the window while being resized.
 - **Splitters:** a 5px handle straddling the column border (no layout
   space), `col-resize`; a 3px blue line (`rgb(74,158,255)`) fades in on hover
   or drag. Dragging past the limits is damped and springs back. Double-click
@@ -149,16 +150,18 @@ and widths.
 
 ## Features (Internet Utility Belt in Alloy pages)
 
-Alloy pages don't load Chrome extensions, so the browser runs the
-extension's features itself, as the plan originally intended (Phase 6):
+Alloy pages don't load Chrome extensions. Internet Utility Belt's features
+(YouTube and Shorts) come to the browser through **an extension system of
+the browser's own** (decided 2026-10-13), not as features built into it.
+It needs its own plan. Points from this one that carry over:
 
 - The features are plain DOM code with host services passed in
-  (`FeatureHost`, settings). A **CEF host** provides those: cross-tab
-  messages through the browser process, settings in the profile.
-- Scripts are injected by the renderer (`OnContextCreated`) into matching
-  pages. They run in the page's own JavaScript world (CEF doesn't expose
-  isolated worlds), so the host channel they use must only accept what a
-  feature may do, and nothing that reaches the browser's UI channel.
+  (`FeatureHost`, settings), so the extension system provides those:
+  cross-tab messages through the browser process, settings in the profile.
+- Content scripts would run in the page's own JavaScript world (CEF
+  doesn't expose isolated worlds), so their channel to the browser must
+  only accept what an extension may do, and nothing that reaches the
+  browser's UI channel.
 - The extension itself stays, for Chrome, Edge and Brave.
 
 ## Alloy gaps to fill (as needed)
@@ -204,8 +207,8 @@ one, in that tab; double-clicking a tab edits its address.
    drop previews; persistence.
 3. **Pop-out in Alloy:** our own PiP window, placed and shaped by the
    browser; drag handle; carry over the autoplay hold.
-4. **Features in Alloy pages:** the CEF host for Internet Utility Belt; the
-   YouTube and Shorts features run in the browser without the extension.
+4. **Features in Alloy pages:** through the browser's own extension system
+   (its own plan), not built in.
 5. **Between windows:** drag tabs to other windows and out to new ones.
 6. **Alloy gaps** from the table, in order of need.
 

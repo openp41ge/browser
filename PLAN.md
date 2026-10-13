@@ -113,8 +113,8 @@ own frameless window, and moved media keeps playing. Alloy pages can also
 share a window and move between panes and windows. Chrome style was
 dropped entirely.
 
-**Cost:** no Chrome extensions (our own features are injected by the
-browser) and none of Chrome's UI (find, permission prompts, downloads and
+**Cost:** no Chrome extensions (the browser gets an extension system of
+its own) and none of Chrome's UI (find, permission prompts, downloads and
 so on are ours to provide).
 
 ## Repository layout
@@ -446,9 +446,10 @@ that sign-in, sync and Translate don't appear.
 - Move `~/Repository/internet-utility-belt` to `packages/web-extension`
   (started 2026-10-11, carrying the YouTube and Shorts pop-out presets). It
   remains a normal web extension for Chrome, Firefox and Safari.
-- Alloy-style pages don't load Chrome extensions, so the browser runs the
-  extension's features itself: they're plain DOM code with host services
-  passed in, and the browser provides a CEF host for them.
+- Alloy-style pages don't load Chrome extensions, so its features reach the
+  browser through an extension system of the browser's own (decided
+  2026-10-13; it needs its own plan), not built into the browser. They're
+  plain DOM code with host services passed in, which that system provides.
 - In Chrome, Edge and Brave it stays a normal extension, using Document PiP
   directly.
 

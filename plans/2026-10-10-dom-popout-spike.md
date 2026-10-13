@@ -1,5 +1,7 @@
 2026-10-10
 
+**Status: done.** The spike's results are recorded here; element pop-out is in the browser.
+
 # DOM pop-out spike: results
 
 Phase 2 of [PLAN.md](../PLAN.md). The spike (`spikes/dom-popout/`, merged
