@@ -50,6 +50,8 @@ CefRefPtr<CefPanel> Pane::panel() {
     panel_->AddChildView(tab_bar_->view());
     panel_->AddChildView(content_);
     layout->SetFlexForView(content_, 1);
+    for (const CefRefPtr<Tab>& tab : tabs_) AddView(tab);
+    ShowActive();
   }
   return panel_;
 }
@@ -75,6 +77,7 @@ void Pane::Add(CefRefPtr<Tab> tab, int index, bool activate) {
   }
   index = std::clamp(index, 0, static_cast<int>(tabs_.size()));
   tabs_.insert(tabs_.begin() + index, tab);
+  AddView(tab);
   if (activate || !active_) {
     active_ = tab;
     ShowActive();
@@ -87,6 +90,7 @@ void Pane::Remove(CefRefPtr<Tab> tab) {
   if (it == tabs_.end()) return;
   const size_t index = it - tabs_.begin();
   tabs_.erase(it);
+  if (content_) content_->RemoveChildView(tab->view());
   if (active_ == tab) {
     // The tab to its right, else to its left, as browsers do.
     active_ = tabs_.empty() ? nullptr : tabs_[std::min(index, tabs_.size() - 1)];
@@ -168,11 +172,21 @@ void Pane::UpdateTabBar() {
   tab_bar_->Update();
 }
 
+// A tab's page joins the pane hidden (ShowActive shows the active one), and
+// starts loading.
+void Pane::AddView(CefRefPtr<Tab> tab) {
+  if (!content_) return;
+  tab->view()->SetVisible(false);
+  content_->AddChildView(tab->view());
+}
+
 void Pane::ShowActive() {
   if (!content_) return;
-  content_->RemoveAllChildViews();
+  for (const CefRefPtr<Tab>& tab : tabs_) {
+    if (tab != active_) tab->view()->SetVisible(false);
+  }
   if (active_) {
-    content_->AddChildView(active_->view());
+    active_->view()->SetVisible(true);
     content_->Layout();
     active_->view()->RequestFocus();
   }

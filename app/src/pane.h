@@ -13,7 +13,9 @@
 class BrowserWindow;
 
 // One pane of a window's grid (a column): a tab bar above the active tab's
-// page. The other tabs' pages are kept alive outside the window.
+// page. Every tab's page is in the pane, hidden unless its tab is active:
+// CEF only makes a page once its view is in a window, so this is what has a
+// tab opened behind (Cmd-click) load straight away, as Chrome's do.
 class Pane {
  public:
   // Its share of the grid's width (a flex weight; panes start equal).
@@ -72,13 +74,14 @@ class Pane {
  private:
   class Delegate;
 
+  void AddView(CefRefPtr<Tab> tab);
   void ShowActive();
 
   BrowserWindow* window_;
   CefRefPtr<TabBar> tab_bar_;
   CefRefPtr<Delegate> delegate_;
   CefRefPtr<CefPanel> panel_;
-  CefRefPtr<CefPanel> content_;  // Holds the active tab's view.
+  CefRefPtr<CefPanel> content_;  // Holds every tab's view; the active one shows.
   std::vector<CefRefPtr<Tab>> tabs_;
   CefRefPtr<Tab> active_;
   std::vector<std::pair<int, int>> tab_middles_;  // (tab id, middle x)
