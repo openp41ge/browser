@@ -13,8 +13,9 @@
 // message channel to the browser (see renderer_app.cc and TopBar), and web
 // pages can't load them.
 //
-// The start page is served at openp41ge://start/ (app/ui/start): an ordinary
-// page in a tab, with no channel.
+// The start page is served at openp41ge://start/ (app/ui/start), and About
+// openp41ge explorer at openp41ge://about/ (app/ui/about): ordinary pages in
+// tabs, with no channel.
 //
 // Both serve app/ui/shared at shared/ (the theme, address parsing).
 namespace ui_scheme {
@@ -22,6 +23,7 @@ namespace ui_scheme {
 constexpr char kScheme[] = "openp41ge";
 constexpr char kOrigin[] = "openp41ge://ui/";
 constexpr char kStartUrl[] = "openp41ge://start/";
+constexpr char kAboutUrl[] = "openp41ge://about/";
 
 // Registers the scheme. Every process must call this, from
 // CefApp::OnRegisterCustomSchemes.

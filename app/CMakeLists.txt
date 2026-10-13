@@ -194,7 +194,25 @@ add_cef_mac_resources(openp41ge_explorer
     start.js
 )
 
-# Served to both at shared/.
+# About openp41ge explorer, served at openp41ge://about/, with the
+# wordmark from brand/.
+add_cef_mac_resources(openp41ge_explorer
+  DIR "${CMAKE_CURRENT_SOURCE_DIR}/ui/about"
+  DEST about
+  FILES
+    about.css
+    about.js
+    index.html
+)
+add_cef_mac_resources(openp41ge_explorer
+  DIR "${CMAKE_SOURCE_DIR}/brand"
+  DEST about
+  FILES
+    wordmark-dark.svg
+    wordmark-light.svg
+)
+
+# Served to all of them at shared/.
 add_cef_mac_resources(openp41ge_explorer
   DIR "${CMAKE_CURRENT_SOURCE_DIR}/ui/shared"
   DEST shared

@@ -80,6 +80,26 @@ BrowserManager::BrowserManager()
   });
 }
 
+// About openp41ge explorer: its tab if one's open in this window (as Chrome
+// does), else a new one; a new window if there's none.
+void BrowserManager::ShowAbout() {
+  if (!current_) {
+    OpenWindow(ui_scheme::kAboutUrl);
+    return;
+  }
+  for (const CefRefPtr<Tab>& tab : current_->tabs()) {
+    CefRefPtr<CefBrowser> page = tab->browser();
+    if (!page || tab->url.rfind(ui_scheme::kAboutUrl, 0) != 0) continue;
+    if (Pane* pane = current_->Locate(page)) {
+      pane->RequestActivate(tab->id());
+      tab->view()->RequestFocus();
+      return;
+    }
+  }
+  CefRefPtr<Tab> tab = current_->OpenTab(ui_scheme::kAboutUrl);
+  tab->view()->RequestFocus();
+}
+
 void BrowserManager::ReloadUi() {
   UiView::ReloadAll();
   for (const CefRefPtr<BrowserWindow>& window : windows_) {
@@ -276,6 +296,7 @@ bool BrowserManager::CanRun(Command command) const {
     case Command::kNewTab:
     case Command::kNewWindow:
     case Command::kNewPrivateWindow:
+    case Command::kAbout:
       return true;
     case Command::kReopenClosed:
       return !closed_.empty();
@@ -319,6 +340,10 @@ void BrowserManager::Run(Command command) {
   }
   if (command == Command::kUpdate) {
     updater::ShowUpdate();
+    return;
+  }
+  if (command == Command::kAbout) {
+    ShowAbout();
     return;
   }
   if (!current_) return;

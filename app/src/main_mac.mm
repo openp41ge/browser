@@ -126,10 +126,9 @@ NSMenu* BuildMainMenu() {
   NSMenu* menubar = [[NSMenu alloc] init];
 
   NSMenu* app = AddSubmenu(menubar, name);
-  if (NSMenuItem* updates = updater::MenuItem()) {
-    [app addItem:updates];
-    [app addItem:[NSMenuItem separatorItem]];
-  }
+  AddCommand(app, [@"About " stringByAppendingString:name], Command::kAbout, @"", 0);
+  if (NSMenuItem* updates = updater::MenuItem()) [app addItem:updates];
+  [app addItem:[NSMenuItem separatorItem]];
   AddItem(app, [@"Hide " stringByAppendingString:name], @selector(hide:), @"h");
   AddItem(app, @"Hide Others", @selector(hideOtherApplications:), @"h", kCmdOpt);
   AddItem(app, @"Show All", @selector(unhideAllApplications:), @"", 0);

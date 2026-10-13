@@ -3,12 +3,15 @@
 #include "ui/ui_live_reload.h"
 #include "ui/ui_scheme.h"
 
+#include <algorithm>
+#include <cstring>
 #include <sstream>
 
 #import <Foundation/Foundation.h>
 
 #include "include/cef_parser.h"
 #include "include/cef_stream.h"
+#include "include/cef_version.h"
 #include "include/wrapper/cef_stream_resource_handler.h"
 #include "ui/site_icon.h"
 
@@ -18,6 +21,34 @@ namespace {
 // Serves one host's files from Contents/Resources/<folder> (shared/ from
 // Contents/Resources/shared); anything else is a 404. A folder's index.html
 // is served for its root.
+// A stream of a string it keeps.
+class StringReader : public CefReadHandler {
+ public:
+  explicit StringReader(std::string data) : data_(std::move(data)) {}
+
+  size_t Read(void* ptr, size_t size, size_t n) override {
+    const size_t count = std::min(n, (data_.size() - offset_) / (size ? size : 1));
+    memcpy(ptr, data_.data() + offset_, count * size);
+    offset_ += count * size;
+    return count;
+  }
+  int Seek(int64_t offset, int whence) override {
+    const int64_t base = whence == SEEK_CUR ? offset_ : whence == SEEK_END ? data_.size() : 0;
+    if (base + offset < 0 || base + offset > static_cast<int64_t>(data_.size())) return -1;
+    offset_ = static_cast<size_t>(base + offset);
+    return 0;
+  }
+  int64_t Tell() override { return offset_; }
+  int Eof() override { return offset_ >= data_.size(); }
+  bool MayBlock() override { return false; }
+
+ private:
+  std::string data_;
+  size_t offset_ = 0;
+
+  IMPLEMENT_REFCOUNTING(StringReader);
+};
+
 class UiResourceFactory : public CefSchemeHandlerFactory {
  public:
   // `index`: the file served for the folder's root.
@@ -33,6 +64,7 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
       return SiteIcon(browser, frame, request, CefString(&parts.query));
     }
     NSString* path = @(CefString(&parts.path).ToString().c_str());
+    if ([folder_ isEqualToString:@"about"] && [path isEqualToString:@"/info.js"]) return AboutInfo();
     NSString* folder = folder_;
     if ([path hasPrefix:@"/shared/"]) {
       folder = @"shared";
@@ -44,8 +76,40 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
     // No "../" out of the UI folder.
     if (![file hasPrefix:[root stringByAppendingString:@"/"]]) return NotFound();
     CefRefPtr<CefStreamReader> reader = CefStreamReader::CreateForFile(file.UTF8String);
+    // A development build serves from the checkout, which hasn't what's
+    // copied into the bundle from elsewhere (about's wordmark, from brand/).
+    if (!reader) {
+      NSString* bundled = [[NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:folder]
+          stringByAppendingPathComponent:path].stringByStandardizingPath;
+      if ([bundled hasPrefix:[NSBundle.mainBundle.resourcePath stringByAppendingString:@"/"]]) {
+        reader = CefStreamReader::CreateForFile(bundled.UTF8String);
+      }
+    }
     if (!reader) return NotFound();
     return new CefStreamResourceHandler(CefGetMimeType(file.pathExtension.UTF8String), reader);
+  }
+
+  // openp41ge://about/info.js: what About shows, as a module (the page has no
+  // channel to ask).
+  static CefRefPtr<CefResourceHandler> AboutInfo() {
+    NSDictionary* plist = NSBundle.mainBundle.infoDictionary;
+#if defined(EXPLORER_DEV_BUILD)
+    NSString* channel = @"dev";
+#else
+    NSString* channel = @"release";
+#endif
+    NSDictionary* info = @{
+      @"version" : plist[@"CFBundleShortVersionString"] ?: @"",
+      @"build" : plist[@"CFBundleVersion"] ?: @"",
+      @"channel" : channel,
+      @"cef" : [@(CEF_VERSION) componentsSeparatedByString:@"+"].firstObject,
+      @"chromium" : [NSString stringWithFormat:@"%d.%d.%d.%d", CHROME_VERSION_MAJOR, CHROME_VERSION_MINOR,
+                                               CHROME_VERSION_BUILD, CHROME_VERSION_PATCH],
+    };
+    NSData* json = [NSJSONSerialization dataWithJSONObject:info options:0 error:nil];
+    std::string body = "export default " + std::string(static_cast<const char*>(json.bytes), json.length) + ";\n";
+    return new CefStreamResourceHandler("text/javascript",
+                                        CefStreamReader::CreateForHandler(new StringReader(std::move(body))));
   }
 
  private:
@@ -102,6 +166,7 @@ void RegisterHandlerFactory(CefRefPtr<CefRequestContext> context, bool is_privat
   context->RegisterSchemeHandlerFactory(kScheme, "ui", new UiResourceFactory(@"ui", @"/index.html"));
   context->RegisterSchemeHandlerFactory(kScheme, "start",
                                         new UiResourceFactory(@"start", is_private ? @"/private.html" : @"/index.html"));
+  context->RegisterSchemeHandlerFactory(kScheme, "about", new UiResourceFactory(@"about", @"/index.html"));
 }
 
 }  // namespace ui_scheme
