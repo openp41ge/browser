@@ -69,8 +69,10 @@ run `scripts/make-icons` (needs Xcode 26) to remake the app's icons in
 ## Releases
 
 Builds are published on [GitHub Releases](https://github.com/openp41ge/browser/releases)
-and update automatically. Download the latest:
-`https://github.com/openp41ge/browser/releases/latest/download/openp41ge-explorer.dmg`.
+and update automatically. Download the latest from
+[the latest release](https://github.com/openp41ge/browser/releases/latest):
+`openp41ge-explorer-<version>-universal.dmg` (one app for Apple Silicon and
+Intel Macs).
 
 To release, push a tag `v<version>` (e.g. `v0.1.0`) on a commit of
 `master`; [release.yml](.github/workflows/release.yml) does the rest:

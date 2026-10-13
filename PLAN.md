@@ -196,8 +196,10 @@ a laptop.
      keychain from secrets), with the hardened runtime and each process's
      entitlements (`scripts/sign-app`), notarize with `notarytool`, and
      staple (`scripts/notarize`).
-  3. Package a signed, notarized `.dmg` (`scripts/make-dmg`) and generate
-     `SHA256SUMS`. The `.dmg` is both the download and the update archive.
+  3. Package a signed, notarized `.dmg` (`scripts/make-dmg`), named like
+     openp41ge code's (`openp41ge-explorer-<version>-universal.dmg`), and
+     generate `SHA256SUMS`. The `.dmg` is both the download and the update
+     archive.
      dmgbuild writes its Finder window (the app, an Applications link to
      drag it onto, and a branded background) without scripting Finder, so
      it runs headless.

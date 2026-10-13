@@ -19,7 +19,6 @@ concurrency:
 
 env:
   APP: openp41ge explorer
-  DMG: openp41ge-explorer.dmg
 
 jobs:
   build:
@@ -78,6 +77,10 @@ jobs:
       VERSION: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+
+      # Named like openp41ge code's: openp41ge-explorer-0.1.1-universal.dmg
+      - name: Name the disk image
+        run: echo "DMG=openp41ge-explorer-${VERSION#v}-universal.dmg" >> "$GITHUB_ENV"
 
       # dmgbuild (scripts/make-dmg) needs Python 3.10 or later.
       - uses: actions/setup-python@v7
