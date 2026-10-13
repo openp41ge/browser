@@ -29,6 +29,12 @@ NSPanel* ControlPanel() {
   panel.backgroundColor = NSColor.clearColor;
   panel.hasShadow = NO;
   panel.becomesKeyOnlyIfNeeded = YES;
+  // Every click in its bounds, transparent or not. By default macOS passes
+  // clicks on a window's transparent parts through to the window below, so
+  // a click beside the blue line (or while it was still fading in) reached
+  // the page instead, though the line showed: hover and clicks now cover
+  // the same 5px.
+  panel.ignoresMouseEvents = NO;
   return panel;
 }
 
