@@ -13,7 +13,7 @@ body {
 }
 
 .bar {
-  /* What's kept at the right, past the tabs: the filter (34px; 220px while
+  /* What's kept at the right, past the tabs: the filter (34px; 286px while
    * it's open) and "+". */
   --reserved: 68px;
   position: relative;
@@ -213,10 +213,12 @@ svg.icon {
   opacity: 1;
 }
 
-/* Filtering tabs: a button, opening leftward into a field (over where the
- * tabs were). */
+/* Filtering tabs: a button, opening leftward into a field after it (over
+ * where the tabs were). Open, it's the narrowest a pane can be (320px,
+ * kMinPaneWidth in src/browser_window.mm) less "+": in a pane that narrow,
+ * it fills the bar. */
 .bar.filtering {
-  --reserved: 254px;
+  --reserved: 320px;
 }
 .filter {
   position: absolute;
@@ -232,13 +234,13 @@ svg.icon {
   transition: width 0.15s ease-out;
 }
 .bar.filtering .filter {
-  width: 220px;
+  width: 286px;
 }
 .query {
   flex: 1;
   min-width: 0;
   height: 22px;
-  padding: 0 0 0 8px;
+  padding: 0 8px 0 0;
   border: 0;
   outline: none;
   background: transparent;
