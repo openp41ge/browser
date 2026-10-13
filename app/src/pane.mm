@@ -227,7 +227,7 @@ void Pane::OpenFind() {
         .close = [this] { CloseFind(); },
     });
   }
-  find_bar_->Open(FindBarBounds(), active_->find_text);
+  find_bar_->Open(FindBarPlacement(), active_->find_text);
   find_bar_->ShowResult(active_->find_count, active_->find_active);
 }
 
@@ -294,15 +294,25 @@ void Pane::UpdateFindBar() {
     return;
   }
   if (find_bar_->IsShown()) {
-    find_bar_->MoveTo(FindBarBounds());
+    find_bar_->MoveTo(FindBarPlacement());
   } else {
-    find_bar_->Open(FindBarBounds(), active_->find_text);
+    find_bar_->Open(FindBarPlacement(), active_->find_text);
     find_bar_->ShowResult(active_->find_count, active_->find_active);
   }
 }
 
-// Over the bottom of the page, its width.
-CefRect Pane::FindBarBounds() const {
+// Over the bottom of the page, its width; and which of the window's edges
+// that's on (a column in the middle of the grid is on neither side, and
+// while the columns overflow there's a scrollbar under them).
+FindBar::Placement Pane::FindBarPlacement() const {
   const CefRect page = content_ ? content_->GetBoundsInScreen() : CefRect();
-  return CefRect(page.x, page.y + page.height - FindBar::kHeight, page.width, FindBar::kHeight);
+  FindBar::Placement placement;
+  placement.bounds = CefRect(page.x, page.y + page.height - FindBar::kHeight, page.width, FindBar::kHeight);
+  if (CefRefPtr<CefWindow> window = window_->window()) {
+    const CefRect frame = window->GetBoundsInScreen();
+    placement.left = page.x <= frame.x;
+    placement.right = page.x + page.width >= frame.x + frame.width;
+    placement.bottom = page.y + page.height >= frame.y + frame.height;
+  }
+  return placement;
 }

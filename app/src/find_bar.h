@@ -34,14 +34,25 @@ class FindBar : public CefBaseRefCounted {
     std::function<void()> close;
   };
 
+  // Where it goes: over the bottom of the page (CEF screen coordinates),
+  // and which of the browser window's edges that's on. On those it's inset
+  // by the window's outline (a pixel, which macOS draws along the edge), so
+  // the outline still shows; at the window's bottom corners it's rounded as
+  // they are.
+  struct Placement {
+    CefRect bounds;
+    bool left = false;
+    bool right = false;
+    bool bottom = false;
+  };
+
   FindBar(CefRefPtr<CefWindow> parent, Callbacks callbacks);
   ~FindBar() override;
 
-  // Shows it at `bounds` (CEF screen coordinates) with `text`, the keyboard
-  // in its field.
-  void Open(const CefRect& bounds, const std::string& text);
+  // Shows it at `placement` with `text`, the keyboard in its field.
+  void Open(const Placement& placement, const std::string& text);
   // Follows its pane (while shown).
-  void MoveTo(const CefRect& bounds);
+  void MoveTo(const Placement& placement);
   void ShowResult(int count, int active);
   void Hide();
   bool IsShown() const { return wanted_; }
@@ -59,6 +70,7 @@ class FindBar : public CefBaseRefCounted {
   void SendOpen();
   // Shows the window and gives its page the keyboard.
   void Present();
+  void Place(const Placement& placement);
 
   CefRefPtr<CefWindow> parent_;
   Callbacks callbacks_;

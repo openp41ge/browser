@@ -26,6 +26,11 @@ CGFloat WindowCornerRadius() {
   return 10;
 }
 
+// The outline macOS draws along a window's edges: one pixel of its screen.
+CGFloat WindowOutline(NSWindow* window) {
+  return 1 / (window.backingScaleFactor > 0 ? window.backingScaleFactor : 1);
+}
+
 // CEF screen coordinates (origin at the main screen's top left) as a Cocoa
 // frame (origin at its bottom left).
 NSRect ToFrame(const CefRect& r) {
@@ -110,34 +115,54 @@ FindBar::~FindBar() {
   page_->Detach();
 }
 
-void FindBar::Open(const CefRect& bounds, const std::string& text) {
+void FindBar::Open(const Placement& placement, const std::string& text) {
   CEF_REQUIRE_UI_THREAD();
   text_ = text;
   wanted_ = true;
   if (!native_->window) {
-    FindBarWindow* window = [[FindBarWindow alloc] initWithContentRect:ToFrame(bounds)
+    FindBarWindow* window = [[FindBarWindow alloc] initWithContentRect:NSMakeRect(0, 0, 1, 1)
                                                              styleMask:NSWindowStyleMaskBorderless
                                                                backing:NSBackingStoreBuffered
                                                                  defer:NO];
     window.releasedWhenClosed = NO;
     window.hasShadow = NO;
-    // Square at the top; at the bottom, rounded as the browser window is.
+    // Square, but for any of the window's corners it's on (Place).
     window.opaque = NO;
     window.backgroundColor = NSColor.clearColor;
     NSView* content = window.contentView;
     content.wantsLayer = YES;
-    content.layer.cornerRadius = WindowCornerRadius();
     content.layer.cornerCurve = kCACornerCurveContinuous;
-    content.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;  // The bottom ones.
     content.layer.masksToBounds = YES;
     native_->window = window;
+    Place(placement);
     Present();
-    page_->CreateIn((__bridge CefWindowHandle)window.contentView, CefRect(0, 0, bounds.width, bounds.height));
+    const NSSize size = content.bounds.size;
+    page_->CreateIn((__bridge CefWindowHandle)content, CefRect(0, 0, size.width, size.height));
     return;  // The page gets the keyboard and its text once it's ready (OnConnected).
   }
-  [native_->window setFrame:ToFrame(bounds) display:YES];
+  Place(placement);
   Present();
   SendOpen();
+}
+
+void FindBar::Place(const Placement& placement) {
+  FindBarWindow* window = native_->window;
+  NSWindow* parent = ((__bridge NSView*)parent_->GetWindowHandle()).window;
+  const CGFloat outline = WindowOutline(parent);
+  NSRect frame = ToFrame(placement.bounds);
+  if (placement.left) {
+    frame.origin.x += outline;
+    frame.size.width -= outline;
+  }
+  if (placement.right) frame.size.width -= outline;
+  if (placement.bottom) frame.origin.y += outline;
+  [window setFrame:frame display:YES];
+  // Its bottom corners rounded where they're the window's.
+  CACornerMask corners = 0;
+  if (placement.bottom && placement.left) corners |= kCALayerMinXMinYCorner;
+  if (placement.bottom && placement.right) corners |= kCALayerMaxXMinYCorner;
+  window.contentView.layer.maskedCorners = corners;
+  window.contentView.layer.cornerRadius = WindowCornerRadius() - outline;
 }
 
 void FindBar::Present() {
@@ -151,8 +176,8 @@ void FindBar::Present() {
   }
 }
 
-void FindBar::MoveTo(const CefRect& bounds) {
-  if (native_->window && wanted_) [native_->window setFrame:ToFrame(bounds) display:YES];
+void FindBar::MoveTo(const Placement& placement) {
+  if (native_->window && wanted_) Place(placement);
 }
 
 void FindBar::ShowResult(int count, int active) {

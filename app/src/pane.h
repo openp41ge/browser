@@ -94,7 +94,7 @@ class Pane {
   void Find(const std::string& text, bool forward);
   // Room at the end of `tab`'s page for the find row over it, or none.
   void SetFindRoom(CefRefPtr<Tab> tab, bool room);
-  CefRect FindBarBounds() const;
+  FindBar::Placement FindBarPlacement() const;
 
   BrowserWindow* window_;
   CefRefPtr<TabBar> tab_bar_;
