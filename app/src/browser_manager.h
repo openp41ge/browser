@@ -21,6 +21,7 @@
 //   BrowserWindow.
 // - Pages' popups (window.open, links to new windows) become tabs beside
 //   their opener.
+// - A link's context menu opens it in a new tab, window or private window.
 // - Element pop-out (PopoutController): while something is popped out, new
 //   pages hold autoplay.
 // - Private windows: their pages share a profile kept only in memory (a
@@ -28,6 +29,7 @@
 //   for the first private window and let go with the last, so nothing of it
 //   outlives them. They aren't recorded in History.
 class BrowserManager : public CefClient,
+                       public CefContextMenuHandler,
                        public CefDisplayHandler,
                        public CefFocusHandler,
                        public CefKeyboardHandler,
@@ -93,6 +95,7 @@ class BrowserManager : public CefClient,
   void OnPopupViewCreated(CefRefPtr<CefBrowserView> opener, CefRefPtr<CefBrowserView> popup);
 
   // CefClient:
+  CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
   CefRefPtr<CefFocusHandler> GetFocusHandler() override { return this; }
   CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
@@ -141,6 +144,17 @@ class BrowserManager : public CefClient,
                             bool can_go_back,
                             bool can_go_forward) override;
 
+  // CefContextMenuHandler:
+  void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
+                           CefRefPtr<CefFrame> frame,
+                           CefRefPtr<CefContextMenuParams> params,
+                           CefRefPtr<CefMenuModel> model) override;
+  bool OnContextMenuCommand(CefRefPtr<CefBrowser> browser,
+                            CefRefPtr<CefFrame> frame,
+                            CefRefPtr<CefContextMenuParams> params,
+                            int command_id,
+                            EventFlags event_flags) override;
+
   // CefRequestHandler:
   bool OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
                         CefRefPtr<CefFrame> frame,
@@ -155,6 +169,10 @@ class BrowserManager : public CefClient,
 
  private:
   BrowserWindow* WindowOf(CefRefPtr<CefBrowser> browser, CefRefPtr<Tab>* tab = nullptr) const;
+  // Opens a link from `browser`'s page as `disposition` says: a new tab
+  // (foreground or background) beside its tab, or a new window. False if
+  // it's to load in the page itself.
+  bool OpenLink(CefRefPtr<CefBrowser> browser, const std::string& url, WindowOpenDisposition disposition);
   // Extra info for a new page: the script it runs before its own (if any),
   // read by the renderer (renderer_app.cc).
   CefRefPtr<CefDictionaryValue> NewPageExtraInfo() const;

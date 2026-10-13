@@ -442,15 +442,20 @@ bool BrowserManager::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
                                       WindowOpenDisposition target_disposition,
                                       bool user_gesture) {
   CEF_REQUIRE_UI_THREAD();
-  const std::string url = target_url;
-  switch (target_disposition) {
+  return OpenLink(browser, target_url, target_disposition);
+}
+
+bool BrowserManager::OpenLink(CefRefPtr<CefBrowser> browser,
+                              const std::string& url,
+                              WindowOpenDisposition disposition) {
+  switch (disposition) {
     case CEF_WOD_NEW_FOREGROUND_TAB:
     case CEF_WOD_NEW_BACKGROUND_TAB: {
       BrowserWindow* window = WindowOf(browser);
       Pane* pane = window ? window->Locate(browser) : nullptr;
       if (!pane) return false;
-      CefRefPtr<Tab> tab = window->OpenTab(url, pane, target_disposition == CEF_WOD_NEW_FOREGROUND_TAB);
-      if (target_disposition == CEF_WOD_NEW_FOREGROUND_TAB) tab->view()->RequestFocus();
+      CefRefPtr<Tab> tab = window->OpenTab(url, pane, disposition == CEF_WOD_NEW_FOREGROUND_TAB);
+      if (disposition == CEF_WOD_NEW_FOREGROUND_TAB) tab->view()->RequestFocus();
       return true;
     }
     case CEF_WOD_NEW_WINDOW: {
@@ -461,6 +466,59 @@ bool BrowserManager::OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
     }
     default:
       return false;  // In this tab.
+  }
+}
+
+// --- Context menu -------------------------------------------------------------
+
+namespace {
+
+// Our items in a page's context menu (CEF leaves this range to clients).
+enum LinkCommand {
+  kOpenLinkInNewTab = MENU_ID_USER_FIRST,
+  kOpenLinkInNewWindow,
+  kOpenLinkInPrivateWindow,
+};
+
+}  // namespace
+
+// A link's menu starts with ways to open it elsewhere, as Chrome's and
+// Safari's do. In a private window a new window is private anyway, so
+// there's no separate private item.
+void BrowserManager::OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
+                                         CefRefPtr<CefFrame> frame,
+                                         CefRefPtr<CefContextMenuParams> params,
+                                         CefRefPtr<CefMenuModel> model) {
+  CEF_REQUIRE_UI_THREAD();
+  BrowserWindow* window = WindowOf(browser);
+  if (!window || !(params->GetTypeFlags() & CM_TYPEFLAG_LINK)) return;
+  size_t index = 0;
+  model->InsertItemAt(index++, kOpenLinkInNewTab, "Open Link in New Tab");
+  model->InsertItemAt(index++, kOpenLinkInNewWindow, "Open Link in New Window");
+  if (!window->is_private()) {
+    model->InsertItemAt(index++, kOpenLinkInPrivateWindow, "Open Link in Private Window");
+  }
+  if (model->GetCount() > index) model->InsertSeparatorAt(index);
+}
+
+bool BrowserManager::OnContextMenuCommand(CefRefPtr<CefBrowser> browser,
+                                          CefRefPtr<CefFrame> frame,
+                                          CefRefPtr<CefContextMenuParams> params,
+                                          int command_id,
+                                          EventFlags event_flags) {
+  CEF_REQUIRE_UI_THREAD();
+  const std::string url = params->GetLinkUrl();
+  switch (command_id) {
+    case kOpenLinkInNewTab:
+      // Behind the current tab, as Chrome opens it.
+      return OpenLink(browser, url, CEF_WOD_NEW_BACKGROUND_TAB);
+    case kOpenLinkInNewWindow:
+      return OpenLink(browser, url, CEF_WOD_NEW_WINDOW);
+    case kOpenLinkInPrivateWindow:
+      OpenWindow(url, /*is_private=*/true);
+      return true;
+    default:
+      return false;
   }
 }
 
