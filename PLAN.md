@@ -505,7 +505,7 @@ for macOS windowing); not Chromium internals unless Phase 7 happens.
    window right, or should dragging use a modifier key or an edge strip?
 5. **Apple Developer account:** set up (Developer ID Application
    certificate, team `AG73L2Q952`). `release.yml` needs its secrets (see
-   README, "Releases") before the first release.
+   DEVELOPMENT.md, "Releases") before the first release.
 
 ## Next steps
 
