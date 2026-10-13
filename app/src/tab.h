@@ -8,8 +8,8 @@
 #include "include/views/cef_browser_view.h"
 
 // One tab: a web page (an Alloy-style browser view) and what its tab shows.
-// It lives in a pane; only the pane's active tab's view is in the window,
-// the others are kept alive outside it.
+// It lives in a pane, whose active tab's view shows; the others are hidden
+// in it (and still load and run).
 class Tab : public CefBaseRefCounted {
  public:
   Tab(int id, CefRefPtr<CefBrowserView> view) : id_(id), view_(view) {}
@@ -24,6 +24,12 @@ class Tab : public CefBaseRefCounted {
   bool loading = false;
   // The address last recorded in History (a reload isn't another visit).
   std::string visited;
+  // Find in page: whether its find row is open, what it's finding, and the
+  // matches (count, and which is the current one).
+  bool finding = false;
+  std::string find_text;
+  int find_count = 0;
+  int find_active = 0;
 
  private:
   int id_;

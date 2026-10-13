@@ -90,6 +90,8 @@ add_cef_mac_app(openp41ge_explorer
     src/focus_bar.mm
     src/explorer_app.cc
     src/explorer_app.h
+    src/find_bar.h
+    src/find_bar.mm
     src/grid_scrollbar.h
     src/grid_scrollbar.mm
     src/history.cc
@@ -162,6 +164,9 @@ add_cef_mac_resources(openp41ge_explorer
   DEST ui
   FILES
     channel.js
+    findbar.css
+    findbar.html
+    findbar.js
     menu.css
     menu.html
     menu.js

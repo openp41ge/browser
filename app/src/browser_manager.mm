@@ -285,6 +285,11 @@ bool BrowserManager::CanRun(Command command) const {
       return page && page->GetHost()->CanZoom(CEF_ZOOM_COMMAND_RESET);
     case Command::kTogglePopout:
       return popout_->IsOpen() || page;
+    case Command::kFind:
+      return page != nullptr;
+    case Command::kFindNext:
+    case Command::kFindPrevious:
+      return current_ && current_->active_pane() && current_->active_pane()->CanFindAgain();
     default:
       return current_ != nullptr;
   }
@@ -325,6 +330,13 @@ void BrowserManager::Run(Command command) {
       break;
     case Command::kTogglePopout:
       popout_->Toggle(page);
+      break;
+    case Command::kFind:
+      current_->active_pane()->OpenFind();
+      break;
+    case Command::kFindNext:
+    case Command::kFindPrevious:
+      current_->active_pane()->FindAgain(command == Command::kFindNext);
       break;
     default:
       if (!page) break;
@@ -503,7 +515,22 @@ void BrowserManager::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
   BrowserWindow* window = WindowOf(browser, &tab);
   if (!window) return;
   tab->loading = is_loading;
+  if (!is_loading) {
+    if (Pane* pane = window->Locate(browser)) pane->OnPageLoaded(tab);
+  }
   window->OnTabChanged(browser);
+}
+
+void BrowserManager::OnFindResult(CefRefPtr<CefBrowser> browser,
+                                  int identifier,
+                                  int count,
+                                  const CefRect& selection_rect,
+                                  int active_match_ordinal,
+                                  bool final_update) {
+  CefRefPtr<Tab> tab;
+  BrowserWindow* window = WindowOf(browser, &tab);
+  Pane* pane = window ? window->Locate(browser) : nullptr;
+  if (pane) pane->OnFindResult(tab, count, active_match_ordinal);
 }
 
 // Links opened "in a new tab" or "window" from a page: Cmd-click (a

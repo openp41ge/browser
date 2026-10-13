@@ -155,6 +155,11 @@ NSMenu* BuildMainMenu() {
   AddItem(edit, @"Copy", @selector(copy:), @"c");
   AddItem(edit, @"Paste", @selector(paste:), @"v");
   AddItem(edit, @"Select All", @selector(selectAll:), @"a");
+  [edit addItem:[NSMenuItem separatorItem]];
+  NSMenu* find = AddSubmenu(edit, @"Find");
+  AddCommand(find, @"Find…", Command::kFind, @"f");
+  AddCommand(find, @"Find Next", Command::kFindNext, @"g");
+  AddCommand(find, @"Find Previous", Command::kFindPrevious, @"g", kCmdShift);
 
   NSMenu* view = AddSubmenu(menubar, @"View");
   AddCommand(view, @"Reload This Page", Command::kReload, @"r");

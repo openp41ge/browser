@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "include/views/cef_panel.h"
+#include "find_bar.h"
 
 #include "tab.h"
 #include "tab_bar.h"
@@ -71,11 +72,29 @@ class Pane {
   // search.
   void EditAddress(int id);
 
+  // Find in page, in the active tab: opens its find row (or brings the
+  // keyboard back to it), closes it, or moves to the next or previous match.
+  void OpenFind();
+  void CloseFind();
+  void FindAgain(bool forward);
+  bool CanFindAgain() const;
+  // From the browser: `tab`'s matches.
+  void OnFindResult(CefRefPtr<Tab> tab, int count, int active);
+  // `tab`'s page has loaded: while it's finding, its room for the find row.
+  void OnPageLoaded(CefRefPtr<Tab> tab);
+  // Shows, places or hides the find row for the active tab (after a
+  // layout, or a tab switch).
+  void UpdateFindBar();
+
  private:
   class Delegate;
 
   void AddView(CefRefPtr<Tab> tab);
   void ShowActive();
+  void Find(const std::string& text, bool forward);
+  // Room at the end of `tab`'s page for the find row over it, or none.
+  void SetFindRoom(CefRefPtr<Tab> tab, bool room);
+  CefRect FindBarBounds() const;
 
   BrowserWindow* window_;
   CefRefPtr<TabBar> tab_bar_;
@@ -86,6 +105,7 @@ class Pane {
   CefRefPtr<Tab> active_;
   std::vector<std::pair<int, int>> tab_middles_;  // (tab id, middle x)
   CefRange focus_bar_;
+  CefRefPtr<FindBar> find_bar_;  // Made on first use.
 };
 
 #endif  // OPENP41GE_EXPLORER_PANE_H_

@@ -36,6 +36,7 @@ Pane::Pane(BrowserWindow* window) : window_(window), tab_bar_(new TabBar(this)) 
 Pane::~Pane() {
   tab_bar_->Detach();
   if (delegate_) delegate_->Detach();
+  if (find_bar_) find_bar_->Close();
 }
 
 CefRefPtr<CefPanel> Pane::panel() {
@@ -190,5 +191,118 @@ void Pane::ShowActive() {
     content_->Layout();
     active_->view()->RequestFocus();
   }
+  UpdateFindBar();
   window_->OnActiveTabChanged(this);
+}
+
+// --- Find in page --------------------------------------------------------------
+
+namespace {
+
+// The room at the end of a page for the find row: an empty block after its
+// body, as tall as the row, so its last lines can scroll clear of it.
+constexpr char kAddFindRoom[] =
+    "(() => {"
+    "  if (document.getElementById('openp41ge-find-room')) return;"
+    "  const room = document.createElement('div');"
+    "  room.id = 'openp41ge-find-room';"
+    "  room.setAttribute('aria-hidden', 'true');"
+    "  room.style.cssText = 'display:block!important;height:35px!important;margin:0!important;"
+    "padding:0!important;border:0!important;visibility:hidden!important;pointer-events:none!important';"
+    "  document.documentElement.append(room);"
+    "})()";
+constexpr char kRemoveFindRoom[] = "document.getElementById('openp41ge-find-room')?.remove()";
+
+}  // namespace
+
+void Pane::OpenFind() {
+  if (!active_ || !active_->browser()) return;
+  if (!active_->finding) {
+    active_->finding = true;
+    SetFindRoom(active_, true);
+  }
+  if (!find_bar_) {
+    find_bar_ = new FindBar(window_->window(), {
+        .find = [this](const std::string& text, bool forward) { Find(text, forward); },
+        .close = [this] { CloseFind(); },
+    });
+  }
+  find_bar_->Open(FindBarBounds(), active_->find_text);
+  find_bar_->ShowResult(active_->find_count, active_->find_active);
+}
+
+void Pane::CloseFind() {
+  if (!active_ || !active_->finding) return;
+  active_->finding = false;
+  if (CefRefPtr<CefBrowser> browser = active_->browser()) {
+    // The current match stays selected, as in Chrome.
+    browser->GetHost()->StopFinding(false);
+  }
+  SetFindRoom(active_, false);
+  if (find_bar_) find_bar_->Hide();
+  // The keyboard back to the page.
+  if (CefRefPtr<CefWindow> window = window_->window()) window->Activate();
+  active_->view()->RequestFocus();
+}
+
+void Pane::FindAgain(bool forward) {
+  if (!CanFindAgain()) return;
+  if (!active_->finding) OpenFind();
+  Find(active_->find_text, forward);
+}
+
+bool Pane::CanFindAgain() const {
+  return active_ && !active_->find_text.empty();
+}
+
+void Pane::Find(const std::string& text, bool forward) {
+  if (!active_) return;
+  CefRefPtr<CefBrowser> browser = active_->browser();
+  if (!browser) return;
+  active_->find_text = text;
+  if (text.empty()) {
+    browser->GetHost()->StopFinding(true);
+    OnFindResult(active_, 0, 0);
+    return;
+  }
+  // Always a "find next": CEF starts a new search itself when the text
+  // changes, and only a find next makes a match the current one (the first
+  // as it's typed, as in Chrome; a first request only counts them).
+  browser->GetHost()->Find(text, forward, /*matchCase=*/false, /*findNext=*/true);
+}
+
+void Pane::OnFindResult(CefRefPtr<Tab> tab, int count, int active) {
+  tab->find_count = count;
+  tab->find_active = active;
+  if (tab == active_ && find_bar_ && find_bar_->IsShown()) find_bar_->ShowResult(count, active);
+}
+
+void Pane::OnPageLoaded(CefRefPtr<Tab> tab) {
+  if (tab->finding) SetFindRoom(tab, true);
+}
+
+void Pane::SetFindRoom(CefRefPtr<Tab> tab, bool room) {
+  if (CefRefPtr<CefBrowser> browser = tab->browser()) {
+    window_->manager()->devtools()->Evaluate(browser, room ? kAddFindRoom : kRemoveFindRoom, {});
+  }
+}
+
+void Pane::UpdateFindBar() {
+  if (!find_bar_) return;
+  if (!active_ || !active_->finding || !content_) {
+    if (find_bar_->IsShown()) find_bar_->Hide();
+    return;
+  }
+  if (find_bar_->IsShown()) {
+    find_bar_->MoveTo(FindBarBounds());
+  } else {
+    find_bar_->Open(FindBarBounds(), active_->find_text);
+    find_bar_->ShowResult(active_->find_count, active_->find_active);
+  }
+}
+
+// Over the bottom of the page, its width.
+CefRect Pane::FindBarBounds() const {
+  const CefRect page = content_ ? content_->GetBoundsInScreen() : CefRect();
+  return CefRect(page.x, page.y + page.height - FindBar::kHeight, page.width, FindBar::kHeight);
 }

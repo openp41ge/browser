@@ -170,7 +170,7 @@ Chrome style gave us these; with Alloy pages we provide them:
 
 | Need | How |
 |---|---|
-| Find in page | `CefBrowserHost::Find`, a small find bar |
+| Find in page | Done: `CefBrowserHost::Find`, a row over the bottom of the page (`FindBar`), the page given as much room at its end |
 | Permission prompts (camera, mic, location, notifications) | `CefPermissionHandler`, a prompt |
 | Downloads | `CefDownloadHandler`, a downloads list |
 | HTTP auth, certificate errors | `CefRequestHandler`, prompts / error pages |

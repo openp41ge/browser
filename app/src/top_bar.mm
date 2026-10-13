@@ -28,6 +28,7 @@ std::vector<MenuWindow::Item> MenuItems() {
   add(Command::kZoomOut, "Zoom Out");
   add(Command::kZoomReset, "Actual Size");
   separator();
+  add(Command::kFind, "Find…");
   add(Command::kPrint, "Print…");
   add(Command::kDevTools, "Developer Tools");
   return items;

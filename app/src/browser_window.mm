@@ -466,6 +466,7 @@ void BrowserWindow::LayoutGrid() {
   }
   UpdateDividerHandles();
   UpdateFocusBar();
+  for (const std::unique_ptr<Pane>& pane : panes_) pane->UpdateFindBar();
 }
 
 void BrowserWindow::UpdateDividerHandles() {

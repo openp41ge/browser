@@ -1,0 +1,79 @@
+/* Copyright (c) 2026 Richard Kielty. MIT License.
+ *
+ * Find in page: a 35px row over the bottom of a pane's page, like the tab
+ * bar turned over (its divider on top): the field, the match count, and
+ * 34px buttons for the previous and next match and to close.
+ */
+
+html,
+body {
+  overflow: hidden;
+  user-select: none;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  height: 35px;
+  box-sizing: border-box;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-divider);
+  font-size: 12px;
+}
+
+.field {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 8px 0 10px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  user-select: text;
+}
+.field::placeholder {
+  color: var(--text-muted);
+}
+
+.count {
+  flex: none;
+  padding: 0 8px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.count.none {
+  color: var(--text-primary);
+}
+
+.button {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--border-divider);
+  background: transparent;
+  color: var(--text-secondary);
+}
+.button:hover:not(:disabled) {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+.button:disabled {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+.button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

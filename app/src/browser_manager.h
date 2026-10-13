@@ -35,6 +35,7 @@
 class BrowserManager : public CefClient,
                        public CefContextMenuHandler,
                        public CefDisplayHandler,
+                       public CefFindHandler,
                        public CefFocusHandler,
                        public CefKeyboardHandler,
                        public CefLifeSpanHandler,
@@ -63,6 +64,9 @@ class BrowserManager : public CefClient,
     kPrint,
     kTogglePopout,
     kReopenClosed,
+    kFind,
+    kFindNext,
+    kFindPrevious,
   };
 
   BrowserManager();
@@ -109,6 +113,7 @@ class BrowserManager : public CefClient,
   // CefClient:
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
+  CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
   CefRefPtr<CefFocusHandler> GetFocusHandler() override { return this; }
   CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
@@ -166,6 +171,14 @@ class BrowserManager : public CefClient,
                             CefRefPtr<CefContextMenuParams> params,
                             int command_id,
                             EventFlags event_flags) override;
+
+  // CefFindHandler:
+  void OnFindResult(CefRefPtr<CefBrowser> browser,
+                    int identifier,
+                    int count,
+                    const CefRect& selection_rect,
+                    int active_match_ordinal,
+                    bool final_update) override;
 
   // CefRequestHandler:
   bool OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,

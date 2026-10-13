@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Find</title>
+    <link rel="stylesheet" href="shared/theme.css" />
+    <link rel="stylesheet" href="findbar.css" />
+  </head>
+  <body>
+    <div class="bar" role="search">
+      <input class="field" id="field" type="text" placeholder="Find in page" spellcheck="false" autocomplete="off" aria-label="Find in page" />
+      <span class="count" id="count" aria-live="polite"></span>
+      <button class="button" id="previous" title="Previous (Shift+Cmd+G)" aria-label="Previous match">
+        <svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" /></svg>
+      </button>
+      <button class="button" id="next" title="Next (Cmd+G)" aria-label="Next match">
+        <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      <button class="button" id="close" title="Close (Escape)" aria-label="Close">
+        <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <script type="module" src="findbar.js"></script>
+  </body>
+</html>
