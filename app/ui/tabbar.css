@@ -2,9 +2,8 @@
  *
  * A pane's tab bar, after openp41ge's tab-bar (openp41ge-sdk-uikit): 35px,
  * the surface background, a divider underneath; 12px tabs with a right
- * border, the active one highlighted; a 34px "+" at the right. While the
- * tabs overflow, a filter button before it, which opens leftward into a
- * field.
+ * border, the active one highlighted; a 34px "+" at the right, and a
+ * filter button before it, which opens leftward into a field.
  */
 
 html,
@@ -14,9 +13,9 @@ body {
 }
 
 .bar {
-  /* What's kept at the right, past the tabs: "+", and the filter while the
-   * tabs overflow (34px; 220px while it's open). */
-  --reserved: 34px;
+  /* What's kept at the right, past the tabs: the filter (34px; 220px while
+   * it's open) and "+". */
+  --reserved: 68px;
   position: relative;
   height: 35px;
   box-sizing: border-box;
@@ -214,11 +213,8 @@ svg.icon {
   opacity: 1;
 }
 
-/* Filtering tabs: a button while the tabs overflow, opening leftward into
- * a field (over where the tabs were). */
-.bar.overflowing {
-  --reserved: 68px;
-}
+/* Filtering tabs: a button, opening leftward into a field (over where the
+ * tabs were). */
 .bar.filtering {
   --reserved: 254px;
 }
@@ -226,7 +222,7 @@ svg.icon {
   position: absolute;
   top: 0;
   right: 34px;
-  display: none;
+  display: flex;
   align-items: center;
   width: 34px;
   height: 34px;
@@ -234,10 +230,6 @@ svg.icon {
   border-left: 1px solid var(--border-divider);
   background: var(--bg-surface);
   transition: width 0.15s ease-out;
-}
-.bar.overflowing .filter,
-.bar.filtering .filter {
-  display: flex;
 }
 .bar.filtering .filter {
   width: 220px;
@@ -253,13 +245,14 @@ svg.icon {
   color: var(--text-primary);
   font: inherit;
   font-size: 12px;
-  visibility: hidden;
+  /* Takes no room until it's open: the button keeps its 33px. */
+  display: none;
 }
 .query::placeholder {
   color: var(--text-muted);
 }
 .bar.filtering .query {
-  visibility: visible;
+  display: block;
 }
 .find {
   flex: none;

@@ -8,9 +8,9 @@
 // A tab's site is its address bar: double-click it to edit the full address
 // (selected), Return to go there (or search), Escape or clicking away to
 // leave it. Tabs are 220px wide, narrowed to 80% then 60% when that's what
-// it takes for them all to fit; past that they scroll, and a filter button
-// shows before "+": it opens into a field that shows only the tabs whose
-// site, title or headings (the page's h1s) have what's typed.
+// it takes for them all to fit; past that they scroll. The filter button
+// before "+" opens into a field that shows only the tabs whose site, title
+// or headings (the page's h1s) have what's typed.
 //
 // As an address is typed, the browser offers pages and sites from history:
 // the best one that starts with what's typed completes it inline (the rest
@@ -177,15 +177,14 @@ function render() {
 
 // A tab's width, and the narrower ones tried (80%, 60%) before they scroll.
 const TAB_WIDTHS = [220, 176, 132];
-// "+", at the right.
-const ADD_WIDTH = 34;
+// The filter button and "+", at the right.
+const BUTTONS_WIDTH = 68;
 
 /** The widest tabs that all fit; the narrowest (scrolling) if none do. */
 function fit() {
-  const room = bar.clientWidth - ADD_WIDTH;
+  const room = bar.clientWidth - BUTTONS_WIDTH;
   const width = TAB_WIDTHS.find((w) => tabs.length * w <= room) ?? TAB_WIDTHS.at(-1);
   strip.style.setProperty('--tab-width', `${width}px`);
-  bar.classList.toggle('overflowing', tabs.length * width > room);
 }
 
 function openFilter() {
