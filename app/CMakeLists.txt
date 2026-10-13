@@ -116,6 +116,8 @@ add_cef_mac_app(openp41ge_explorer
     src/updater.mm
     src/ui/site_icon.cc
     src/ui/site_icon.h
+    src/ui/ui_live_reload.h
+    src/ui/ui_live_reload.mm
     src/ui/ui_resources.mm
     src/ui/ui_scheme.cc
     src/ui/ui_scheme.h
@@ -128,13 +130,18 @@ add_cef_mac_app(openp41ge_explorer
     src/ui/ui_scheme.cc
     src/ui/ui_scheme.h
   LIBRARIES
+    "-framework CoreServices"
     "-framework QuartzCore"
   INCLUDE_DIRS
     src
 )
 
 if(EXPLORER_CHANNEL STREQUAL "dev")
-  target_compile_definitions(openp41ge_explorer PRIVATE EXPLORER_DEV_BUILD=1)
+  # Its UI straight from this checkout, reloaded as it's edited
+  # (src/ui/ui_live_reload.h).
+  target_compile_definitions(openp41ge_explorer PRIVATE
+    EXPLORER_DEV_BUILD=1
+    EXPLORER_UI_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/ui")
 endif()
 if(EXPLORER_UPDATES)
   target_compile_definitions(openp41ge_explorer PRIVATE EXPLORER_UPDATES=1)

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Richard Kielty. MIT License.
 
+#include "ui/ui_live_reload.h"
 #include "ui/ui_scheme.h"
 
 #include <sstream>
@@ -38,7 +39,7 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
       path = [path substringFromIndex:@"/shared".length];
     }
     if ([path isEqualToString:@"/"]) path = index_;
-    NSString* root = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:folder];
+    NSString* root = Root(folder);
     NSString* file = [[root stringByAppendingPathComponent:path] stringByStandardizingPath];
     // No "../" out of the UI folder.
     if (![file hasPrefix:[root stringByAppendingString:@"/"]]) return NotFound();
@@ -70,6 +71,15 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
       if (CefRefPtr<CefResourceHandler> handler = site_icon::CreateHandler(browser, site)) return handler;
     }
     return NotFound();
+  }
+
+  // Where `folder`'s files are: Contents/Resources/<folder>, or in a
+  // development build the checkout's app/ui (ui) or app/ui/<folder>.
+  static NSString* Root(NSString* folder) {
+    const std::string source = ui_live_reload::SourceDir();
+    if (source.empty()) return [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:folder];
+    NSString* dir = @(source.c_str());
+    return [folder isEqualToString:@"ui"] ? dir : [dir stringByAppendingPathComponent:folder];
   }
 
   static CefRefPtr<CefResourceHandler> NotFound() {

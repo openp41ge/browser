@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Richard Kielty. MIT License.
 
+#include <set>
+
 #include "ui/ui_view.h"
 
 #import <Cocoa/Cocoa.h>
@@ -35,10 +37,27 @@ cef_color_t Color(UiView::Background background) {
 
 }  // namespace
 
+// Every UI view, for ReloadAll.
+std::set<UiView*>& LiveViews() {
+  static std::set<UiView*> views;
+  return views;
+}
+
 UiView::UiView(std::string page, CefSize preferred_size, Background background)
     : url_(std::string(ui_scheme::kOrigin) + page), preferred_size_(preferred_size), background_(background) {
   router_ = CefMessageRouterBrowserSide::Create(CefMessageRouterConfig());
   router_->AddHandler(this, false);
+  LiveViews().insert(this);
+}
+
+UiView::~UiView() {
+  LiveViews().erase(this);
+}
+
+void UiView::ReloadAll() {
+  for (UiView* view : LiveViews()) {
+    if (view->browser_) view->browser_->ReloadIgnoreCache();
+  }
 }
 
 CefRefPtr<CefBrowserView> UiView::view() {

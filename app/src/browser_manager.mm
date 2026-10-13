@@ -11,7 +11,9 @@
 #include "include/cef_request_context.h"
 #include "include/wrapper/cef_helpers.h"
 
+#include "ui/ui_live_reload.h"
 #include "ui/ui_scheme.h"
+#include "ui/ui_view.h"
 
 namespace {
 
@@ -69,6 +71,18 @@ BrowserManager::BrowserManager()
   DCHECK(!g_manager);
   g_manager = this;
   DisableChromiumHistory(CefRequestContext::GetGlobalContext());
+  // A development build's UI, as it's edited (ui_live_reload.h).
+  ui_live_reload::Watch([this] { ReloadUi(); });
+}
+
+void BrowserManager::ReloadUi() {
+  UiView::ReloadAll();
+  for (const CefRefPtr<BrowserWindow>& window : windows_) {
+    for (const CefRefPtr<Tab>& tab : window->tabs()) {
+      CefRefPtr<CefBrowser> page = tab->browser();
+      if (page && tab->url.rfind(std::string(ui_scheme::kScheme) + "://", 0) == 0) page->ReloadIgnoreCache();
+    }
+  }
 }
 
 BrowserManager* BrowserManager::Get() {

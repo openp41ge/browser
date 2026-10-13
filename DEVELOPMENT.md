@@ -42,6 +42,13 @@ Allow" once:
 cmake -S . -B build -DEXPLORER_SIGN_IDENTITY="Apple Development"
 ```
 
+A development build's UI (the top bar, tab bars, menus and start page:
+HTML, CSS and JS in `app/ui`) comes straight from this checkout, and
+reloads when you save a file there: no build or restart for UI changes.
+Changes to `app/src` still need `cmake --build build` and a restart. A
+release build, or a development build copied to another machine, uses the
+copy in the app bundle.
+
 Pass `--url=<url>` to the app's executable to open a specific page. The
 profile (with the start page's saved site icons, in `Site Icons`) lives in
 `~/Library/Application Support/openp41ge explorer development` for a local

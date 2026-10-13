@@ -210,6 +210,8 @@ class BrowserManager : public CefClient,
   };
   std::vector<std::variant<ClosedTab, WindowLayout>> closed_;
   void ReopenClosed();
+  // The UI's views and start pages, again (a development build's UI changed).
+  void ReloadUi();
   void Remember(std::variant<ClosedTab, WindowLayout> item);
   // Whether the popup being created should become the active tab.
   bool popup_foreground_ = true;

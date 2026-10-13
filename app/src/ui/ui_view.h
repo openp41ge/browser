@@ -32,6 +32,11 @@ class UiView : public CefClient,
   // the view asks its layout for (the layout stretches the other way, e.g. a
   // bar's width); CEF ignores a size with a zero side.
   UiView(std::string page, CefSize preferred_size, Background background);
+  ~UiView() override;
+
+  // Reloads every UI view's page (a development build's UI changed, see
+  // ui_live_reload.h). Each sends its state again once its page listens.
+  static void ReloadAll();
 
   // The view, created on first call.
   CefRefPtr<CefBrowserView> view();

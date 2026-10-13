@@ -227,6 +227,12 @@ void BrowserWindow::AdoptPopup(CefRefPtr<CefBrowser> opener, CefRefPtr<CefBrowse
   pane->Add(manager_->AdoptTab(view), -1, activate);
 }
 
+std::vector<CefRefPtr<Tab>> BrowserWindow::tabs() const {
+  std::vector<CefRefPtr<Tab>> all;
+  for (const std::unique_ptr<Pane>& pane : panes_) all.insert(all.end(), pane->tabs().begin(), pane->tabs().end());
+  return all;
+}
+
 Pane* BrowserWindow::Locate(CefRefPtr<CefBrowser> browser, CefRefPtr<Tab>* tab) const {
   for (const std::unique_ptr<Pane>& pane : panes_) {
     if (CefRefPtr<Tab> found = pane->Find(browser)) {
