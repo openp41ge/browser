@@ -8,24 +8,23 @@
   </head>
   <body>
     <main>
-      <h1>
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="wordmark-dark.svg" />
-          <img src="wordmark-light.svg" alt="openp41ge browser" height="40" />
-        </picture>
-      </h1>
-      <p class="name">openp41ge explorer</p>
-      <dl class="versions">
-        <dt>Version</dt>
-        <dd id="version"></dd>
-        <dt>Engine</dt>
-        <dd id="engine"></dd>
-      </dl>
-      <p class="links">
-        <a href="https://github.com/openp41ge/browser">Source code</a>
-        <a href="https://github.com/openp41ge/browser/blob/master/LICENSE">License</a>
-        <a href="https://github.com/openp41ge/browser/releases">Releases</a>
-      </p>
+      <p class="card version" id="version"></p>
+      <div class="card letter">
+        <p>
+          openp41ge explorer is a browser built for enjoying the web.
+          Webpages and webpage management are first-class. Webpages can be placed side by side and
+          resized as you need within a single window. Webpages within a cell can be filtered to help
+          you find that one page amongst many that you are looking for.
+        </p>
+        <p>
+          It's free, open source, and released alongside the openp41ge code editor.
+        </p>
+        <p class="signature">Built by Richard Kielty</p>
+      </div>
+      <nav class="card links" aria-label="Links">
+        <a href="https://github.com/openp41ge/browser" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/openp41ge/browser/releases" target="_blank" rel="noopener">Releases</a>
+      </nav>
     </main>
     <script type="module" src="about.js"></script>
   </body>

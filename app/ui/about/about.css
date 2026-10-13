@@ -1,7 +1,8 @@
 /* Copyright (c) 2026 Richard Kielty. MIT License.
  *
- * About openp41ge explorer (openp41ge://about/): the wordmark, the version
- * and engine, and links. A plain page, centred, in the UI's colours.
+ * About openp41ge explorer (openp41ge://about/): three cards, one under
+ * another: the version, a note about the browser (signed), and links. A
+ * plain page, centred, in the UI's colours.
  */
 
 html,
@@ -11,7 +12,7 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 main {
@@ -19,45 +20,49 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   min-height: 100%;
-  padding: 32px 16px;
+  padding: 48px 24px;
   box-sizing: border-box;
-  text-align: center;
 }
 
-h1 {
+.card {
+  width: 100%;
+  max-width: 520px;
   margin: 0;
-  line-height: 0;
-}
-h1 img {
-  max-width: 100%;
-  height: 40px;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-divider);
+  border-radius: 6px;
+  background: var(--bg-surface);
 }
 
-.name {
-  margin: 12px 0 28px;
+.version {
   color: var(--text-secondary);
+  font-size: 13px;
+  user-select: text;
 }
 
-.versions {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 6px 16px;
-  margin: 0 0 28px;
-  text-align: left;
+.letter {
+  line-height: 1.6;
 }
-.versions dt {
-  color: var(--text-muted);
+.letter p {
+  margin: 0 0 14px;
 }
-.versions dd {
-  margin: 0;
-  user-select: text;
+.letter p:last-child {
+  margin-bottom: 0;
+}
+
+.signature {
+  margin-top: 20px;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 .links {
   display: flex;
   gap: 20px;
-  margin: 0;
+  font-size: 13px;
 }
 .links a {
   color: var(--border-focus);

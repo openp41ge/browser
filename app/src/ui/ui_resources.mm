@@ -76,8 +76,8 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
     // No "../" out of the UI folder.
     if (![file hasPrefix:[root stringByAppendingString:@"/"]]) return NotFound();
     CefRefPtr<CefStreamReader> reader = CefStreamReader::CreateForFile(file.UTF8String);
-    // A development build serves from the checkout, which hasn't what's
-    // copied into the bundle from elsewhere (about's wordmark, from brand/).
+    // A development build serves from the checkout, which hasn't anything
+    // copied into the bundle from elsewhere in the repository.
     if (!reader) {
       NSString* bundled = [[NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:folder]
           stringByAppendingPathComponent:path].stringByStandardizingPath;
