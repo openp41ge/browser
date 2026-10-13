@@ -1,14 +1,16 @@
 #!/bin/bash
 # Writes the Sparkle appcast for one release: the feed installed apps check
 # (attached to every GitHub release; see PLAN.md, "GitHub, CI and
-# releases"). It lists just this release, signed with the update key.
+# releases"). It lists just this release, signed with the update key, with
+# its notes (Markdown), which the update dialog shows.
 #
-# Usage: scripts/make-appcast <dmg> <download url> <version> <build number> <key file> > appcast.xml
+# Usage: scripts/make-appcast <dmg> <download url> <version> <build number> <key file> <notes> > appcast.xml
 #   key file: the Sparkle EdDSA private key (as `generate_keys -x` exports it)
+#   notes: the release's notes, release-notes/<version>.md
 set -euo pipefail
 
-if [ $# -ne 5 ]; then
-  echo "Usage: $0 <dmg> <download url> <version> <build number> <key file>" >&2
+if [ $# -ne 6 ]; then
+  echo "Usage: $0 <dmg> <download url> <version> <build number> <key file> <notes>" >&2
   exit 1
 fi
 dmg=$1
@@ -16,6 +18,7 @@ url=$2
 version=$3
 build=$4
 key=$5
+notes=$6
 root="$(cd "$(dirname "$0")/.." && pwd)"
 sign_update="$root/third_party/sparkle/bin/sign_update"
 
@@ -23,6 +26,11 @@ sign_update="$root/third_party/sparkle/bin/sign_update"
 signature=$("$sign_update" --ed-key-file "$key" "$dmg")
 # The <string> after LSMinimumSystemVersion.
 minimum=$(sed -n '/LSMinimumSystemVersion/{n;s/.*<string>\(.*\)<\/string>.*/\1/p;}' "$root/app/mac/Info.plist.in")
+# The notes go in a CDATA section, which "]]>" would end.
+if grep -qF ']]>' "$notes"; then
+  echo "$notes can't contain ]]>" >&2
+  exit 1
+fi
 date=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
 
 cat <<EOF
@@ -36,7 +44,9 @@ cat <<EOF
       <sparkle:version>$build</sparkle:version>
       <sparkle:shortVersionString>$version</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>$minimum</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/openp41ge/browser/releases/tag/v$version</sparkle:releaseNotesLink>
+      <description sparkle:format="markdown"><![CDATA[
+$(cat "$notes")
+]]></description>
       <enclosure url="$url" type="application/octet-stream" $signature />
     </item>
   </channel>

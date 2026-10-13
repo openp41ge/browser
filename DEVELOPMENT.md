@@ -76,8 +76,9 @@ Builds are published on [GitHub Releases](https://github.com/openp41ge/browser/r
 as `openp41ge-explorer-<version>-universal.dmg` (one app for Apple Silicon
 and Intel Macs), and installed apps offer each new one.
 
-To release, push a tag `v<version>` (e.g. `v0.1.0`) on a commit of
-`master`; [release.yml](.github/workflows/release.yml) does the rest:
+To release, write the release's notes in `release-notes/<version>.md`
+(see [its README](release-notes/README.md)), then push a tag `v<version>`
+(e.g. `v0.1.0`) on a commit of `master` that has them; [release.yml](.github/workflows/release.yml) does the rest:
 
 1. builds the app for Apple Silicon and Intel, and merges them
    (`scripts/make-universal`)
@@ -91,7 +92,8 @@ To release, push a tag `v<version>` (e.g. `v0.1.0`) on a commit of
    `app/mac/dmg/background.swift`)
 4. waits for `browser-tests` to pass on the commit
 5. writes the appcast installed apps check for updates, signed with the
-   update key (`scripts/make-appcast`), and publishes the release with the
+   update key, with the notes for the update dialog to show
+   (`scripts/make-appcast`), and publishes the release with the notes, the
    disk image, the appcast and `SHA256SUMS`
 
 Installed apps check

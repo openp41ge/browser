@@ -29,6 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The update dialog shows them, and so does the release (see
+      # release-notes/README.md). Checked first, before the long build.
+      - name: Check the release notes
+        run: test -s "release-notes/${GITHUB_REF_NAME#v}.md"
+
       - name: Cache CEF
         uses: actions/cache@v6
         with:
@@ -166,7 +171,8 @@ jobs:
           echo "$SPARKLE_ED_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle.key"
           scripts/make-appcast "$DMG" \
             "https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/$DMG" \
-            "${VERSION#v}" ${{ github.run_number }} "$RUNNER_TEMP/sparkle.key" > appcast.xml
+            "${VERSION#v}" ${{ github.run_number }} "$RUNNER_TEMP/sparkle.key" \
+            "release-notes/${VERSION#v}.md" > appcast.xml
           rm "$RUNNER_TEMP/sparkle.key"
           shasum -a 256 "$DMG" appcast.xml > SHA256SUMS
 
@@ -175,7 +181,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           source CEF_VERSION
-          notes="Built on CEF ${CEF_VERSION%%+*} (Chromium ${CEF_VERSION##*chromium-})."
+          notes="$(cat "release-notes/${VERSION#v}.md")"$'\n\n'"Built on CEF ${CEF_VERSION%%+*} (Chromium ${CEF_VERSION##*chromium-})."
           prerelease=()
           [[ "$VERSION" == *-* ]] && prerelease=(--prerelease)
           gh release create "$VERSION" "$DMG" appcast.xml SHA256SUMS \
