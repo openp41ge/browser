@@ -46,6 +46,7 @@ std::string Serialize(const std::vector<WindowLayout>& windows) {
         item->SetString("title", tab.title);
         item->SetString("favicon", tab.favicon);
         item->SetString("preview", tab.preview);
+        item->SetDouble("last_active", tab.last_active);
         tabs->SetDictionary(tabs->GetSize(), item);
       }
       CefRefPtr<CefDictionaryValue> item = CefDictionaryValue::Create();
@@ -62,7 +63,6 @@ std::string Serialize(const std::vector<WindowLayout>& windows) {
     item->SetList("bounds", bounds);
     item->SetList("panes", panes);
     item->SetInt("active_pane", layout.active_pane);
-    item->SetBool("previews", layout.previews);
     list->SetDictionary(list->GetSize(), item);
   }
   CefRefPtr<CefDictionaryValue> root = CefDictionaryValue::Create();
@@ -91,7 +91,6 @@ std::vector<WindowLayout> Read(const std::string& folder) {
     WindowLayout layout;
     layout.bounds = CefRect(bounds->GetInt(0), bounds->GetInt(1), bounds->GetInt(2), bounds->GetInt(3));
     layout.active_pane = item->GetInt("active_pane");
-    layout.previews = item->GetBool("previews");
     for (size_t j = 0; j < panes->GetSize(); ++j) {
       CefRefPtr<CefDictionaryValue> pane = panes->GetDictionary(j);
       CefRefPtr<CefListValue> tabs = pane ? pane->GetList("tabs") : nullptr;
@@ -102,8 +101,11 @@ std::vector<WindowLayout> Read(const std::string& folder) {
       for (size_t k = 0; k < tabs->GetSize(); ++k) {
         CefRefPtr<CefDictionaryValue> tab = tabs->GetDictionary(k);
         if (!tab || tab->GetString("url").empty()) continue;
-        saved.tabs.push_back(
-            {tab->GetString("url"), tab->GetString("title"), tab->GetString("favicon"), tab->GetString("preview")});
+        const double last_active = tab->GetType("last_active") == VTYPE_DOUBLE ? tab->GetDouble("last_active")
+                                   : tab->GetType("last_active") == VTYPE_INT  ? tab->GetInt("last_active")
+                                                                               : 0;
+        saved.tabs.push_back({tab->GetString("url"), tab->GetString("title"), tab->GetString("favicon"),
+                              tab->GetString("preview"), last_active});
       }
       if (!saved.tabs.empty()) layout.panes.push_back(std::move(saved));
     }

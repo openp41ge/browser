@@ -378,6 +378,7 @@ CefRefPtr<Tab> BrowserManager::SavedTab(const WindowLayout::SavedTab& saved) {
   tab->favicon = saved.favicon;
   // Its picture, as it was.
   if (tab_previews::Load(saved.preview)) tab->preview = saved.preview;
+  tab->last_active = saved.last_active;
   // Visited before: loading it again isn't another visit.
   tab->visited = saved.url;
   return tab;

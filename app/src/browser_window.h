@@ -16,6 +16,7 @@
 #include "history.h"
 #include "pane.h"
 #include "suggestions_popup.h"
+#include "tab_preview.h"
 #include "tab_drag_image.h"
 #include "top_bar.h"
 #include "window_layout.h"
@@ -85,12 +86,14 @@ class BrowserWindow : public CefWindowDelegate {
   bool ShowsFocus(const Pane* pane) const;
   // A pane's active tab changed.
   void OnActiveTabChanged(Pane* pane);
-  // Its tab bars showing each tab's picture (the previews button), or not.
-  bool previews() const { return previews_; }
-  void SetPreviews(bool shown);
   // Takes pictures of the tabs showing (each pane's active one), for their
   // previews: as they can only be taken while a page shows.
   void CapturePreviews();
+  // Shows tab `id`'s picture under it (`tab`: where it is in `pane`'s tab
+  // bar, down to the bar's bottom edge), if it has one; or hides it.
+  // `square_left`, `square_right`: as TabPreview::Show.
+  void ShowTabPreview(Pane* pane, int id, const CefRect& tab, bool square_left, bool square_right);
+  void HideTabPreview();
   // Puts the focus bar over the focused tab's top edge (after its tab bar
   // reports where it is, or the panes move), or hides it.
   void UpdateFocusBar();
@@ -221,6 +224,7 @@ class BrowserWindow : public CefWindowDelegate {
   Pane* active_pane_ = nullptr;
   Pane* marked_pane_ = nullptr;  // Whose tab bar shows the focused tab.
   std::unique_ptr<DropPreview> preview_;
+  std::unique_ptr<TabPreview> tab_preview_;  // Made on first use.
   std::unique_ptr<FocusBar> focus_bar_;
   std::unique_ptr<TabDragImage> drag_image_;  // While one of this window's tabs is dragged.
   int drag_serial_ = 0;
@@ -233,7 +237,6 @@ class BrowserWindow : public CefWindowDelegate {
   std::vector<int> resize_widths_;  // Pane widths when the resize started.
   bool closing_ = false;
   bool window_active_ = false;  // The window has the keyboard.
-  bool previews_ = false;
 
   IMPLEMENT_REFCOUNTING(BrowserWindow);
 };

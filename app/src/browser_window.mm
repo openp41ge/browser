@@ -85,8 +85,7 @@ BrowserWindow::BrowserWindow(BrowserManager* manager, WindowLayout layout)
       bounds_(layout.bounds),
       is_private_(false),
       restore_(std::move(layout)),
-      top_bar_(new TopBar(this)),
-      previews_(restore_.previews) {}
+      top_bar_(new TopBar(this)) {}
 
 History* BrowserWindow::history() const {
   return is_private_ ? nullptr : manager_->history();
@@ -123,7 +122,6 @@ void BrowserWindow::OnWindowCreated(CefRefPtr<CefWindow> window) {
   grid_->SetToBoxLayout(row);
   panes_.push_back(std::make_unique<Pane>(this));
   active_pane_ = panes_.back().get();
-  active_pane_->SetPreviews(previews_);
   window->AddChildView(grid_);
   layout->SetFlexForView(grid_, 1);
   divider_handles_ = std::make_unique<DividerHandles>(
@@ -223,21 +221,42 @@ WindowLayout BrowserWindow::Snapshot() const {
     for (const CefRefPtr<Tab>& tab : pane->tabs()) {
       if (tab == pane->active_tab()) saved.active = static_cast<int>(saved.tabs.size());
       // A private window's pictures aren't kept (nor is it).
-      saved.tabs.push_back({tab->url, tab->title, tab->favicon, is_private_ ? std::string() : tab->preview});
+      saved.tabs.push_back(
+          {tab->url, tab->title, tab->favicon, is_private_ ? std::string() : tab->preview, tab->last_active});
     }
     if (pane.get() == active_pane_) layout.active_pane = static_cast<int>(layout.panes.size());
     if (!saved.tabs.empty()) layout.panes.push_back(std::move(saved));
   }
-  layout.previews = previews_;
   return layout;
 }
 
-void BrowserWindow::SetPreviews(bool shown) {
-  if (shown == previews_) return;
-  previews_ = shown;
-  for (const std::unique_ptr<Pane>& pane : panes_) pane->SetPreviews(shown);
-  if (shown) CapturePreviews();
-  manager_->SessionChanged();
+void BrowserWindow::ShowTabPreview(Pane* pane, int id, const CefRect& tab, bool square_left, bool square_right) {
+  if (!window_ || closing_) return;
+  CefRefPtr<Tab> shown = pane->Find(id);
+  const std::string jpeg = shown && !shown->preview.empty() ? tab_previews::Get(shown->preview) : std::string();
+  CefPoint origin(tab.x, tab.y);
+  if (jpeg.empty() || !pane->tab_bar_view()->ConvertPointToScreen(origin)) {
+    HideTabPreview();
+    return;
+  }
+  // When it was last accessed: when it was last left as the active tab.
+  std::string footer;
+  if (shown->last_active > 0) {
+    const double ago = [NSDate date].timeIntervalSince1970 - shown->last_active;
+    auto count = [](long n, const char* unit) {
+      return std::to_string(n) + " " + unit + (n == 1 ? "" : "s") + " ago";
+    };
+    footer = "Last accessed " + (ago < 60       ? std::string("just now")
+                                 : ago < 3600   ? count(static_cast<long>(ago / 60), "minute")
+                                 : ago < 86400  ? count(static_cast<long>(ago / 3600), "hour")
+                                                : count(static_cast<long>(ago / 86400), "day"));
+  }
+  if (!tab_preview_) tab_preview_ = std::make_unique<TabPreview>();
+  tab_preview_->Show(jpeg, CefRect(origin.x, origin.y, tab.width, tab.height), square_left, square_right, footer);
+}
+
+void BrowserWindow::HideTabPreview() {
+  if (tab_preview_) tab_preview_->Hide();
 }
 
 void BrowserWindow::CapturePreviews() {
@@ -530,7 +549,6 @@ Pane* BrowserWindow::AddPane(int index) {
   for (const std::unique_ptr<Pane>& pane : panes_) pane->weight = 1000;
   auto pane = std::make_unique<Pane>(this);
   Pane* added = pane.get();
-  added->SetPreviews(previews_);
   panes_.insert(panes_.begin() + std::clamp(index, 0, static_cast<int>(panes_.size())), std::move(pane));
   Relayout();
   return added;
@@ -832,6 +850,7 @@ void BrowserWindow::UpdateTitle() {
 
 bool BrowserWindow::CanClose(CefRefPtr<CefWindow> window) {
   if (suggestions_) suggestions_->Close();
+  HideTabPreview();
   // Close every tab first (their pages may run unload handlers); the window
   // closes when the last one has (OnTabClosed). Collected first: closing a
   // pane's last tab removes the pane.
@@ -851,6 +870,7 @@ void BrowserWindow::OnWindowDestroyed(CefRefPtr<CefWindow> window) {
   divider_handles_.reset();
   scrollbar_.reset();
   preview_.reset();
+  tab_preview_.reset();
   focus_bar_.reset();
   if (suggestions_) suggestions_->Close();
   suggestions_ = nullptr;

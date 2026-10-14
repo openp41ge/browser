@@ -32,6 +32,9 @@ class Tab : public CefBaseRefCounted {
   // tab bar loads a new one.
   std::string preview;
   int preview_version = 0;
+  // When it was last left as its pane's active tab (seconds since 1970; 0:
+  // not known), for its preview's "Last accessed".
+  double last_active = 0;
   // The address last recorded in History (a reload isn't another visit).
   std::string visited;
   // Find in page: whether its find row is open, what it's finding, and the

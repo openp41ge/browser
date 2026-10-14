@@ -13,10 +13,13 @@
 // before "+" opens into a field that shows only the tabs whose site, title
 // or headings (the page's h1s) have what's typed.
 //
-// The previews button at the left grows every tab bar in the window to show
-// each tab's picture under it (taken while it last showed: a hidden page
-// isn't drawn), or what it is and why there's none yet: not loaded (brought
-// back, not shown since), loading, or not shown yet (opened behind).
+// Resting the pointer on a tab that isn't the active one shows a picture of
+// its page under it (taken while it last showed; src/tab_preview.h), fading
+// in after a moment, so the pointer can cross the bar without bringing them
+// up; while one shows, moving on to another tab shows that one at once. It
+// hangs from the bar's bottom edge, the tab's width (following it as tabs
+// narrow or scroll), its bottom corners square where it meets the column's
+// edges.
 //
 // As an address is typed, the browser offers pages and sites from history:
 // the best one that starts with what's typed completes it inline (the rest
@@ -132,17 +135,12 @@ function tabElement(tab) {
       send({ type: 'close', id: Number(el.dataset.id) });
     });
 
-    // Its picture, showing previews.
-    const shot = document.createElement('div');
-    shot.className = 'shot';
-
-    el.append(icon, field, close, spinner, shot);
-    parts = { el, icon, field, shot, favicon: null, preview: null, empty: null };
+    el.append(icon, field, close, spinner);
+    parts = { el, icon, field, favicon: null };
     elements.set(tab.id, parts);
   }
 
   const { el, icon, field } = parts;
-  updateShot(parts, tab);
   el.classList.toggle('active', tab.id === active);
   el.setAttribute('aria-selected', String(tab.id === active));
   el.title = BLANK_PAGES.has(tab.url) ? 'New Tab' : tab.url;
@@ -163,50 +161,6 @@ function tabElement(tab) {
     }
   }
   return el;
-}
-
-/** A tab's picture, or what it is and why there's none. */
-function updateShot(parts, tab) {
-  const { shot } = parts;
-  if (tab.preview) {
-    if (parts.preview === tab.preview) return;
-    parts.preview = tab.preview;
-    parts.empty = null;
-    // Swapped in once it has loaded (no flash of nothing between pictures).
-    const img = document.createElement('img');
-    img.alt = '';
-    img.addEventListener('load', () => {
-      if (parts.preview === tab.preview) shot.replaceChildren(img);
-    });
-    img.src = tab.preview;
-    return;
-  }
-  const status = !tab.loaded ? 'Not loaded' : tab.loading ? 'Loading…' : 'Not shown yet';
-  const title = tab.title || displayAddress(tab.url) || 'New Tab';
-  const key = `${status}\n${title}\n${tab.favicon}`;
-  if (parts.empty === key) return;
-  parts.preview = null;
-  parts.empty = key;
-  const empty = document.createElement('div');
-  empty.className = 'empty';
-  const glyph = document.createElement('span');
-  glyph.className = 'icon-slot';
-  glyph.innerHTML = DEFAULT_ICON;
-  if (tab.favicon) {
-    const img = document.createElement('img');
-    img.className = 'icon';
-    img.alt = '';
-    img.addEventListener('load', () => glyph.replaceChildren(img));
-    img.src = tab.favicon;
-  }
-  const name = document.createElement('div');
-  name.className = 'title';
-  name.textContent = title;
-  const note = document.createElement('div');
-  note.className = 'status';
-  note.textContent = status;
-  empty.append(glyph, name, note);
-  shot.replaceChildren(empty);
 }
 
 function render() {
@@ -299,8 +253,8 @@ function shrinkAway(el) {
 
 // A tab's width, and the narrower ones tried (80%, 60%) before they scroll.
 const TAB_WIDTHS = [220, 176, 132];
-// The previews button at the left; the filter button and "+" at the right.
-const BUTTONS_WIDTH = 34 + 68;
+// The filter button and "+", at the right.
+const BUTTONS_WIDTH = 68;
 
 /** The widest tabs that all fit (closed ones too, until they've gone); the
  * narrowest (scrolling) if none do. */
@@ -383,6 +337,7 @@ addEventListener('resize', () => {
 });
 
 function startEdit(id) {
+  hidePreview();
   const parts = elements.get(id);
   if (!parts) return;
   if (editing?.id === id) return;
@@ -456,6 +411,8 @@ function select(index) {
 function showSuggestions() {
   const parts = elements.get(editing.id);
   if (!parts) return;
+  // Suggestions under the tab: no picture over them.
+  hidePreview();
   const r = parts.el.getBoundingClientRect();
   send({
     type: 'suggest-show',
@@ -464,8 +421,7 @@ function showSuggestions() {
     x: Math.round(r.left),
     y: Math.round(r.top),
     width: Math.round(r.width),
-    // Under its row (its picture, showing previews, is below that).
-    height: Math.round(Math.min(r.height, ROW_HEIGHT)),
+    height: Math.round(r.height),
     popupWidth: Math.max(Math.round(r.width), 480),
   });
 }
@@ -624,22 +580,110 @@ strip.addEventListener(
 
 document.getElementById('add').addEventListener('click', () => send({ type: 'new-tab' }));
 
-const previewsButton = document.getElementById('previews');
-previewsButton.addEventListener('click', () => send({ type: 'toggle-previews' }));
-// A tab's row (its address, ✕): the whole tab unless showing previews.
-const ROW_HEIGHT = 34;
+// --- Previews ------------------------------------------------------------------
 
-/** Showing previews (the window's choice, for all its tab bars), or not. */
-function showPreviews(shown) {
-  if (bar.classList.contains('expanded') === shown) return;
-  bar.classList.toggle('expanded', shown);
-  const label = shown ? 'Hide Previews' : 'Show Previews';
-  previewsButton.title = label;
-  previewsButton.setAttribute('aria-label', label);
-  previewsButton.setAttribute('aria-pressed', String(shown));
-  updateFades();
-  reportLayout();
+// How long the pointer rests on a tab before its picture shows.
+const PREVIEW_DELAY_MS = 500;
+// The tab whose picture shows (or will, once `timer` fires); and what
+// follows its size while it shows.
+const preview = {
+  id: null,
+  timer: 0,
+  shown: false,
+  watched: null,
+  sizer: new ResizeObserver(() => {
+    if (preview.shown) showPreview(preview.id);
+  }),
+};
+strip.addEventListener('scroll', () => {
+  if (preview.shown) showPreview(preview.id);
+});
+
+/** Whether tab `id` gets a picture now: it has one, isn't the active tab,
+ * and no tab is being dragged or showing suggestions under it (an address
+ * open for typing is fine: a new tab's is). */
+function previewable(id) {
+  const tab = tabs.find((t) => t.id === id);
+  return !!tab?.preview && id !== active && !drag && !editing?.rows;
 }
+
+function showPreview(id) {
+  const parts = elements.get(id);
+  if (!parts) return;
+  // The tab as it shows in the bar (a tab scrolled partly out of view: the
+  // part in view), down to the bar's bottom edge.
+  const r = parts.el.getBoundingClientRect();
+  const edges = bar.getBoundingClientRect();
+  const left = Math.max(r.left, edges.left);
+  const right = Math.min(r.right, edges.right);
+  if (right - left < 1) {
+    hidePreview();
+    return;
+  }
+  if (preview.watched !== parts.el) {
+    preview.sizer.disconnect();
+    preview.sizer.observe(parts.el);
+    preview.watched = parts.el;
+  }
+  preview.id = id;
+  preview.shown = true;
+  // Which tab's picture shows (for the browser's tests).
+  document.body.dataset.preview = String(id);
+  send({
+    type: 'preview-show',
+    id,
+    x: Math.round(left),
+    y: Math.round(r.top),
+    width: Math.round(right - left),
+    height: Math.round(edges.bottom - r.top),
+    squareLeft: left <= edges.left,
+    squareRight: right >= edges.right,
+  });
+}
+
+function hidePreview() {
+  clearTimeout(preview.timer);
+  preview.timer = 0;
+  if (preview.shown) send({ type: 'preview-hide' });
+  preview.sizer.disconnect();
+  preview.watched = null;
+  delete document.body.dataset.preview;
+  preview.shown = false;
+  preview.id = null;
+}
+
+strip.addEventListener('mouseover', (event) => {
+  const el = event.target.closest('.tab');
+  if (!el) return;
+  const id = Number(el.dataset.id);
+  // Still on the same tab (moving over its parts).
+  if (id === preview.id) return;
+  clearTimeout(preview.timer);
+  preview.timer = 0;
+  if (!previewable(id)) {
+    hidePreview();
+    return;
+  }
+  // One showing: this one instead, at once. Else after a rest.
+  if (preview.shown) {
+    showPreview(id);
+    return;
+  }
+  preview.id = id;
+  preview.timer = setTimeout(() => {
+    preview.timer = 0;
+    if (previewable(id)) showPreview(id);
+    else preview.id = null;
+  }, PREVIEW_DELAY_MS);
+});
+strip.addEventListener('mouseout', (event) => {
+  // Onto another tab, or another part of this one: mouseover sees to it.
+  if (event.relatedTarget?.closest?.('.tab')) return;
+  hidePreview();
+});
+// A press (activating, dragging, closing), the window losing the keyboard.
+strip.addEventListener('mousedown', hidePreview, true);
+addEventListener('blur', hidePreview);
 
 listen((message) => {
   if (message.type === 'tabs') {
@@ -651,7 +695,8 @@ listen((message) => {
     tabs = message.tabs;
     active = message.active;
     document.body.classList.toggle('focused', message.focused);
-    showPreviews(!!message.previews);
+    // The tab previewed became the active one, or closed.
+    if (preview.id !== null && !previewable(preview.id)) hidePreview();
     render();
     reportLayout();
     // A new tab: its address, ready to type in.

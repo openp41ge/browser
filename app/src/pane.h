@@ -66,8 +66,6 @@ class Pane {
   int IndexOf(int id) const;
   // A tab's title, address, icon, loading state or picture changed.
   void UpdateTabBar();
-  // Its tab bar showing each tab's picture, or not (the window's choice).
-  void SetPreviews(bool shown) { tab_bar_->SetPreviews(shown); }
   // A suggestion under a tab's address was clicked.
   void PickSuggestion(int index) { tab_bar_->PickSuggestion(index); }
   // A suggestion's ✕ was clicked: forget it.
@@ -91,6 +89,8 @@ class Pane {
   void UpdateFindBar();
 
  private:
+  // `tab` stops being the active one: when, for its preview.
+  static void Leave(CefRefPtr<Tab> tab);
   class Delegate;
 
   void AddView(CefRefPtr<Tab> tab);

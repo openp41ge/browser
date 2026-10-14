@@ -10,8 +10,7 @@
 
 // A window as it was, to bring back: when it closed (Reopen Closed Window),
 // or when the app last quit (the session, session.h). Its frame, and each
-// pane's share of the width, its tabs, and which one was active; and whether
-// its tab bars showed previews.
+// pane's share of the width, its tabs, and which one was active.
 struct WindowLayout {
   // What a tab shows without its page loaded.
   struct SavedTab {
@@ -19,6 +18,7 @@ struct WindowLayout {
     std::string title;
     std::string favicon;
     std::string preview;  // Its picture's token (tab_previews.h), if any.
+    double last_active = 0;  // As Tab::last_active.
   };
   struct PaneTabs {
     std::vector<SavedTab> tabs;
@@ -28,7 +28,6 @@ struct WindowLayout {
   CefRect bounds;
   std::vector<PaneTabs> panes;
   int active_pane = 0;
-  bool previews = false;  // Its tab bars showing previews.
 };
 
 #endif  // OPENP41GE_EXPLORER_WINDOW_LAYOUT_H_

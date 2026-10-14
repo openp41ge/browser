@@ -3,6 +3,7 @@
 #include "pane.h"
 
 #include <algorithm>
+#include <chrono>
 
 #include "include/views/cef_box_layout.h"
 #include "include/views/cef_fill_layout.h"
@@ -71,6 +72,10 @@ CefRefPtr<Tab> Pane::Find(CefRefPtr<CefBrowser> browser) const {
   return nullptr;
 }
 
+void Pane::Leave(CefRefPtr<Tab> tab) {
+  if (tab) tab->last_active = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
 void Pane::Add(CefRefPtr<Tab> tab, int index, bool activate) {
   if (index < 0) {
     auto active = std::find(tabs_.begin(), tabs_.end(), active_);
@@ -80,6 +85,7 @@ void Pane::Add(CefRefPtr<Tab> tab, int index, bool activate) {
   tabs_.insert(tabs_.begin() + index, tab);
   AddView(tab);
   if (activate || !active_) {
+    Leave(active_);
     active_ = tab;
     ShowActive();
   }
@@ -111,6 +117,7 @@ void Pane::Restore(std::vector<CefRefPtr<Tab>> tabs, int active) {
 void Pane::Activate(int id) {
   CefRefPtr<Tab> tab = Find(id);
   if (!tab || tab == active_) return;
+  Leave(active_);
   active_ = tab;
   ShowActive();
   UpdateTabBar();

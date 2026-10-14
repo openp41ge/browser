@@ -13,7 +13,6 @@
 #include "include/cef_stream.h"
 #include "include/cef_version.h"
 #include "include/wrapper/cef_stream_resource_handler.h"
-#include "tab_previews.h"
 #include "ui/site_icon.h"
 
 namespace ui_scheme {
@@ -66,7 +65,6 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
     }
     NSString* path = @(CefString(&parts.path).ToString().c_str());
     if ([folder_ isEqualToString:@"about"] && [path isEqualToString:@"/info.js"]) return AboutInfo();
-    if ([folder_ isEqualToString:@"ui"] && [path hasPrefix:@"/preview/"]) return Preview(path);
     NSString* folder = folder_;
     if ([path hasPrefix:@"/shared/"]) {
       folder = @"shared";
@@ -115,15 +113,6 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
   }
 
  private:
-  // preview/<token>.jpg: a tab's picture (tab_previews.h), for the tab bars.
-  static CefRefPtr<CefResourceHandler> Preview(NSString* path) {
-    NSString* name = path.lastPathComponent;
-    if (![name.pathExtension isEqualToString:@"jpg"]) return NotFound();
-    std::string jpeg = tab_previews::Get(name.stringByDeletingPathExtension.UTF8String);
-    if (jpeg.empty()) return NotFound();
-    return new CefStreamResourceHandler("image/jpeg", CefStreamReader::CreateForHandler(new StringReader(std::move(jpeg))));
-  }
-
   // icon?url=<site>, for the start page only (not a fetcher for any page).
   static CefRefPtr<CefResourceHandler> SiteIcon(CefRefPtr<CefBrowser> browser,
                                                 CefRefPtr<CefFrame> frame,

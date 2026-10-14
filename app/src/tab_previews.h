@@ -6,10 +6,9 @@
 #include <set>
 #include <string>
 
-// Pictures of tabs' pages (JPEG), for the tab bar to show (its previews):
-// taken while a tab shows, since a hidden page isn't drawn. Each has a token
-// (Tab::preview) and is served to the browser's UI at
-// openp41ge://ui/preview/<token>.jpg (not to web pages). Kept in memory, and
+// Pictures of tabs' pages (JPEG), shown under a tab while the pointer rests
+// on it (tab_preview.h): taken while a tab shows, since a hidden page isn't
+// drawn. Each has a token (Tab::preview). Kept in memory, and
 // in the profile (<profile>/Tab Previews/<token>.jpg) for the session to
 // bring back; not a private window's. Get is for any thread; the rest are
 // for the UI thread.
