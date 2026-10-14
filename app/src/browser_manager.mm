@@ -224,27 +224,26 @@ void BrowserManager::CapturePreview(CefRefPtr<Tab> tab, bool is_private) {
   CefRefPtr<CefBrowser> browser = tab->browser();
   BrowserWindow* window = WindowOf(browser);
   Pane* pane = window ? window->Locate(browser) : nullptr;
-  // Only a page that shows is drawn (a hidden one's picture never comes).
-  if (!pane || pane->active_tab() != tab) return;
+  // Only a page that shows is drawn (a hidden one's picture never comes);
+  // not one still blank, waiting for extensions (CreatePageView).
+  if (!pane || pane->active_tab() != tab || IsWaiting(browser)) return;
   const CefRect bounds = tab->view()->GetBounds();
   if (bounds.width <= 0 || bounds.height <= 0) return;
-  CefRefPtr<CefDictionaryValue> clip = CefDictionaryValue::Create();
-  clip->SetDouble("x", 0);
-  clip->SetDouble("y", 0);
-  clip->SetDouble("width", bounds.width);
-  clip->SetDouble("height", bounds.height);
-  clip->SetDouble("scale", std::min(1.0, static_cast<double>(kPreviewWidth) / bounds.width));
+  const double factor = std::min(1.0, static_cast<double>(kPreviewWidth) / bounds.width);
+  // At full size, shrunk here (see tab_previews::Shrink for why).
   CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
   params->SetString("format", "jpeg");
-  params->SetInt("quality", 70);
-  params->SetDictionary("clip", clip);
+  params->SetInt("quality", 90);
   CefRefPtr<BrowserManager> self(this);
-  devtools_->Call(browser, "Page.captureScreenshot", params, [self, tab, is_private](CefRefPtr<CefDictionaryValue> result) {
+  devtools_->Call(browser, "Page.captureScreenshot", params,
+                  [self, tab, is_private, factor](CefRefPtr<CefDictionaryValue> result) {
     if (!result) return;
     CefRefPtr<CefBinaryValue> data = CefBase64Decode(result->GetString("data"));
     if (!data || data->GetSize() == 0) return;
-    std::string jpeg(data->GetSize(), '\0');
-    data->GetData(jpeg.data(), jpeg.size(), 0);
+    std::string full(data->GetSize(), '\0');
+    data->GetData(full.data(), full.size(), 0);
+    std::string jpeg = tab_previews::Shrink(full, factor, 70);
+    if (jpeg.empty()) return;
     if (tab->preview.empty()) tab->preview = tab_previews::NewToken();
     tab_previews::Put(tab->preview, std::move(jpeg), /*keep=*/!is_private);
     ++tab->preview_version;

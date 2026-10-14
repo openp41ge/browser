@@ -683,16 +683,10 @@ void BrowserWindow::DragTab(Pane* source, int tab_id, int x, int y) {
     CefRefPtr<CefBrowser> browser = tab->browser();
     const CefRect bounds = tab->loaded() ? tab->view()->GetBounds() : CefRect();
     if (browser && bounds.width > 0 && bounds.height > 0) {
-      CefRefPtr<CefDictionaryValue> clip = CefDictionaryValue::Create();
-      clip->SetDouble("x", 0);
-      clip->SetDouble("y", 0);
-      clip->SetDouble("width", bounds.width);
-      clip->SetDouble("height", bounds.height);
-      clip->SetDouble("scale", 0.5);
+      // At full size, shrunk here (see tab_previews::Shrink for why).
       CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
       params->SetString("format", "jpeg");
-      params->SetInt("quality", 75);
-      params->SetDictionary("clip", clip);
+      params->SetInt("quality", 90);
       CefRefPtr<BrowserWindow> self(this);
       manager_->devtools()->Call(browser, "Page.captureScreenshot", params,
                                  [self, serial](CefRefPtr<CefDictionaryValue> result) {
@@ -701,7 +695,8 @@ void BrowserWindow::DragTab(Pane* source, int tab_id, int x, int y) {
                                    if (!data || data->GetSize() == 0) return;
                                    std::string bytes(data->GetSize(), '\0');
                                    data->GetData(bytes.data(), bytes.size(), 0);
-                                   self->drag_image_->SetSnapshot(bytes);
+                                   std::string jpeg = tab_previews::Shrink(bytes, 0.5, 75);
+                                   if (!jpeg.empty()) self->drag_image_->SetSnapshot(jpeg);
                                  });
     }
   }

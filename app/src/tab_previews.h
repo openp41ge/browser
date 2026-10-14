@@ -33,6 +33,16 @@ void KeepOnly(std::set<std::string> tokens);
 // Whether `token` could be one (what the scheme serves).
 bool IsToken(const std::string& token);
 
+// `image` (a page's screenshot, any format) scaled by `factor` (at most 1),
+// as JPEG at `quality` (0 to 100); empty if it can't be read.
+//
+// Screenshots are taken at full size and shrunk here, not with
+// Page.captureScreenshot's clip scale: Chromium does that by emulating a
+// smaller viewport scale on the page for the capture and undoing it after,
+// and when the undo is lost (as a page goes to another process mid-capture)
+// the page stays drawn shrunk in the corner of its view.
+std::string Shrink(const std::string& image, double factor, int quality);
+
 }  // namespace tab_previews
 
 #endif  // OPENP41GE_EXPLORER_TAB_PREVIEWS_H_

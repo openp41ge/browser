@@ -144,6 +144,7 @@ add_cef_mac_app(openp41ge_explorer
     src/ui/ui_scheme.h
   LIBRARIES
     "-framework CoreServices"
+    "-framework ImageIO"
     "-framework QuartzCore"
   INCLUDE_DIRS
     src

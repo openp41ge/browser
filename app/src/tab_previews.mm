@@ -2,6 +2,11 @@
 
 #include "tab_previews.h"
 
+#import <Foundation/Foundation.h>
+#import <ImageIO/ImageIO.h>
+
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -110,6 +115,39 @@ bool IsToken(const std::string& token) {
     if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
   }
   return true;
+}
+
+std::string Shrink(const std::string& image, double factor, int quality) {
+  NSData* data = [NSData dataWithBytes:image.data() length:image.size()];
+  CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)data, nullptr);
+  if (!source) return std::string();
+  NSDictionary* properties = CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source, 0, nullptr));
+  const double width = [properties[(NSString*)kCGImagePropertyPixelWidth] doubleValue];
+  const double height = [properties[(NSString*)kCGImagePropertyPixelHeight] doubleValue];
+  // The thumbnail's longest side.
+  const double longest = std::max(width, height) * std::clamp(factor, 0.0, 1.0);
+  CGImageRef shrunk = nullptr;
+  if (longest >= 1) {
+    NSDictionary* options = @{
+      (NSString*)kCGImageSourceCreateThumbnailFromImageAlways : @YES,
+      (NSString*)kCGImageSourceThumbnailMaxPixelSize : @(std::lround(longest)),
+    };
+    shrunk = CGImageSourceCreateThumbnailAtIndex(source, 0, (__bridge CFDictionaryRef)options);
+  }
+  CFRelease(source);
+  if (!shrunk) return std::string();
+  NSMutableData* jpeg = [NSMutableData data];
+  CGImageDestinationRef destination =
+      CGImageDestinationCreateWithData((__bridge CFMutableDataRef)jpeg, CFSTR("public.jpeg"), 1, nullptr);
+  bool written = false;
+  if (destination) {
+    NSDictionary* options = @{(NSString*)kCGImageDestinationLossyCompressionQuality : @(quality / 100.0)};
+    CGImageDestinationAddImage(destination, shrunk, (__bridge CFDictionaryRef)options);
+    written = CGImageDestinationFinalize(destination);
+    CFRelease(destination);
+  }
+  CGImageRelease(shrunk);
+  return written ? std::string(static_cast<const char*>(jpeg.bytes), jpeg.length) : std::string();
 }
 
 }  // namespace tab_previews
