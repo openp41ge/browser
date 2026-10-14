@@ -54,7 +54,10 @@
 //
 // Installed extensions are local folders, remembered in the profile
 // (`openp41ge Extensions/installed.json`: each one's folder, and whether
-// it's on); `--extension-folder=<folder>[:<folder>…]` adds some for one run.
+// it's on), or GitHub releases (unpacked into `openp41ge Extensions/
+// installed/<id>/<version>`, the repo, tag and zip's SHA-256 pinned in
+// installed.json; github.h, package.h); `--extension-folder=<folder>[:
+// <folder>…]` adds some for one run.
 // The Extensions page (openp41ge://extensions/, app/ui/extensions) lists
 // them and manages them through the same channel as extension pages,
 // checked by its address: load a folder, switch an extension or a feature
@@ -104,6 +107,9 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
     bool installed = false;  // Remembered in the profile (else this run only).
     bool enabled = true;     // The user's switch for the whole extension.
     std::string error;       // Why it isn't loaded, or empty.
+    // Installed from GitHub: the repo ("owner/repo"), the release's tag and
+    // the zip's SHA-256 (pinned); empty for a local folder.
+    std::string github_repo, github_tag, github_sha256;
     bool active() const { return error.empty() && enabled; }
     Extension extension;
     std::string world;    // Its content scripts' isolated world.
@@ -164,6 +170,18 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
                       CefRefPtr<Callback> callback);
   // A feature switched: features.json, the scripts, and open pages told.
   void SetFeature(Loaded& loaded, const std::string& feature, bool enabled);
+
+  // Installing from GitHub (the Extensions page's githubFind, githubPrepare,
+  // githubInstall, githubCancel): a release downloaded and unpacked into
+  // staging, awaiting the user's review, by token.
+  struct Pending {
+    std::string repo, tag, sha256, id, version, folder;
+  };
+  void GitHubFind(const std::string& text, CefRefPtr<Callback> callback);
+  void GitHubPrepare(const std::string& repo, const std::string& id, CefRefPtr<Callback> callback);
+  void GitHubInstall(const std::string& token, CefRefPtr<Callback> callback);
+  std::map<std::string, Pending> pending_;
+  int staged_ = 0;  // Staging folders made this run.
   // (Re)builds `loaded`'s scripts from its extension and the user's side.
   static void BuildScripts(Loaded& loaded);
   // Registers `loaded`'s scripts in the page for its next documents, and

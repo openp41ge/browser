@@ -35,8 +35,9 @@ open "build/app/Release/openp41ge explorer.app"
 ```
 
 Extensions are managed on the Extensions page (`openp41ge://extensions/`,
-in the ⋮ menu and the Window menu): Load folder… adds an extension's
-folder (its manifest, `openp41ge-extension.json`, is described in
+in the ⋮ menu and the Window menu): Install from GitHub… installs one from
+a repo's releases (e.g. `openp41ge/browser-community`), and Load folder…
+adds an extension's folder (its manifest, `openp41ge-extension.json`, is described in
 [plans/2026-10-14-extension-system.md](plans/2026-10-14-extension-system.md)),
 which is remembered; each extension and feature has a switch, and there's
 Settings, Reload and Remove. For example,

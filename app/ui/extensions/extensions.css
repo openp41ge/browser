@@ -69,7 +69,8 @@ button.danger {
   list-style: none;
 }
 
-.card {
+.card,
+.panel {
   padding: 16px 20px;
   border: 1px solid var(--border-divider);
   border-radius: 6px;
@@ -178,4 +179,74 @@ button.danger {
 .switch:disabled {
   cursor: default;
   opacity: 0.5;
+}
+
+header .buttons {
+  display: flex;
+  gap: 8px;
+}
+
+#install {
+  margin-bottom: 16px;
+}
+#find {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#find label {
+  white-space: nowrap;
+}
+#repo {
+  flex: 1;
+  font: inherit;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+#install-status {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+}
+#install-status.error {
+  color: #f14c4c;
+}
+#found {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+#found li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-divider);
+}
+#review {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-divider);
+}
+#review h3 {
+  margin: 0;
+  font-size: 16px;
+}
+#review dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 12px 0;
+}
+#review dt {
+  color: var(--text-secondary);
+}
+#review dd {
+  margin: 0;
+  word-break: break-all;
+}
+button.primary {
+  border-color: var(--accent);
 }

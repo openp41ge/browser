@@ -5,7 +5,10 @@
 // change (a persistent "listen" on the extension system's channel,
 // `openp41geExtensionQuery`, which only this page and extension pages
 // have). For each: its switch, its features' switches, the sites it runs
-// on, whether it needs setup, Settings, Reload and Remove; and Load folder…
+// on, whether it needs setup, Settings, Reload and Remove; Load folder…;
+// and Install from GitHub…: a repo's extensions (from its releases), then a
+// review of the one chosen (downloaded, checked and unpacked by the
+// browser, but not installed until the user accepts), then Install.
 // See plans/2026-10-14-extension-system.md.
 
 import { configDefaults, configErrors, mergeConfig, validateConfigSchema } from './shared/uikit.js';
@@ -111,7 +114,9 @@ function card(extension) {
       item.append(list);
     }
   }
-  item.append(el('p', 'folder', extension.folder));
+  item.append(
+    el('p', 'folder', extension.github ? `From github.com/${extension.github.repo} (${extension.github.tag})` : extension.folder),
+  );
 
   const actions = el('div', 'actions');
   if (extension.settings && extension.enabled && !extension.error) {
@@ -150,6 +155,106 @@ function show(extensions) {
 }
 
 $('load').addEventListener('click', () => act({ type: 'loadFolder' }));
+
+// Install from GitHub.
+let reviewing = null; // The token of the release being reviewed.
+const installStatus = (text, error = false) => {
+  $('install-status').textContent = text;
+  $('install-status').classList.toggle('error', error);
+};
+const cancelReview = () => {
+  if (reviewing) send({ type: 'githubCancel', token: reviewing }).catch(() => {});
+  reviewing = null;
+  $('review').hidden = true;
+  $('review').replaceChildren();
+};
+const closeInstall = () => {
+  cancelReview();
+  $('install').hidden = true;
+  $('found').replaceChildren();
+  installStatus('');
+};
+$('github').addEventListener('click', () => {
+  $('install').hidden = false;
+  $('repo').focus();
+});
+$('close-install').addEventListener('click', closeInstall);
+
+$('find').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  cancelReview();
+  $('found').replaceChildren();
+  installStatus('Looking for extensions…');
+  try {
+    const { repo, extensions } = JSON.parse(await send({ type: 'githubFind', repo: $('repo').value }));
+    installStatus(`${extensions.length === 1 ? 'An extension' : `${extensions.length} extensions`} in ${repo}:`);
+    $('found').replaceChildren(
+      ...extensions.map((found) => {
+        const row = el('li');
+        const choose = el('button', '', 'Review…');
+        choose.addEventListener('click', () => review(repo, found));
+        row.append(el('span', '', `${found.id} ${found.version}`), choose);
+        return row;
+      }),
+    );
+  } catch (error) {
+    installStatus(error.message, true);
+  }
+});
+
+/** The settings an extension will ask for: required ones without a default, and secrets. */
+const asksFor = (config) =>
+  Object.entries(config?.properties ?? {})
+    .filter(([key, s]) => s.secret === true || ((config.required ?? []).includes(key) && s.default === undefined))
+    .map(([key, s]) => `${s.title ?? key}${s.secret === true ? ' (secret)' : ''}`);
+
+async function review(repo, found) {
+  cancelReview();
+  installStatus(`Downloading ${found.id} ${found.version}…`);
+  let details;
+  try {
+    details = JSON.parse(await send({ type: 'githubPrepare', repo, id: found.id }));
+  } catch (error) {
+    installStatus(error.message, true);
+    return;
+  }
+  reviewing = details.token;
+  installStatus('Review it before installing: nothing runs until you install it.');
+  const sites = [...new Set(details.sites.map(site))];
+  const settings = asksFor(details.config);
+  const rows = [
+    ['Version', details.version],
+    ['From', `github.com/${details.repo}, release ${details.tag}`],
+    ['Runs on', sites.length ? sites.join(', ') : 'no sites (its own pages only)'],
+    ...(details.features.length ? [['Features', details.features.join(', ')]] : []),
+    ...(settings.length ? [['Asks for', settings.join(', ')]] : []),
+    ['SHA-256', details.sha256],
+  ];
+  const list = el('dl');
+  for (const [term, value] of rows) list.append(el('dt', '', term), el('dd', '', value));
+  const install = el('button', 'primary', `Install ${details.name}`);
+  const cancel = el('button', '', 'Cancel');
+  cancel.addEventListener('click', () => {
+    cancelReview();
+    installStatus('');
+  });
+  install.addEventListener('click', async () => {
+    const token = reviewing;
+    reviewing = null;
+    try {
+      const key = JSON.parse(await send({ type: 'githubInstall', token }));
+      closeInstall();
+      // Setup first, if it asks for settings it can't run without.
+      if (settings.length) act({ type: 'openSettings', key });
+    } catch (error) {
+      installStatus(error.message, true);
+    }
+  });
+  const actions = el('div', 'actions');
+  actions.append(install, cancel);
+  $('review').replaceChildren(el('h3', '', details.name), ...(details.description ? [el('p', 'description', details.description)] : []), list, actions);
+  $('review').hidden = false;
+}
 
 window.openp41geExtensionQuery({
   request: JSON.stringify({ type: 'listen' }),

@@ -634,6 +634,39 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
   and clears one, and content scripts never get it. The real Keychain is
   checked by hand.
 
+## Step 12: what was built
+
+- **Finding:** the Extensions page's Install from GitHub… takes `owner/repo`
+  or a github.com address; the browser lists the repo's releases
+  (`src/extensions/github.{h,mm}`, CefURLRequest, anonymous, through
+  `--github-api` in tests) and offers the newest release of each extension
+  in it (assets `<id>-<version>.openp41ge-extension.zip`; not drafts or
+  pre-releases).
+- **Preparing** (Review…): the release is looked up again, its zip
+  downloaded (20 MB at most) and its SHA-256 taken; it's unpacked into
+  `openp41ge Extensions/staging/` (`src/extensions/package.{h,mm}`, with
+  macOS's zipinfo and unzip): every entry is checked before anything is
+  written (relative, inside the folder, no `..`, no backslashes, no links),
+  and nothing unpacked may be a link; then the manifest is checked as a
+  folder's is, and its id must be the asset's.
+- **Review:** name, description, version, repo and release, the sites it
+  runs on in plain words, its features, the settings it will ask for
+  (required without a default, and secrets), and the SHA-256. Nothing runs
+  until Install. Cancel deletes the download; staging is cleared at
+  startup.
+- **Installing:** moved to `openp41ge Extensions/installed/<id>/<version>/`,
+  added as an installed extension with its repo, tag and SHA-256 pinned in
+  `installed.json`; its card says where it's from. If it asks for settings,
+  its settings page opens next. An extension with the same id can't be
+  installed twice (updates are step 13). Remove deletes its files too.
+- **Tests** (a stand-in API and zips in browser-tests' `fixtures/github`):
+  the list (newest of each, no drafts), a repo that isn't there, a zip
+  reaching outside its folder refused (and nothing written outside), a
+  release reviewed, installed and pinned with its settings page opening,
+  the same id refused, Remove taking its files. Checked by hand against
+  github.com: browser-community's youtube-popout 0.1.1 installs, with the
+  SHA-256 its release notes give.
+
 ## Steps
 
 1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
@@ -677,7 +710,8 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
     remove~~ (done 2026-10-14; see **Step 10: what was built**).
 11. ~~**Secrets** in the Keychain~~ (done 2026-10-14; see **Step 11: what
     was built**).
-12. **Install from GitHub:** releases, review, pinning, unpacking checks.
+12. ~~**Install from GitHub:** releases, review, pinning, unpacking
+    checks~~ (done 2026-10-14; see **Step 12: what was built**).
 13. **Updates** from GitHub.
 
 Each step comes with smoke tests on local fixture pages and fixture

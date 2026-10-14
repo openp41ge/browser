@@ -10,10 +10,24 @@
     <main>
       <header>
         <h1>Extensions</h1>
-        <button id="load" type="button">Load folder…</button>
+        <div class="buttons">
+          <button id="github" type="button">Install from GitHub…</button>
+          <button id="load" type="button">Load folder…</button>
+        </div>
       </header>
+      <section id="install" class="panel" hidden>
+        <form id="find">
+          <label for="repo">GitHub repo</label>
+          <input id="repo" placeholder="owner/repo, or its github.com address" autocomplete="off" spellcheck="false" />
+          <button type="submit">Find</button>
+          <button id="close-install" type="button">Cancel</button>
+        </form>
+        <p id="install-status" role="status"></p>
+        <ul id="found"></ul>
+        <div id="review" hidden></div>
+      </section>
       <p id="message" role="status" hidden></p>
-      <p id="empty" hidden>No extensions yet. Load an extension's folder to add it.</p>
+      <p id="empty" hidden>No extensions yet. Install one from GitHub, or load an extension's folder.</p>
       <ul id="list"></ul>
     </main>
     <script type="module" src="extensions.js"></script>

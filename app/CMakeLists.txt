@@ -99,6 +99,10 @@ add_cef_mac_app(openp41ge_explorer
     src/extensions/extension_router.h
     src/extensions/extension_scheme.cc
     src/extensions/extension_scheme.h
+    src/extensions/github.h
+    src/extensions/github.mm
+    src/extensions/package.h
+    src/extensions/package.mm
     src/extensions/secret_store.h
     src/extensions/secret_store.mm
     src/find_bar.h
