@@ -164,12 +164,12 @@ repo contains no tests.
   - persist a session across restarts
   - later, pop out an element
 - **Package tests** (Vitest) cover `packages/openp41ge-link`.
-- **How results reach the public repo:** the public repo's CI builds the app
-  and then triggers the private repo's test workflow (`repository_dispatch`
-  with the commit SHA and build artifact id). The private workflow runs the
-  tests and posts a **commit status** (`browser-tests`) back to the public
-  commit. Branch protection on `master` and the release workflow both require
-  that status.
+- **Run by hand, not gating:** the private repo's macOS minutes are paid
+  for, so (since 0.1.8) the public CI no longer triggers the tests and a
+  release doesn't wait for them; run them locally before tagging. The
+  private workflow still works when triggered (`repository_dispatch` with
+  the commit SHA and build artifact id): it runs the tests and posts a
+  **commit status** (`browser-tests`) back to the public commit.
 - **Pull requests from forks:** GitHub withholds secrets from fork PRs, and
   running untrusted code next to the private tests could leak them. So fork
   PRs get the public build check only; a maintainer triggers the private test
@@ -189,7 +189,6 @@ a laptop.
   - fetch the pinned CEF binary (cached by `CEF_VERSION`)
   - CMake build
   - upload the unsigned `.app` as an artifact
-  - dispatch to `browser-tests` (skipped for fork PRs; see **Tests**)
 - **`release.yml`** runs on pushing a tag `v*`:
   1. Build in Release mode for Apple Silicon and Intel (the Intel half
      cross-compiled on the same runner), and merge them into a universal app
@@ -205,12 +204,8 @@ a laptop.
      dmgbuild writes its Finder window (the app, an Applications link to
      drag it onto, and a branded background) without scripting Finder, so
      it runs headless.
-  4. Wait for `browser-tests` to pass on the tagged commit (a release is
-     blocked if it fails, or hasn't started within 3 minutes). To publish
-     without it, run the release by hand:
-     `gh workflow run release.yml --ref v<version> -f skip-tests=true`.
-  5. Sign the update with Sparkle's EdDSA key and generate `appcast.xml`.
-  6. Create the **GitHub Release** with auto-generated notes, plus the
+  4. Sign the update with Sparkle's EdDSA key and generate `appcast.xml`.
+  5. Create the **GitHub Release** with auto-generated notes, plus the
      CEF and Chromium versions, and attach the `.dmg`, `appcast.xml` and
      `SHA256SUMS`.
   - Tags with a suffix (`v0.3.0-beta.1`) become GitHub **pre-releases**.
@@ -269,8 +264,8 @@ public commit.
   app). On a paid plan, both could use the org-level ones.
 - **Minutes:** the private repo's macOS runs count against the Free plan's
   private-repo minutes, and macOS minutes are billed at a multiple of Linux
-  minutes. Watch usage once tests grow, and consider a paid plan or a
-  self-hosted Mac runner for `browser-tests`.
+  minutes. That's why the tests are run by hand for now (see **Tests**); a
+  self-hosted Mac runner for `browser-tests` would bring them back to CI.
 
 Secrets are never exposed to fork PR workflows.
 

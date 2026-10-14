@@ -1,5 +1,5 @@
-# Builds openp41ge explorer on every push and pull request, then asks the
-# private browser-tests repo to test the build. See PLAN.md, "Tests".
+# Builds openp41ge explorer on every push and pull request. The tests
+# (the private browser-tests repo) are run by hand; see PLAN.md, "Tests".
 name: ci
 
 on:
@@ -54,28 +54,3 @@ jobs:
           path: openp41ge-explorer-macos-arm64.zip
           retention-days: 7
 
-  # Fork pull requests get no secrets, so they're tested by a maintainer
-  # triggering browser-tests manually after review.
-  dispatch-tests:
-    needs: build
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/create-github-app-token@v3
-        id: app
-        with:
-          client-id: ${{ vars.CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
-          owner: openp41ge
-          repositories: browser-tests
-          permission-contents: write # required for repository_dispatch
-
-      - name: Trigger browser-tests
-        env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
-          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          gh api repos/openp41ge/browser-tests/dispatches \
-            -f event_type=test-build \
-            -f "client_payload[sha]=$SHA" \
-            -f "client_payload[run_id]=${{ github.run_id }}"
