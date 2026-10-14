@@ -8,7 +8,10 @@
 // on, whether it needs setup, Settings, Reload and Remove; Load folder…;
 // and Install from GitHub…: a repo's extensions (from its releases), then a
 // review of the one chosen (downloaded, checked and unpacked by the
-// browser, but not installed until the user accepts), then Install.
+// browser, but not installed until the user accepts), then Install; and
+// updates: Check for updates (also when the page opens, at most hourly)
+// marks the GitHub ones with a newer release, and Update installs it (one
+// that would run on new sites asks first).
 // See plans/2026-10-14-extension-system.md.
 
 import { configDefaults, configErrors, mergeConfig, validateConfigSchema } from './shared/uikit.js';
@@ -86,6 +89,7 @@ function card(extension) {
   if (!extension.installed) title.append(el('span', 'badge', 'This run only'));
   const setup = !extension.error && needsSetup(extension.config);
   if (setup) title.append(el('span', 'badge attention', 'Needs setup'));
+  if (extension.update) title.append(el('span', 'badge update', `Update to ${extension.update.version}`));
   title.append(
     toggle(`${extension.name ?? 'Extension'} on`, extension.enabled, (on) =>
       act({ type: 'setEnabled', key: extension.key, enabled: on }),
@@ -124,6 +128,11 @@ function card(extension) {
     settings.addEventListener('click', () => act({ type: 'openSettings', key: extension.key }));
     actions.append(settings);
   }
+  if (extension.update && !extension.error) {
+    const update = el('button', 'primary', 'Update');
+    update.addEventListener('click', () => updateExtension(extension, item, update));
+    actions.append(update);
+  }
   const reload = el('button', '', 'Reload');
   reload.title = 'Read its folder again (pages loaded from now on get it)';
   reload.addEventListener('click', () => act({ type: 'reload', key: extension.key }));
@@ -155,6 +164,61 @@ function show(extensions) {
 }
 
 $('load').addEventListener('click', () => act({ type: 'loadFolder' }));
+
+$('check').addEventListener('click', async () => {
+  $('check').disabled = true;
+  try {
+    const found = Number(await send({ type: 'githubCheck' }));
+    say('');
+    $('check').textContent = found ? `${found} update${found === 1 ? '' : 's'}` : 'Up to date';
+    setTimeout(() => ($('check').textContent = 'Check for updates'), 3000);
+  } catch (error) {
+    say(error.message);
+  } finally {
+    $('check').disabled = false;
+  }
+});
+
+/** Updates `extension`: straight away, or after asking if it would run on new sites. */
+async function updateExtension(extension, item, button) {
+  button.disabled = true;
+  button.textContent = 'Downloading…';
+  let details;
+  try {
+    details = JSON.parse(await send({ type: 'githubUpdate', key: extension.key }));
+  } catch (error) {
+    say(error.message);
+    button.disabled = false;
+    button.textContent = 'Update';
+    return;
+  }
+  const install = () =>
+    send({ type: 'githubInstall', token: details.token }).then(
+      () => say(''),
+      (error) => say(error.message),
+    );
+  if (!details.newSites.length) {
+    install();
+    return;
+  }
+  // It would run on sites it doesn't now: the user says.
+  const sites = [...new Set(details.newSites.map(site))];
+  const box = el('div', 'update-review');
+  box.append(el('p', '', `${details.name} ${details.version} would also run on ${sites.join(', ')}.`));
+  const accept = el('button', 'primary', `Update to ${details.version}`);
+  const cancel = el('button', '', 'Not now');
+  accept.addEventListener('click', install);
+  cancel.addEventListener('click', () => {
+    send({ type: 'githubCancel', token: details.token }).catch(() => {});
+    box.remove();
+    button.disabled = false;
+    button.textContent = 'Update';
+  });
+  const actions = el('div', 'actions');
+  actions.append(accept, cancel);
+  box.append(actions);
+  item.append(box);
+}
 
 // Install from GitHub.
 let reviewing = null; // The token of the release being reviewed.

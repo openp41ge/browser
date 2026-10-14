@@ -679,6 +679,12 @@ CefRefPtr<CefValue> ExtensionManager::State() const {
       from->SetString("sha256", loaded.github_sha256);
       item->SetDictionary("github", from);
     }
+    if (!loaded.update_version.empty()) {
+      CefRefPtr<CefDictionaryValue> update = CefDictionaryValue::Create();
+      update->SetString("version", loaded.update_version);
+      update->SetString("tag", loaded.update_tag);
+      item->SetDictionary("update", update);
+    }
     if (loaded.error.empty()) {
       const Extension& extension = loaded.extension;
       item->SetString("id", extension.id);
@@ -745,6 +751,8 @@ void ExtensionManager::OnManagerQuery(CefRefPtr<CefBrowser> browser,
     }
     listeners_.push_back({browser->GetIdentifier(), query_id, callback});
     callback->Success(Json(State()));
+    // Updates, when the page opens (at most once an hour).
+    if ([NSDate date].timeIntervalSince1970 - last_check_ > 3600) GitHubCheck(nullptr);
     return;
   }
   if (persistent) {
@@ -783,7 +791,11 @@ void ExtensionManager::OnManagerQuery(CefRefPtr<CefBrowser> browser,
     return;
   }
   if (type == "githubPrepare") {
-    GitHubPrepare(message->GetString("repo"), message->GetString("id"), callback);
+    GitHubPrepare(message->GetString("repo"), message->GetString("id"), "", callback);
+    return;
+  }
+  if (type == "githubCheck") {
+    GitHubCheck([callback](int found) { callback->Success(std::to_string(found)); });
     return;
   }
   if (type == "githubInstall") {
@@ -838,6 +850,13 @@ void ExtensionManager::OnManagerQuery(CefRefPtr<CefBrowser> browser,
     const bool installed = loaded->installed;
     loaded_.remove_if([&](const Loaded& l) { return &l == loaded; });
     if (installed) SaveInstalled();
+  } else if (type == "githubUpdate") {
+    if (loaded->github_repo.empty() || loaded->update_version.empty() || !loaded->error.empty()) {
+      callback->Failure(0, "No update to install");
+      return;
+    }
+    GitHubPrepare(loaded->github_repo, loaded->extension.id, loaded->source, callback);
+    return;
   } else if (type == "openSettings") {
     std::string url;
     for (const Extension::Page& page : loaded->extension.pages) {
@@ -1056,21 +1075,25 @@ void ExtensionManager::GitHubFind(const std::string& text, CefRefPtr<Callback> c
   });
 }
 
-void ExtensionManager::GitHubPrepare(const std::string& text, const std::string& id, CefRefPtr<Callback> callback) {
+void ExtensionManager::GitHubPrepare(const std::string& text,
+                                     const std::string& id,
+                                     const std::string& update_key,
+                                     CefRefPtr<Callback> callback) {
   const std::string repo = github::ParseRepo(text);
   if (repo.empty()) {
     callback->Failure(0, "That isn't a GitHub repo");
     return;
   }
   for (const Loaded& loaded : loaded_) {
-    if (loaded.error.empty() && loaded.extension.id == id) {
+    if (update_key.empty() && loaded.error.empty() && loaded.extension.id == id) {
       callback->Failure(0, "An extension with the id \"" + id + "\" is installed already");
       return;
     }
   }
   ExtensionManager* self = this;
   // The release again (it may have changed since the list), then its zip.
-  github::ListExtensions(repo, [self, repo, id, callback](std::vector<github::Release> releases, std::string error) {
+  github::ListExtensions(repo, [self, repo, id, update_key, callback](std::vector<github::Release> releases,
+                                                                      std::string error) {
     const github::Release* release = nullptr;
     for (const github::Release& r : releases) {
       if (r.id == id) release = &r;
@@ -1080,7 +1103,8 @@ void ExtensionManager::GitHubPrepare(const std::string& text, const std::string&
       return;
     }
     const github::Release chosen = *release;
-    github::Download(chosen.asset_url, kMaxPackageBytes, [self, repo, chosen, callback](std::string zip, std::string error) {
+    github::Download(chosen.asset_url, kMaxPackageBytes, [self, repo, chosen, update_key, callback](std::string zip,
+                                                                                                     std::string error) {
       if (!error.empty()) {
         callback->Failure(0, "Couldn't download " + chosen.asset + ": " + error);
         return;
@@ -1091,11 +1115,12 @@ void ExtensionManager::GitHubPrepare(const std::string& text, const std::string&
       // Unpacked off the UI thread, then checked as a folder is.
       CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(
           [](ExtensionManager* self, std::string zip, std::string folder, std::string token, std::string repo,
-             github::Release chosen, std::string sha256, CefRefPtr<Callback> callback) {
+             github::Release chosen, std::string sha256, std::string update_key, CefRefPtr<Callback> callback) {
             std::string problem = extension_package::Unpack(zip, folder);
             CefPostTask(TID_UI, base::BindOnce(
                 [](ExtensionManager* self, std::string problem, std::string folder, std::string token,
-                   std::string repo, github::Release chosen, std::string sha256, CefRefPtr<Callback> callback) {
+                   std::string repo, github::Release chosen, std::string sha256, std::string update_key,
+                   CefRefPtr<Callback> callback) {
                   std::string error = problem;
                   std::optional<Extension> extension;
                   if (error.empty()) extension = extensions::Load(folder, &error);
@@ -1107,7 +1132,17 @@ void ExtensionManager::GitHubPrepare(const std::string& text, const std::string&
                     callback->Failure(0, "Not installed: " + error);
                     return;
                   }
-                  self->pending_[token] = {repo, chosen.tag, sha256, extension->id, extension->version, folder};
+                  // An update: the extension it updates, still there and older.
+                  Loaded* current = update_key.empty() ? nullptr : self->FindSource(update_key);
+                  if (!update_key.empty() &&
+                      (!current || !current->error.empty() ||
+                       !github::IsNewer(extension->version, current->extension.version))) {
+                    CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&DeleteFolder, folder));
+                    callback->Failure(0, "No newer version to update to");
+                    return;
+                  }
+                  self->pending_[token] = {repo, chosen.tag, sha256, extension->id, extension->version, folder,
+                                           update_key};
                   // What the user reviews.
                   CefRefPtr<CefDictionaryValue> review = CefDictionaryValue::Create();
                   review->SetString("token", token);
@@ -1118,11 +1153,29 @@ void ExtensionManager::GitHubPrepare(const std::string& text, const std::string&
                   review->SetString("name", extension->name);
                   review->SetString("version", extension->version);
                   review->SetString("description", extension->description);
-                  CefRefPtr<CefListValue> sites = CefListValue::Create();
+                  std::vector<std::string> patterns;
                   for (const Extension::ContentScript& script : extension->content_scripts) {
-                    for (const std::string& pattern : script.matches) sites->SetString(sites->GetSize(), pattern);
+                    patterns.insert(patterns.end(), script.matches.begin(), script.matches.end());
                   }
-                  review->SetList("sites", sites);
+                  CefRefPtr<CefListValue> sites = CefListValue::Create();
+                  for (const std::string& pattern : patterns) sites->SetString(sites->GetSize(), pattern);
+                  review->SetList("sites", sites);  // (Owned by `review` now: `sites` is spent.)
+                  if (current) {
+                    // The sites it would run on that the installed version doesn't.
+                    std::vector<std::string> old_sites;
+                    for (const Extension::ContentScript& script : current->extension.content_scripts) {
+                      old_sites.insert(old_sites.end(), script.matches.begin(), script.matches.end());
+                    }
+                    CefRefPtr<CefListValue> new_sites = CefListValue::Create();
+                    for (const std::string& pattern : patterns) {
+                      if (std::find(old_sites.begin(), old_sites.end(), pattern) == old_sites.end()) {
+                        new_sites->SetString(new_sites->GetSize(), pattern);
+                      }
+                    }
+                    review->SetBool("update", true);
+                    review->SetString("from", current->extension.version);
+                    review->SetList("newSites", new_sites);
+                  }
                   CefRefPtr<CefListValue> features = CefListValue::Create();
                   for (const Extension::Feature& feature : extension->features) {
                     features->SetString(features->GetSize(), feature.name);
@@ -1133,9 +1186,9 @@ void ExtensionManager::GitHubPrepare(const std::string& text, const std::string&
                   }
                   callback->Success(Json(review));
                 },
-                self, problem, folder, token, repo, chosen, sha256, callback));
+                self, problem, folder, token, repo, chosen, sha256, update_key, callback));
           },
-          self, std::move(zip), folder, token, repo, chosen, sha256, callback));
+          self, std::move(zip), folder, token, repo, chosen, sha256, update_key, callback));
     });
   });
 }
@@ -1148,6 +1201,50 @@ void ExtensionManager::GitHubInstall(const std::string& token, CefRefPtr<Callbac
   }
   const Pending pending = it->second;
   pending_.erase(it);
+  if (!pending.update_key.empty()) {
+    // An update: the new version's files in place of the old's; the user's
+    // side (settings, secrets, switches: by id) stays.
+    Loaded* loaded = FindSource(pending.update_key);
+    if (!loaded || !loaded->error.empty() || loaded->extension.id != pending.id) {
+      CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&DeleteFolder, pending.folder));
+      callback->Failure(0, "The extension it updates has gone");
+      return;
+    }
+    namespace fs = std::filesystem;
+    const std::string folder = data_folder_ + "/" + kInstalledFolder + "/" + pending.id + "/" + pending.version;
+    std::error_code error;
+    fs::remove_all(folder, error);
+    fs::create_directories(fs::path(folder).parent_path(), error);
+    fs::rename(pending.folder, folder, error);
+    if (error) {
+      callback->Failure(0, "Couldn't update it: " + error.message());
+      return;
+    }
+    if (loaded->active()) Deactivate(*loaded);
+    const std::string old_folder = loaded->source;
+    loaded->source = folder;
+    Load(*loaded);
+    if (!loaded->error.empty()) {
+      // The new version doesn't load: back to the old one.
+      const std::string why = loaded->error;
+      loaded->source = old_folder;
+      Load(*loaded);
+      if (loaded->active()) Activate(*loaded);
+      CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&DeleteFolder, folder));
+      callback->Failure(0, "Not updated: " + why);
+      return;
+    }
+    if (loaded->active()) Activate(*loaded);
+    loaded->github_tag = pending.tag;
+    loaded->github_sha256 = pending.sha256;
+    loaded->update_version.clear();
+    loaded->update_tag.clear();
+    if (old_folder != folder) CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&DeleteFolder, old_folder));
+    SaveInstalled();
+    Notify();
+    callback->Success(JsonString(loaded->source));
+    return;
+  }
   for (const Loaded& loaded : loaded_) {
     if (loaded.error.empty() && loaded.extension.id == pending.id) {
       CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&DeleteFolder, pending.folder));
@@ -1179,4 +1276,47 @@ void ExtensionManager::GitHubInstall(const std::string& token, CefRefPtr<Callbac
   SaveInstalled();
   Notify();
   callback->Success(JsonString(loaded.source));
+}
+
+void ExtensionManager::GitHubCheck(std::function<void(int found)> done) {
+  last_check_ = [NSDate date].timeIntervalSince1970;
+  // Each repo once.
+  std::vector<std::string> repos;
+  for (const Loaded& loaded : loaded_) {
+    if (!loaded.github_repo.empty() &&
+        std::find(repos.begin(), repos.end(), loaded.github_repo) == repos.end()) {
+      repos.push_back(loaded.github_repo);
+    }
+  }
+  auto waiting = std::make_shared<size_t>(repos.size());
+  auto found = std::make_shared<int>(0);
+  auto finish = [this, done, found] {
+    Notify();
+    if (done) done(*found);
+  };
+  if (repos.empty()) {
+    finish();
+    return;
+  }
+  for (const std::string& repo : repos) {
+    github::ListExtensions(repo, [this, repo, waiting, found, finish](std::vector<github::Release> releases,
+                                                                       std::string error) {
+      LOG_IF(WARNING, !error.empty()) << "Couldn't check " << repo << " for updates: " << error;
+      for (Loaded& loaded : loaded_) {
+        if (loaded.github_repo != repo || !loaded.error.empty()) continue;
+        for (const github::Release& release : releases) {
+          if (release.id != loaded.extension.id) continue;
+          if (github::IsNewer(release.version, loaded.extension.version)) {
+            loaded.update_version = release.version;
+            loaded.update_tag = release.tag;
+            ++*found;
+          } else {
+            loaded.update_version.clear();
+            loaded.update_tag.clear();
+          }
+        }
+      }
+      if (--*waiting == 0) finish();
+    });
+  }
 }

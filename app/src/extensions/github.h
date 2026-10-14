@@ -35,6 +35,11 @@ std::string ParseRepo(const std::string& text);
 void ListExtensions(const std::string& repo,
                     std::function<void(std::vector<Release> releases, std::string error)> done);
 
+// Whether version `a` is newer than `b`: their dot-separated numbers
+// compared in turn ("1.10.0" > "1.9.2"; a missing part is 0; anything after
+// a part's digits, such as "-beta", is ignored).
+bool IsNewer(const std::string& a, const std::string& b);
+
 // Downloads `url` (at most `max_bytes`); or an error.
 void Download(const std::string& url,
               size_t max_bytes,

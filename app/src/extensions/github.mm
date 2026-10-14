@@ -133,6 +133,27 @@ void ListExtensions(const std::string& repo,
   });
 }
 
+bool IsNewer(const std::string& a, const std::string& b) {
+  auto parts = [](const std::string& version) {
+    std::vector<long> numbers;
+    size_t at = 0;
+    while (at < version.size()) {
+      size_t end = at;
+      while (end < version.size() && isdigit(static_cast<unsigned char>(version[end]))) ++end;
+      numbers.push_back(end > at ? std::stol(version.substr(at, end - at)) : 0);
+      at = version.find('.', end);
+      if (at == std::string::npos) break;
+      ++at;
+    }
+    return numbers;
+  };
+  std::vector<long> x = parts(a), y = parts(b);
+  const size_t n = std::max(x.size(), y.size());
+  x.resize(n, 0);
+  y.resize(n, 0);
+  return x > y;
+}
+
 void Download(const std::string& url, size_t max_bytes, std::function<void(std::string body, std::string error)> done) {
   Fetch::Start(url, max_bytes, [done](int status, std::string body, std::string error) {
     if (!error.empty()) return done("", error);

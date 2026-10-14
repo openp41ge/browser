@@ -56,8 +56,9 @@
 // (`openp41ge Extensions/installed.json`: each one's folder, and whether
 // it's on), or GitHub releases (unpacked into `openp41ge Extensions/
 // installed/<id>/<version>`, the repo, tag and zip's SHA-256 pinned in
-// installed.json; github.h, package.h); `--extension-folder=<folder>[:
-// <folder>…]` adds some for one run.
+// installed.json; github.h, package.h), which the page checks for updates
+// (newer releases in the same repo; one that adds sites is reviewed again);
+// `--extension-folder=<folder>[:<folder>…]` adds some for one run.
 // The Extensions page (openp41ge://extensions/, app/ui/extensions) lists
 // them and manages them through the same channel as extension pages,
 // checked by its address: load a folder, switch an extension or a feature
@@ -110,6 +111,8 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
     // Installed from GitHub: the repo ("owner/repo"), the release's tag and
     // the zip's SHA-256 (pinned); empty for a local folder.
     std::string github_repo, github_tag, github_sha256;
+    // A newer release found (GitHubCheck): its version and tag, or empty.
+    std::string update_version, update_tag;
     bool active() const { return error.empty() && enabled; }
     Extension extension;
     std::string world;    // Its content scripts' isolated world.
@@ -174,12 +177,23 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
   // Installing from GitHub (the Extensions page's githubFind, githubPrepare,
   // githubInstall, githubCancel): a release downloaded and unpacked into
   // staging, awaiting the user's review, by token.
+  // `update_key`: the installed extension it updates, or empty.
   struct Pending {
-    std::string repo, tag, sha256, id, version, folder;
+    std::string repo, tag, sha256, id, version, folder, update_key;
   };
   void GitHubFind(const std::string& text, CefRefPtr<Callback> callback);
-  void GitHubPrepare(const std::string& repo, const std::string& id, CefRefPtr<Callback> callback);
+  // Downloads, checks and unpacks `id`'s newest release in `repo`, for the
+  // user's review: a new install, or an update of the extension whose key
+  // is `update_key` (the review then says which sites are new).
+  void GitHubPrepare(const std::string& repo,
+                     const std::string& id,
+                     const std::string& update_key,
+                     CefRefPtr<Callback> callback);
   void GitHubInstall(const std::string& token, CefRefPtr<Callback> callback);
+  // Looks for newer releases of the extensions installed from GitHub (each
+  // in its pinned repo); `done` (optional) gets how many it found.
+  void GitHubCheck(std::function<void(int found)> done);
+  double last_check_ = 0;  // When GitHubCheck last ran (seconds since 1970), this run.
   std::map<std::string, Pending> pending_;
   int staged_ = 0;  // Staging folders made this run.
   // (Re)builds `loaded`'s scripts from its extension and the user's side.

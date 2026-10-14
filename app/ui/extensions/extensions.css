@@ -250,3 +250,17 @@ header .buttons {
 button.primary {
   border-color: var(--accent);
 }
+
+.badge.update {
+  background: var(--accent);
+  color: #fff;
+}
+.update-review {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #cca700;
+  border-radius: 6px;
+}
+.update-review p {
+  margin: 0 0 8px;
+}

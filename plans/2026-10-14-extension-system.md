@@ -667,6 +667,25 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
   github.com: browser-community's youtube-popout 0.1.1 installs, with the
   SHA-256 its release notes give.
 
+## Step 13: what was built
+
+- **Checking:** for each extension installed from GitHub, the newest
+  release of its id in its pinned repo (each repo asked once); one newer
+  (`github::IsNewer`: dot-separated numbers) marks the card "Update to
+  x.y.z". When the Extensions page opens (at most once an hour) and on its
+  Check for updates. Nothing is downloaded until the user updates.
+- **Updating:** Update downloads, checks and unpacks the release as an
+  install does. If it would run on sites the installed version doesn't, the
+  card asks ("… would also run on localhost") first; otherwise it's applied.
+  The new version goes to `installed/<id>/<version>/`, its tag and SHA-256
+  are pinned, the old version's files go, and the user's side (settings,
+  secrets, feature switches: kept by id) stays. One that doesn't load
+  leaves the old version in place. Pages loaded after it get the new one.
+- **Tests:** the stand-in API's answers can be replaced mid-run
+  (`githubOverrides` in browser-tests' lib): an update found and applied
+  without a question (pinned, old files gone, a user's setting kept), and
+  one adding a site that asks first.
+
 ## Steps
 
 1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
@@ -712,7 +731,11 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
     was built**).
 12. ~~**Install from GitHub:** releases, review, pinning, unpacking
     checks~~ (done 2026-10-14; see **Step 12: what was built**).
-13. **Updates** from GitHub.
+13. ~~**Updates** from GitHub~~ (done 2026-10-14; see **Step 13: what was
+    built**).
+
+All thirteen steps are done except step 7, the form view, handed to the
+code repo (`plans/2026-10-14-json-form-for-code-repo.md`).
 
 Each step comes with smoke tests on local fixture pages and fixture
 extensions (no live sites, no live GitHub), run in CI. Settings merging
