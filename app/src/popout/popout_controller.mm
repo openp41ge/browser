@@ -78,6 +78,7 @@
 
 struct PopoutController::Native {
   PopoutWindow* window = nil;
+  int frame_applied = 0;  // The last frame request applied (core.js counts them).
 };
 
 namespace {
@@ -112,6 +113,24 @@ double Number(CefRefPtr<CefListValue> list, size_t index) {
 NSRect ToCocoa(double x, double y, double width, double height) {
   const CGFloat screen_height = NSScreen.screens.firstObject.frame.size.height;
   return NSMakeRect(x, screen_height - y - height, width, height);
+}
+
+// The frame core.js asks for, from the pop-out's document (it's DOM, so the
+// page's main world sees it whichever world opened the window).
+constexpr char kFrameRequest[] =
+    "documentPictureInPicture.window?.document.documentElement.dataset.openp41geFrame ?? null";
+// How often an open pop-out's frame requests are checked.
+constexpr int64_t kFrameWatchMs = 200;
+
+CefRefPtr<CefDictionaryValue> ParseFrame(CefRefPtr<CefValue> value) {
+  CefRefPtr<CefValue> parsed =
+      value && value->GetType() == VTYPE_STRING ? CefParseJSON(value->GetString(), JSON_PARSER_RFC) : nullptr;
+  CefRefPtr<CefDictionaryValue> frame = parsed ? parsed->GetDictionary() : nullptr;
+  return frame && frame->HasKey("width") && frame->HasKey("height") ? frame : nullptr;
+}
+
+double Number(CefRefPtr<CefDictionaryValue> dict, const char* key) {
+  return dict->GetType(key) == VTYPE_INT ? dict->GetInt(key) : dict->GetDouble(key);
 }
 
 }  // namespace
@@ -225,18 +244,13 @@ void PopoutController::OnWindowCreated(CefRefPtr<CefBrowser> window) {
 void PopoutController::Place(int attempts_left) {
   if (!window_ || !source_ || !native_->window) return;
   CefRefPtr<PopoutController> self(this);
-  // core.js records where the window should go once the window exists.
+  // core.js asks for a frame once the window exists (kFrameRequest).
   devtools_->Evaluate(
-      source_,
-      "(() => { const c = globalThis.__openp41ge?.current;"
-      " return c?.anchor ? JSON.stringify({ anchor: c.anchor, size: c.size }) : null; })()",
-      {}, [self, attempts_left](CefRefPtr<CefValue> value) {
+      source_, kFrameRequest, {}, [self, attempts_left](CefRefPtr<CefValue> value) {
         PopoutWindow* window = self->native_->window;
         if (!window || !self->source_) return;
-        CefRefPtr<CefValue> parsed =
-            value && value->GetType() == VTYPE_STRING ? CefParseJSON(value->GetString(), JSON_PARSER_RFC) : nullptr;
-        CefRefPtr<CefDictionaryValue> where = parsed ? parsed->GetDictionary() : nullptr;
-        if (!where) {
+        CefRefPtr<CefDictionaryValue> where = ParseFrame(value);
+        if (!where || !where->HasKey("anchor")) {
           if (attempts_left > 1) {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
               self->Place(attempts_left - 1);
@@ -248,9 +262,8 @@ void PopoutController::Place(int attempts_left) {
           }
           return;
         }
-        CefRefPtr<CefListValue> size = where->GetList("size");
-        const double width = Number(size, 0);
-        const double height = Number(size, 1);
+        const double width = Number(where, "width");
+        const double height = Number(where, "height");
         CefRefPtr<CefDictionaryValue> anchor = where->GetDictionary("anchor");
         double x = 0, y = 0;
         if (anchor->HasKey("screen")) {
@@ -266,11 +279,41 @@ void PopoutController::Place(int attempts_left) {
         window.contentAspectRatio = NSMakeSize(width, height);
         window.alphaValue = 1;
         [window makeKeyAndOrderFront:nil];
+        self->native_->frame_applied = where->GetInt("n");
+        self->WatchFrame();
       });
+}
+
+void PopoutController::WatchFrame() {
+  if (!window_ || !source_ || !native_->window) return;
+  CefRefPtr<PopoutController> self(this);
+  PopoutWindow* watched = native_->window;
+  devtools_->Evaluate(source_, kFrameRequest, {}, [self, watched](CefRefPtr<CefValue> value) {
+    PopoutWindow* window = self->native_->window;
+    // Closed, or another pop-out since.
+    if (!window || window != watched || !self->source_) return;
+    CefRefPtr<CefDictionaryValue> frame = ParseFrame(value);
+    if (frame && frame->GetInt("n") > self->native_->frame_applied) {
+      self->native_->frame_applied = frame->GetInt("n");
+      const double width = Number(frame, "width");
+      const double height = Number(frame, "height");
+      // Where it asks, else its top-left stays where it is.
+      const NSRect current = window.frame;
+      const CGFloat screen_height = NSScreen.screens.firstObject.frame.size.height;
+      const double x = frame->HasKey("x") ? Number(frame, "x") : current.origin.x;
+      const double y = frame->HasKey("y") ? Number(frame, "y") : screen_height - NSMaxY(current);
+      window.contentAspectRatio = NSMakeSize(width, height);
+      [window setFrame:ToCocoa(x, y, width, height) display:YES animate:NO];
+    }
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kFrameWatchMs * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+      self->WatchFrame();
+    });
+  });
 }
 
 void PopoutController::OnWindowClosed() {
   CefRefPtr<CefBrowser> source = source_;
+  native_->frame_applied = 0;
   window_ = nullptr;
   source_ = nullptr;
   if (PopoutWindow* window = native_->window) {

@@ -18,8 +18,9 @@
 // The window is a Document Picture-in-Picture window opened by the page:
 // Chromium keeps media playing when elements move into one. The browser
 // hosts it in its own frameless, floating window (PopoutWindow), placed over
-// the element and kept to its shape; the page's -webkit-app-region: drag
-// areas move it.
+// the element and kept to its shape, and moved and resized as the page asks
+// (core.js writes the frame it wants on the pop-out's document); the page's
+// -webkit-app-region: drag areas move it.
 //
 // One pop-out at a time. This is the API that the browser's own commands
 // use and that the openp41ge link will use. Pop-outs that pages open
@@ -88,6 +89,10 @@ class PopoutController : public virtual CefBaseRefCounted {
   void OnWindowClosed();
   // Moves our window over the element (asks the page where it is).
   void Place(int attempts_left);
+  // While it's open, gives the window each new frame the page asks for
+  // (core.js's requestFrame: a page can't move or resize a Document PiP
+  // window itself without a user action).
+  void WatchFrame();
 
   CefRefPtr<DevToolsClient> devtools_;
   Observer* observer_;

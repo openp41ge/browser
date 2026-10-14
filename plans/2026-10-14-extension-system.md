@@ -602,10 +602,15 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
    see **The community repo**). Checked by hand on youtube.com
    (`browser-tests/live/youtube-popout.mjs`): the button pops a playing
    video out, and another tab takes the pop-out over through the feature
-   host. Shorts pop out with their controls, but the window doesn't take
-   each Short's shape: `window.resizeTo` in a Document PiP window needs user
-   activation in Alloy pages, and the browser's pop-out controller doesn't
-   resize it (a browser issue, separate from extensions).
+   host; Shorts pop out with their controls, and the window takes each
+   Short's shape. That last needed a browser fix (2026-10-14): a page can't
+   move or resize a Document PiP window without a user action, so core.js
+   now writes the frame it wants on the pop-out's document
+   (`data-openp41ge-frame`), and the pop-out controller places the window
+   from it and applies each new one while it's open. Being DOM, it also
+   works when an extension's world opened the window: before, the browser
+   read the place from the page's main world, missed it, and centred an
+   extension's pop-out on the screen.
 10. **Extensions page:** list, toggles, settings, load folder, reload,
     remove.
 11. **Secrets** in the Keychain.
