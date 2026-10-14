@@ -14,7 +14,7 @@
 // itself, so it's a transparent panel of its own over the window that
 // ignores the mouse (as DropPreview): clicks go to what's under it. With
 // the pointer over it (watched as it moves), it grows up and down into a
-// pill that says "focused".
+// pill that says "FOCUSED".
 class FocusBar {
  public:
   static constexpr int kThickness = 3;

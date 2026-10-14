@@ -82,10 +82,14 @@ void FocusBar::Show(int x, int y, int width) {
     bar.masksToBounds = YES;
     [content.layer addSublayer:bar];
     CATextLayer* label = [CATextLayer layer];
-    label.string = @"focused";
-    label.font = (__bridge CFTypeRef)[NSFont systemFontOfSize:10 weight:NSFontWeightSemibold];
-    label.fontSize = 10;
-    label.foregroundColor = NSColor.whiteColor.CGColor;
+    // Capitals, a size down and spaced a little, as small labels are.
+    label.string = [[NSAttributedString alloc]
+        initWithString:@"FOCUSED"
+            attributes:@{
+              NSFontAttributeName : [NSFont systemFontOfSize:9 weight:NSFontWeightSemibold],
+              NSForegroundColorAttributeName : NSColor.whiteColor,
+              NSKernAttributeName : @0.4,
+            }];
     label.alignmentMode = kCAAlignmentCenter;
     [bar addSublayer:label];
     native_->panel = panel;
