@@ -153,15 +153,16 @@ and widths.
 Alloy pages don't load Chrome extensions. Internet Utility Belt's features
 (YouTube and Shorts) come to the browser through **an extension system of
 the browser's own** (decided 2026-10-13), not as features built into it.
-It needs its own plan. Points from this one that carry over:
+Its plan: [2026-10-14-extension-system.md](2026-10-14-extension-system.md). Points from this one that carry over:
 
 - The features are plain DOM code with host services passed in
   (`FeatureHost`, settings), so the extension system provides those:
   cross-tab messages through the browser process, settings in the profile.
-- Content scripts would run in the page's own JavaScript world (CEF
-  doesn't expose isolated worlds), so their channel to the browser must
-  only accept what an extension may do, and nothing that reaches the
-  browser's UI channel.
+- ~~Content scripts would run in the page's own JavaScript world~~: they
+  run in isolated worlds, created over DevTools (probe, 2026-10-14; see the
+  [extension system plan](2026-10-14-extension-system.md)). Their channel
+  to the browser still accepts only what an extension may do, and nothing
+  that reaches the browser's UI channel.
 - The extension itself stays, for Chrome, Edge and Brave.
 
 ## Alloy gaps to fill (as needed)

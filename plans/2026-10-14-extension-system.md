@@ -305,10 +305,13 @@ needs a new build target:
   user's values (profile and Keychain), passed to its pages and content
   scripts, with change notifications. Checking and merging happen in
   JavaScript (see **Shared code from the code editor**).
-- **Injection:** on every navigation, the browser matches the page's URL
-  against installed content scripts whose features are on and whose
-  required settings are set, and runs them in the main frame, with CSS
-  added first. Mechanism decided by the first probe (**To check early**).
+- **Injection:** each extension gets an isolated world in each page
+  (`Page.addScriptToEvaluateOnNewDocument` with a `worldName`, through
+  `DevToolsClient`, registered as the page is created). What it runs is the
+  `openp41ge` runtime, which, in the top frame only, matches the URL against
+  the extension's content scripts whose features are on and whose required
+  settings are set, adds their CSS, and runs their scripts at their
+  `runAt`. Checked by the first probe (**To check early**).
 - **Extension pages:** a scheme handler for `openp41ge-extension://`,
   serving files listed in the manifest (like `ui_scheme` serves
   `openp41ge://ui/`).
@@ -337,28 +340,37 @@ needs a new build target:
 
 ## To check early (risks)
 
-- **Isolated worlds:** whether content scripts can run in their own
-  JavaScript world, as Chrome's do, so page scripts can't read or replace
-  `openp41ge`. CEF doesn't expose isolated worlds in its V8 API, but the
-  DevTools protocol does (`Page.addScriptToEvaluateOnNewDocument` and
-  `Page.createIsolatedWorld` with a `worldName`), through the existing
-  `DevToolsClient`. Probe: does a script there see the page's DOM, run
-  before the page's scripts with `document_start`, and keep working across
-  navigations? If not, scripts run in the page's world (like the autoplay
-  hold, `renderer_app.cc`), and then a page could reach `openp41ge` too:
-  the channel's checks carry the security, and secrets must never be
-  readable from content scripts.
-- **User activation from an isolated world:** a click on a button an
-  extension added must still let the page open Document PiP.
-- **`openp41ge.popout` in an isolated world:** the pop-out moves elements
-  between the page's document and the PiP window; check it works when
-  called from another world.
+- ~~**Isolated worlds**~~: checked 2026-10-14 (probe against the 0.1.7
+  build, driven over DevTools from Node like the smoke tests). Content
+  scripts run in their own JavaScript world, as Chrome's do:
+  `Page.addScriptToEvaluateOnNewDocument` with a `worldName`, sent before
+  the page loads, which the browser will send through its own
+  `DevToolsClient`.
+  - The script runs at document start, before the page's own scripts
+    (`document.documentElement` doesn't exist yet: the runtime waits for it
+    before adding CSS or DOM), and again in each new document after a
+    navigation.
+  - The page and the script share the DOM but not globals: neither sees
+    the other's (`openp41ge` stays out of the page's reach).
+  - A real click on a button the script added gives user activation:
+    `documentPictureInPicture.requestWindow()` from the isolated world works.
+  - `packages/popout`'s `core.js` loaded into the isolated world pops out an
+    element: it moves into the PiP window, its media keeps playing (not
+    reloaded), the browser makes the window frameless with its controls,
+    and closing puts the element back. The page's world doesn't see
+    `__openp41ge`.
+  - To handle in the runtime: the script runs in every frame, so the
+    runtime checks it's the top frame and that the URL matches before
+    running an extension's code. An already-open page (installing or
+    reloading an extension) needs `Page.createIsolatedWorld` and
+    `Runtime.evaluate` in it instead; not probed, but the same mechanism.
+  - So the fallback (scripts in the page's world) isn't needed.
 - **GitHub API limits:** unauthenticated requests are rate-limited (60 an
   hour per IP); enough for installs and daily update checks.
 
 ## Steps
 
-1. **Probe isolated worlds** (above) and decide the injection mechanism.
+1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
 2. **Load a local folder:** manifest, matching, injection, CSS, the
    `openp41ge` API without messages; a fixture extension in the smoke tests.
 3. ~~**Shared code:** `<json-editor>` and the config logic copied into
