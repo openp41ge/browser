@@ -22,9 +22,11 @@ struct FocusBar::Native {
   id monitor = nil;
   bool grown = false;
 
-  // The bar's frame in the panel: thin, or grown to fill it.
+  // The bar's frame in the panel: thin (in from its sides), or grown to
+  // fill it.
   void Layout(bool animate) {
-    const CGFloat width = panel.frame.size.width;
+    const CGFloat inset = grown ? 0 : kGrownOutset;
+    const CGFloat width = panel.frame.size.width - 2 * inset;
     [CATransaction begin];
     if (animate) {
       [CATransaction setAnimationDuration:0.15];
@@ -33,7 +35,7 @@ struct FocusBar::Native {
       [CATransaction setDisableActions:YES];
     }
     const CGFloat height = grown ? kGrownThickness : kThickness;
-    bar.frame = CGRectMake(0, (kGrownThickness - height) / 2, width, height);
+    bar.frame = CGRectMake(inset, (kGrownThickness - height) / 2, width, height);
     bar.cornerRadius = height / 2;
     label.frame = CGRectMake(0, (height - label.preferredFrameSize.height) / 2, width, label.preferredFrameSize.height);
     label.opacity = grown ? 1 : 0;
@@ -43,7 +45,8 @@ struct FocusBar::Native {
   // Grows or shrinks it for where the pointer is.
   void Track() {
     if (!panel.visible) return;
-    const NSRect frame = panel.frame;
+    // Where the bar is, as it's shown.
+    const NSRect frame = grown ? panel.frame : NSInsetRect(panel.frame, kGrownOutset, 0);
     const NSPoint at = NSEvent.mouseLocation;
     const CGFloat reach = grown ? kGrownThickness / 2.0 : kThickness / 2.0 + kHoverSlop;
     const bool over = at.x >= NSMinX(frame) && at.x < NSMaxX(frame) && std::abs(at.y - NSMidY(frame)) <= reach;
@@ -109,11 +112,13 @@ void FocusBar::Show(int x, int y, int width) {
   // CEF screen coordinates have their origin at the top left of the main
   // screen; Cocoa's at the bottom left.
   // A window's frame is in whole points, and the bar's middle is on a whole
-  // point (the edge): so the panel is the grown bar's height, centred on the
+  // point (the edge): so the panel is the grown bar's size, centred on the
   // edge, and the thin bar is half a point off whole points (drawn at the
   // display's resolution).
   const CGFloat screen_height = NSScreen.screens.firstObject.frame.size.height;
-  [panel setFrame:NSMakeRect(x, screen_height - y - kGrownThickness / 2, width, kGrownThickness) display:NO];
+  [panel setFrame:NSMakeRect(x - kGrownOutset, screen_height - y - kGrownThickness / 2, width + 2 * kGrownOutset,
+                             kGrownThickness)
+          display:NO];
   native_->label.contentsScale = parent.backingScaleFactor;
   native_->Layout(false);
   if (panel.parentWindow != parent) [parent addChildWindow:panel ordered:NSWindowAbove];

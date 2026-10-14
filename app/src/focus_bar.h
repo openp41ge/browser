@@ -20,6 +20,8 @@ class FocusBar {
   static constexpr int kThickness = 3;
   // Its height grown (even: its middle stays on the edge's whole point).
   static constexpr int kGrownThickness = 16;
+  // How far it grows out to each side (a 50pt bar is a 60pt pill).
+  static constexpr int kGrownOutset = 5;
 
   explicit FocusBar(CefRefPtr<CefWindow> parent);
   ~FocusBar();
