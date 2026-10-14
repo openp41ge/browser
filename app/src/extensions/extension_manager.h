@@ -14,6 +14,7 @@
 
 #include "devtools_client.h"
 #include "extensions/extension.h"
+#include "extensions/secret_store.h"
 
 // The extensions loaded, their content scripts in pages, and their own
 // pages. See plans/2026-10-14-extension-system.md.
@@ -30,6 +31,9 @@
 //
 // The user's side of each extension is kept in the profile, in
 // `openp41ge Extensions/<id>/`, and read as the extension loads:
+// - Secret settings ("secret": true) aren't in a file: they're in the
+//   SecretStore (the Keychain), given to the extension's pages but never to
+//   its content scripts. One found in config.json is moved there.
 // - config.json: the user's settings values, only those they set (merged
 //   over the schema's defaults by the runtime, in the page). The
 //   extension's pages change them (openp41ge.config.set): they're saved,
@@ -106,7 +110,11 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
     std::string binding;  // The function that world sends to the browser with.
     std::string data;   // Its folder in the profile.
     CefRefPtr<CefDictionaryValue> features;  // features.json.
-    CefRefPtr<CefDictionaryValue> values;    // config.json.
+    CefRefPtr<CefDictionaryValue> values;    // config.json (never secrets).
+    // Its secret settings' keys (top-level "secret": true), and the ones the
+    // user set (from the SecretStore).
+    std::vector<std::string> secret_keys;
+    CefRefPtr<CefDictionaryValue> secrets;
     std::string content_script;  // The runtime with the extension's files.
     std::string page_script;     // The page runtime with the extension.
   };
@@ -164,8 +172,14 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
   // in (a document starting in between runs each runtime once all the
   // same).
   void AddScripts(int page_id, const Loaded& loaded, std::function<void()> done);
-  // The user's settings changed: saved, scripts replaced, pages told.
+  // The user's settings changed: saved (secrets in the SecretStore, the
+  // rest in config.json), scripts replaced, pages told.
   void SetValues(Loaded& loaded, CefRefPtr<CefDictionaryValue> values);
+  // `loaded`'s values for its content scripts (an empty string for each
+  // secret that's set, so a required one counts as set; the runtime drops
+  // secrets), or for its pages (with the secrets).
+  static CefRefPtr<CefDictionaryValue> ContentValues(const Loaded& loaded);
+  static CefRefPtr<CefDictionaryValue> PageValues(const Loaded& loaded);
   // A content script's request (Runtime.bindingCalled): openPage, or a
   // broadcast; answered in the world that sent it.
   void OnBindingCalled(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDictionaryValue> params);
@@ -180,6 +194,7 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
 
   CefRefPtr<DevToolsClient> devtools_;
   const std::string data_folder_;  // <profile>/openp41ge Extensions.
+  SecretStore secrets_;
   OpenTab open_tab_;
   std::list<Loaded> loaded_;  // A list: its entries stay put as others come and go.
   std::map<int, Page> pages_;  // By browser id.

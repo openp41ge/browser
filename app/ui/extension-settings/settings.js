@@ -13,9 +13,11 @@
 // config editor does. Edits are staged until Save (or Cmd-S); a refusal is
 // shown and the edits kept. While nothing is staged, a change made elsewhere
 // (another of the extension's pages) is shown. Secret settings are left out
-// of this view, and kept as stored when saving. Above it: the settings that
-// need setting (required, with no value) and the stored values left out
-// because they don't fit the schema.
+// of this view, and kept as stored when saving: they have a section of their
+// own above it (a masked field each, Save and Clear; kept in the Keychain by
+// the browser). Above those: the settings that need setting (required, with
+// no value) and the stored values left out because they don't fit the
+// schema.
 
 import { cloneDeep, configDefaults, mergeDefaults, pinnedPaths, setAt, sortJsonKeys, stripDefaults } from './shared/uikit.js';
 
@@ -164,6 +166,41 @@ function start() {
     stage(cloneDeep(saved));
     render();
   });
+
+  // Secrets: a masked field each. What's set isn't shown, only that it is.
+  const secretRows = [...secret].map((key) => {
+    const property = schema.properties[key];
+    const row = document.createElement('li');
+    const label = Object.assign(document.createElement('label'), { textContent: property.title ?? key, htmlFor: `secret-${key}` });
+    const input = Object.assign(document.createElement('input'), { id: `secret-${key}`, type: 'password', autocomplete: 'off' });
+    const saveButton = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Save' });
+    const clear = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Clear' });
+    const update = () => {
+      const isSet = typeof api.config.values()[key] === 'string' && api.config.values()[key] !== '';
+      input.placeholder = isSet ? 'Set (type to replace)' : schema.required?.includes(key) ? 'Not set (required)' : 'Not set';
+      clear.disabled = !isSet;
+    };
+    const store = async (value) => {
+      try {
+        await api.config.set({ ...api.config.values(), [key]: value });
+        input.value = '';
+        status(value ? `${property.title ?? key} saved.` : `${property.title ?? key} cleared.`);
+      } catch (error) {
+        status(error.message, true);
+      }
+    };
+    saveButton.addEventListener('click', () => input.value && store(input.value));
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && input.value) store(input.value);
+    });
+    clear.addEventListener('click', () => store(''));
+    row.append(label, input, saveButton, clear);
+    update();
+    return { row, update };
+  });
+  $('secret-list').replaceChildren(...secretRows.map((r) => r.row));
+  $('secrets').hidden = secretRows.length === 0;
+  api.config.onChange(() => secretRows.forEach((r) => r.update()));
 
   problems();
   render();

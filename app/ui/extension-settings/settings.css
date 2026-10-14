@@ -110,3 +110,50 @@ footer button:disabled {
   gap: 6px;
   color: var(--text-secondary);
 }
+
+#secrets {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+#secrets h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+#secrets .hint {
+  margin: 2px 0 8px;
+  color: var(--text-secondary);
+}
+#secret-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#secret-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+#secret-list label {
+  min-width: 160px;
+}
+#secret-list input {
+  flex: 1;
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+#secret-list button {
+  font: inherit;
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}

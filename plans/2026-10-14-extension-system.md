@@ -610,6 +610,30 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
   record, gone from the next page); Reload. Load folder… is checked by hand
   (a native dialog).
 
+## Step 11: what was built
+
+- **SecretStore** (`src/extensions/secret_store.{h,mm}`): generic passwords
+  in the macOS Keychain, service "openp41ge explorer extension settings",
+  one per profile, extension and setting. With `--use-mock-keychain` (the
+  tests' throwaway profiles) they're in memory instead, so tests never touch
+  the user's Keychain.
+- **Which settings:** top-level properties with `"secret": true`. Saving
+  (`config.set`) sends them to the store (an empty or missing one is
+  deleted) and the rest to `config.json`; one found in `config.json` at load
+  moves to the store. Remove deletes them.
+- **Who gets them:** the extension's pages (`config.get()`, `values()`).
+  Content scripts get an empty string for each one that's set (so a
+  required secret counts as set), and the runtime drops secrets before
+  scripts see anything. The Extensions page gets them as set or not.
+- **Editing:** the browser's settings page has a Secrets section: a masked
+  field per secret ("Set" or "Not set"), Save and Clear; the JSON view
+  leaves them out and keeps them on save. The form view (step 7) will take
+  this over.
+- **Tests** (in memory): a secret in `config.json` moves out; saving from the
+  JSON view keeps the secret out of `config.json`; the Secrets section sets
+  and clears one, and content scripts never get it. The real Keychain is
+  checked by hand.
+
 ## Steps
 
 1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
@@ -651,7 +675,8 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
    extension's pop-out on the screen.
 10. ~~**Extensions page:** list, toggles, settings, load folder, reload,
     remove~~ (done 2026-10-14; see **Step 10: what was built**).
-11. **Secrets** in the Keychain.
+11. ~~**Secrets** in the Keychain~~ (done 2026-10-14; see **Step 11: what
+    was built**).
 12. **Install from GitHub:** releases, review, pinning, unpacking checks.
 13. **Updates** from GitHub.
 

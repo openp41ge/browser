@@ -285,7 +285,10 @@ void EvaluateInWorld(CefRefPtr<DevToolsClient> devtools,
 ExtensionManager::ExtensionManager(CefRefPtr<DevToolsClient> devtools,
                                    const std::string& profile_folder,
                                    OpenTab open_tab)
-    : devtools_(devtools), data_folder_(profile_folder + "/" + kDataFolder), open_tab_(std::move(open_tab)) {
+    : devtools_(devtools),
+      data_folder_(profile_folder + "/" + kDataFolder),
+      secrets_(profile_folder),
+      open_tab_(std::move(open_tab)) {
   devtools_->OnEvent("Runtime.bindingCalled", [this](CefRefPtr<CefBrowser> browser, CefRefPtr<CefDictionaryValue> params) {
     OnBindingCalled(browser, params);
   });
@@ -363,6 +366,33 @@ void ExtensionManager::Load(Loaded& loaded) {
   }
   loaded.values = ReadObject(loaded.data + "/" + kConfigFile);
   loaded.extension = std::move(*extension);
+  // Its secret settings: from the SecretStore; one in config.json (written
+  // by hand, or before secrets were kept apart) moves there.
+  loaded.secret_keys.clear();
+  loaded.secrets = CefDictionaryValue::Create();
+  CefRefPtr<CefValue> schema = loaded.extension.config_schema.empty()
+                                   ? nullptr
+                                   : CefParseJSON(loaded.extension.config_schema, JSON_PARSER_RFC);
+  CefRefPtr<CefDictionaryValue> properties =
+      schema && schema->GetType() == VTYPE_DICTIONARY ? schema->GetDictionary()->GetDictionary("properties") : nullptr;
+  CefDictionaryValue::KeyList keys;
+  if (properties) properties->GetKeys(keys);
+  bool moved = false;
+  for (const CefString& key : keys) {
+    CefRefPtr<CefDictionaryValue> property = properties->GetDictionary(key);
+    if (!property || property->GetType("secret") != VTYPE_BOOL || !property->GetBool("secret")) continue;
+    loaded.secret_keys.push_back(key);
+    if (loaded.values->HasKey(key)) {
+      if (loaded.values->GetType(key) == VTYPE_STRING) secrets_.Set(loaded.extension.id, key, loaded.values->GetString(key));
+      loaded.values->Remove(key);
+      moved = true;
+    }
+    if (std::optional<std::string> secret = secrets_.Get(loaded.extension.id, key)) loaded.secrets->SetString(key, *secret);
+  }
+  if (moved) {
+    CefPostTask(TID_FILE_USER_BLOCKING,
+                base::BindOnce(&WriteFile, loaded.data + "/" + kConfigFile, Json(loaded.values)));
+  }
   BuildScripts(loaded);
 }
 
@@ -445,8 +475,8 @@ ExtensionManager::Loaded* ExtensionManager::FindSource(const std::string& source
 }
 
 void ExtensionManager::BuildScripts(Loaded& loaded) {
-  loaded.content_script = ContentScript(loaded.extension, loaded.features, loaded.values);
-  loaded.page_script = PageScript(loaded.extension, loaded.features, loaded.values);
+  loaded.content_script = ContentScript(loaded.extension, loaded.features, ContentValues(loaded));
+  loaded.page_script = PageScript(loaded.extension, loaded.features, PageValues(loaded));
 }
 
 void ExtensionManager::OnPageCreated(CefRefPtr<CefBrowser> browser, std::function<void()> ready) {
@@ -534,11 +564,42 @@ void ExtensionManager::AddScripts(int page_id, const Loaded& loaded, std::functi
   });
 }
 
+CefRefPtr<CefDictionaryValue> ExtensionManager::ContentValues(const Loaded& loaded) {
+  CefRefPtr<CefDictionaryValue> values = loaded.values->Copy(false);
+  CefDictionaryValue::KeyList keys;
+  loaded.secrets->GetKeys(keys);
+  for (const CefString& key : keys) values->SetString(key, "");
+  return values;
+}
+
+CefRefPtr<CefDictionaryValue> ExtensionManager::PageValues(const Loaded& loaded) {
+  CefRefPtr<CefDictionaryValue> values = loaded.values->Copy(false);
+  CefDictionaryValue::KeyList keys;
+  loaded.secrets->GetKeys(keys);
+  for (const CefString& key : keys) values->SetString(key, loaded.secrets->GetString(key));
+  return values;
+}
+
 void ExtensionManager::SetValues(Loaded& loaded, CefRefPtr<CefDictionaryValue> values) {
+  // Secrets to the SecretStore (one left out, or empty, is deleted); the
+  // rest to config.json.
   loaded.values = values->Copy(false);
+  loaded.secrets = CefDictionaryValue::Create();
+  for (const std::string& key : loaded.secret_keys) {
+    const bool set = loaded.values->GetType(key) == VTYPE_STRING && !loaded.values->GetString(key).empty();
+    if (set) {
+      loaded.secrets->SetString(key, loaded.values->GetString(key));
+      secrets_.Set(loaded.extension.id, key, loaded.values->GetString(key));
+    } else {
+      secrets_.Delete(loaded.extension.id, key);
+    }
+    loaded.values->Remove(key);
+  }
   BuildScripts(loaded);
-  const std::string json = Json(loaded.values);
-  CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&WriteFile, loaded.data + "/" + kConfigFile, json));
+  CefPostTask(TID_FILE_USER_BLOCKING,
+              base::BindOnce(&WriteFile, loaded.data + "/" + kConfigFile, Json(loaded.values)));
+  const std::string page_json = Json(PageValues(loaded));
+  const std::string content_json = Json(ContentValues(loaded));
   const std::string id = loaded.extension.id;
   const std::string origin = extension_scheme::Origin(id);
   for (auto& [page_id, page] : pages_) {
@@ -549,10 +610,10 @@ void ExtensionManager::SetValues(Loaded& loaded, CefRefPtr<CefDictionaryValue> v
     // The extension's page, if this is one, and its content scripts.
     devtools_->Evaluate(browser,
                         "location.origin === " + JsonString(origin) + " && window.__openp41geSettingsChanged?.(" +
-                            json + ")",
+                            page_json + ")",
                         {});
-    EvaluateInWorld(devtools_, browser, loaded.world, "globalThis.__openp41geSettingsChanged?.(" + json + ")", false,
-                    nullptr);
+    EvaluateInWorld(devtools_, browser, loaded.world, "globalThis.__openp41geSettingsChanged?.(" + content_json + ")",
+                    false, nullptr);
   }
 }
 
@@ -619,7 +680,8 @@ CefRefPtr<CefValue> ExtensionManager::State() const {
       if (!extension.config_schema.empty()) {
         CefRefPtr<CefDictionaryValue> config = CefDictionaryValue::Create();
         config->SetValue("schema", CefParseJSON(extension.config_schema, JSON_PARSER_RFC));
-        config->SetDictionary("values", loaded.values->Copy(false));
+        // Secrets as set or not, not what they are.
+        config->SetDictionary("values", ContentValues(loaded));
         item->SetDictionary("config", config);
       }
     }
@@ -717,8 +779,11 @@ void ExtensionManager::OnManagerQuery(CefRefPtr<CefBrowser> browser,
     if (loaded->active()) Activate(*loaded);
   } else if (type == "remove") {
     if (loaded->active()) Deactivate(*loaded);
-    // Its settings and feature switches go with it.
-    if (loaded->error.empty()) CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&DeleteFolder, loaded->data));
+    // Its settings, secrets and feature switches go with it.
+    if (loaded->error.empty()) {
+      CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&DeleteFolder, loaded->data));
+      for (const std::string& key : loaded->secret_keys) secrets_.Delete(loaded->extension.id, key);
+    }
     const bool installed = loaded->installed;
     loaded_.remove_if([&](const Loaded& l) { return &l == loaded; });
     if (installed) SaveInstalled();

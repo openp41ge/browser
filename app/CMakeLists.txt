@@ -99,6 +99,8 @@ add_cef_mac_app(openp41ge_explorer
     src/extensions/extension_router.h
     src/extensions/extension_scheme.cc
     src/extensions/extension_scheme.h
+    src/extensions/secret_store.h
+    src/extensions/secret_store.mm
     src/find_bar.h
     src/find_bar.mm
     src/grid_scrollbar.h
@@ -152,6 +154,7 @@ add_cef_mac_app(openp41ge_explorer
     "-framework CoreServices"
     "-framework ImageIO"
     "-framework QuartzCore"
+    "-framework Security"
   INCLUDE_DIRS
     src
 )
