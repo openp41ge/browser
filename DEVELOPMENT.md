@@ -47,7 +47,16 @@ e.g. [examples/extensions/video-popout](examples/extensions/video-popout), a
 Several folders go colon-separated. Quit the app first: launched while it's
 running, it hands the address to the open app and the switches are ignored.
 The log says whether each extension loaded (`--log-level=0` for the ones
-that did), and why not.
+that did), and why not; with `--log-level=0` it also has pages' console
+messages, where an extension says why it didn't run (its settings need
+setup, or its schema is broken).
+
+Until the settings page exists, an extension's settings and feature
+toggles are set by hand, in the profile (`~/Library/Application
+Support/openp41ge explorer development/Default/openp41ge Extensions/<id>/`):
+`config.json` for settings (only those changed, e.g. `{ "corner":
+"bottom-left" }` for the example), `features.json` for features (`{
+"<feature id>": false }`). They're read as the app starts.
 
 `third_party/openp41ge-uikit/` is a checked-in copy of parts of the
 openp41ge code editor's UI kit (`<json-editor>`, extension config logic),

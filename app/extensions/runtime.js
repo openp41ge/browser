@@ -8,17 +8,29 @@
 // This file is one function expression. The browser
 // (src/extensions/extension_manager.mm) calls it with:
 //   extension  { id, name, version, contentScripts: [{ matches, css,
-//              runAtStart, enabled }] }, the CSS as text
+//              runAtStart, enabled }], config?: { schema, values } }, the
+//              CSS as text; `enabled` as the user set the script's feature;
+//              `values` the user's settings, as stored
 //   scripts    for each content script, its JS files as
 //              [{ path, run: function }] (each file is a function's body)
 //   loadPopout runs packages/popout's core.js in this world
+//   loadConfig returns the code editor's config logic (openp41ge-sdk's
+//              config.ts: validateConfigSchema, configDefaults,
+//              configErrors, mergeConfig)
 //
 // In the top frame of a page whose address matches a content script, it
 // adds the script's CSS and runs its JS: straight away for
 // "document_start", once the page's DOM is ready for "document_idle".
 // Extensions' code finds the browser's API at `openp41ge`.
+//
+// Settings: the user's values merged over the schema's defaults, as the code
+// editor does. A stored value that doesn't fit the schema (say, after an
+// update changed it) is left out, so its default applies. An extension with
+// a required setting that has no value (no default, and the user hasn't
+// set it) needs setup: its content scripts don't run. Nor do they if its
+// schema is broken. Secret settings are never given to content scripts.
 
-(extension, scripts, loadPopout) => {
+(extension, scripts, loadPopout, loadConfig) => {
   'use strict';
 
   // Once per document (the browser can run this again in a document it
@@ -30,9 +42,24 @@
   if (document.openp41geExtensionRan || window.top !== window) return;
   document.openp41geExtensionRan = true;
 
+  const log = (message, error) => console.error(`[${extension.name} (${extension.id})] ${message}`, error ?? '');
+
+  const toRun = extension.contentScripts
+    .map((script, i) => ({ ...script, js: scripts[i] }))
+    .filter((script) => script.enabled && script.matches.some((pattern) => matches(pattern, location)));
+  if (!toRun.length) return;
+
+  const config = settings();
+  if (!config) return;
+
   let popoutLoaded = false;
   const api = {
     extension: Object.freeze({ id: extension.id, name: extension.name, version: extension.version }),
+    config: Object.freeze({
+      // The merged settings: a copy each time, so a script can't change
+      // another's.
+      get: () => structuredClone(config),
+    }),
     // packages/popout: __openp41ge.popout(), definePreset() and the rest.
     get popout() {
       if (!popoutLoaded) {
@@ -44,13 +71,6 @@
   };
   // Replaced in each document (configurable), for a window handed on.
   Object.defineProperty(globalThis, 'openp41ge', { value: Object.freeze(api), configurable: true });
-
-  const log = (message, error) => console.error(`[${extension.name} (${extension.id})] ${message}`, error ?? '');
-
-  const toRun = extension.contentScripts
-    .map((script, i) => ({ ...script, js: scripts[i] }))
-    .filter((script) => script.enabled && script.matches.some((pattern) => matches(pattern, location)));
-  if (!toRun.length) return;
 
   // CSS as constructed style sheets: a page's Content Security Policy
   // doesn't apply to them, as it would to a <style> element.
@@ -80,6 +100,47 @@
   for (const script of toRun) {
     if (script.runAtStart) run(script);
     else whenReady(() => run(script));
+  }
+
+  // The settings content scripts get (see the top), or null if they
+  // mustn't run.
+  function settings() {
+    if (!extension.config) return {};
+    const { validateConfigSchema, configDefaults, configErrors, mergeConfig } = loadConfig();
+    const { schema, values } = extension.config;
+    try {
+      validateConfigSchema(schema);
+    } catch (error) {
+      log(`not run: its manifest's ${error.message}`);
+      return null;
+    }
+    // The user's values that fit the schema, each checked on its own.
+    const fits = {};
+    const each = { type: 'object', properties: schema.properties, additionalProperties: schema.additionalProperties };
+    for (const [key, value] of Object.entries(values)) {
+      const errors = configErrors(each, { [key]: value });
+      if (errors.length) log(`setting ignored, its default used: ${errors.join('; ')}`);
+      else fits[key] = value;
+    }
+    const merged = mergeConfig(configDefaults(schema), fits);
+    const missing = configErrors(schema, merged);
+    if (missing.length) {
+      log(`not run: needs setup (${missing.join('; ')})`);
+      return null;
+    }
+    return withoutSecrets(schema, merged);
+  }
+
+  // `value` without the settings its schema marks "secret": true.
+  function withoutSecrets(schema, value) {
+    if (!schema?.properties || value === null || typeof value !== 'object' || Array.isArray(value)) return value;
+    const out = {};
+    for (const [key, item] of Object.entries(value)) {
+      const sub = schema.properties[key];
+      if (sub?.secret === true) continue;
+      out[key] = withoutSecrets(sub, item);
+    }
+    return out;
   }
 
   // Chrome's match patterns: "<all_urls>", or scheme://host[:port]/path,

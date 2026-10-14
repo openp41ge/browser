@@ -138,8 +138,9 @@ thing in both apps, and the editor's AI writes one kind of schema.
   and never readable from content scripts.
 
 **Storing (user):** only what the user wrote is stored, per extension, in
-the profile (`Extensions/<id>/config.json`; secrets in the Keychain).
-Defaults are never copied into it.
+the profile (`openp41ge Extensions/<id>/config.json`, beside Chromium's own
+`Extension …` folders; secrets in the Keychain). Defaults are never copied
+into it.
 
 **Merging (at runtime):** the user's values merged over the schema's
 defaults, as `config.ts`'s `mergeConfig` does. So:
@@ -299,7 +300,7 @@ needs a new build target:
 ## In the browser
 
 - **`ExtensionManager`** (`app/src/extensions/`): installed extensions in
-  the profile (`Extensions/`), their manifests, install, update, remove,
+  the profile (`openp41ge Extensions/`), their manifests, install, update, remove,
   reload.
 - **Config storage:** each extension's schema (from the manifest) and the
   user's values (profile and Keychain), passed to its pages and content
@@ -399,13 +400,46 @@ needs a new build target:
   `openp41ge.extension` and `openp41ge.popout` (core.js, loaded in the
   extension's world when first used).
 - **Not in private windows.** Features run as `enabledByDefault` says until
-  toggles exist.
+  toggles exist (step 4).
 - **Tests** (`browser-tests`, `smoke/extensions.mjs`, fixtures in
   `fixtures/extensions/`): document start before the page's scripts,
   separate worlds, CSS (also under a strict CSP), a feature off by default,
   a throwing file not stopping the next, top frame only, pop-out from an
   extension's button, navigation, pages opened by a page, patterns not
   matching, a broken manifest, private windows.
+
+## Step 4: what was built
+
+- **Manifest:** `config` must be an object; the browser keeps it as JSON
+  and doesn't interpret it.
+- **The user's side**, read as an extension loads, from
+  `<profile>/openp41ge Extensions/<id>/`: `config.json` (their values) and
+  `features.json` (`{ "<feature id>": bool }`, the toggles they changed).
+  A file that isn't a JSON object is logged and read as empty, and left
+  alone. Nothing writes them yet: the settings page (steps 5 and 6) and the
+  Extensions page (step 10) will; by hand until then, with a restart.
+- **Config logic in pages:** `scripts/update-uikit` also builds
+  `third_party/openp41ge-uikit/config.js`, the config functions alone as a
+  plain script (5 KB, not uikit.js's 260 KB), bundled into the app and given
+  to the runtime.
+- **Runtime:** on a page where content scripts match, it checks the schema
+  (`validateConfigSchema`; broken: not run), keeps each stored top-level
+  value that fits its schema (`configErrors`; one that doesn't is logged
+  and its default used), merges (`configDefaults`, `mergeConfig`), and
+  checks the result: a required setting with no value means "needs
+  setup", and nothing runs. Secret settings are dropped. Reasons are
+  logged to the page's console, prefixed with the extension's name and id.
+- **`openp41ge.config.get()`:** the merged settings, a fresh copy each
+  call. `onChange` comes with step 5, when something can change settings
+  while pages are open; until then values are read when a page is created.
+- **Feature toggles:** a content script with a `feature` runs as the user
+  set it, else as `enabledByDefault` says.
+- **Tests:** features turned on and off by the user; values over defaults,
+  an out-of-range value falling back, nested merging, an unknown key kept,
+  no secret; needs setup (and a required setting the user set); a default
+  that doesn't fit its schema. `runSuite` takes `beforeLaunch(profileDir)`
+  to put the user's side in the profile.
+- **Example:** `examples/extensions/video-popout` has a `corner` setting.
 
 ## Steps
 
@@ -416,8 +450,9 @@ needs a new build target:
 3. ~~**Shared code:** `<json-editor>` and the config logic copied into
    `third_party/openp41ge-uikit/` by `scripts/update-uikit`~~ (done
    2026-10-14).
-4. **Settings:** schema in the manifest, user values in the profile,
-   merging, `openp41ge.config` in content scripts; feature toggles.
+4. ~~**Settings:** schema in the manifest, user values in the profile,
+   merging, `openp41ge.config` in content scripts; feature toggles~~ (done
+   2026-10-14; see **Step 4: what was built**).
 5. **Extension pages:** the scheme, opening as tabs, `openp41ge.config`
    read and write, change notifications.
 6. **Settings page, JSON view** with `<json-editor>`.

@@ -1,7 +1,10 @@
-// A "Pop out" button in the top right of the video under the pointer, which
-// pops the video out with openp41ge.popout. One button, placed over
-// whichever video the pointer is on (sites cover their videos with their own
-// controls, so the pointer's position is checked, not what it's over).
+// A "Pop out" button in a corner of the video under the pointer (the
+// "corner" setting), which pops the video out with openp41ge.popout. One
+// button, placed over whichever video the pointer is on (sites cover their
+// videos with their own controls, so the pointer's position is checked, not
+// what it's over).
+
+const { corner } = openp41ge.config.get();
 
 const button = document.createElement('button');
 button.className = 'openp41ge-video-popout';
@@ -24,8 +27,10 @@ const place = () => {
   }
   const r = video.getBoundingClientRect();
   button.hidden = false;
-  button.style.top = `${Math.max(r.top, 0) + 10}px`;
-  button.style.left = `${r.right - button.offsetWidth - 10}px`;
+  const top = Math.max(r.top, 0) + 10;
+  const bottom = Math.min(r.bottom, innerHeight) - button.offsetHeight - 10;
+  button.style.top = `${corner.startsWith('bottom') ? bottom : top}px`;
+  button.style.left = `${corner.endsWith('left') ? r.left + 10 : r.right - button.offsetWidth - 10}px`;
 };
 
 document.addEventListener(

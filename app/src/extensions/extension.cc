@@ -183,8 +183,8 @@ std::optional<Extension> Load(const std::string& folder_path, std::string* error
 
   Extension extension;
   extension.folder = folder.string();
-  // config and pages come with settings and extension pages (later steps
-  // of the plan): allowed, not used yet.
+  // pages come with extension pages (a later step of the plan): allowed,
+  // not used yet.
   bool ok = reader.CheckKeys(manifest,
                              {"manifestVersion", "id", "name", "version", "description", "contentScripts", "features",
                               "config", "pages"},
@@ -218,6 +218,16 @@ std::optional<Extension> Load(const std::string& folder_path, std::string* error
     extension.content_scripts.emplace_back();
     ok = ReadContentScript(reader, items[i], where + ": contentScripts[" + std::to_string(i) + "]", extension.features,
                            &extension.content_scripts.back());
+  }
+
+  // The schema itself is checked in the page, by the code editor's config
+  // logic (the runtime): here, only that there's one.
+  if (ok && manifest->HasKey("config")) {
+    if (manifest->GetType("config") != VTYPE_DICTIONARY) {
+      ok = reader.Fail(where + ": \"config\" must be an object (a JSON Schema)");
+    } else {
+      extension.config_schema = CefWriteJSON(manifest->GetValue("config"), JSON_WRITER_DEFAULT).ToString();
+    }
   }
 
   if (!ok) return failed(reader.error());

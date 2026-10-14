@@ -22,11 +22,19 @@
 // the page's current one. The runtime decides, in the page, whether any of
 // the extension's content scripts match the page's address.
 //
+// The user's side of each extension is kept in the profile, in
+// `openp41ge Extensions/<id>/`, and read as the extension loads:
+// - config.json: the user's settings values, only those they set (merged
+//   over the schema's defaults by the runtime, in the page).
+// - features.json: the features they turned on or off ({ "<id>": bool }),
+//   only those; the rest are as `enabledByDefault` says.
+//
 // For now extensions come only from `--extension-folder=<folder>[:<folder>…]`
 // (local folders, for this run). Not in private windows. UI thread.
 class ExtensionManager {
  public:
-  explicit ExtensionManager(CefRefPtr<DevToolsClient> devtools);
+  // `profile_folder`: the profile the user's side is kept in.
+  ExtensionManager(CefRefPtr<DevToolsClient> devtools, const std::string& profile_folder);
 
   // Loads the extension in each folder; one that has a problem isn't
   // loaded, and the problem is logged.
@@ -49,6 +57,7 @@ class ExtensionManager {
   };
 
   CefRefPtr<DevToolsClient> devtools_;
+  const std::string data_folder_;  // <profile>/openp41ge Extensions.
   std::vector<Loaded> loaded_;
 };
 

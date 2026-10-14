@@ -1,4 +1,5 @@
 # Built by scripts/update-uikit from the openp41ge code editor repo.
-# Don't edit uikit.js: change the code repo and run the script again.
+# Don't edit uikit.js or config.js: change the code repo and run the
+# script again.
 COMMIT=e98e0134de058f6d67fa5b32e0591bf19484846d
 DATE=2026-10-14

@@ -79,7 +79,8 @@ class PageViewDelegate : public CefBrowserViewDelegate {
 BrowserManager::BrowserManager()
     : devtools_(new DevToolsClient()),
       popout_(new PopoutController(devtools_, this)),
-      extensions_(std::make_unique<ExtensionManager>(devtools_)),
+      extensions_(std::make_unique<ExtensionManager>(devtools_,
+                                                     CefRequestContext::GetGlobalContext()->GetCachePath())),
       view_delegate_(new PageViewDelegate(this)),
       history_(std::make_unique<History>(CefRequestContext::GetGlobalContext()->GetCachePath())) {
   DCHECK(!g_manager);

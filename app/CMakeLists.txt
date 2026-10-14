@@ -177,6 +177,14 @@ add_cef_mac_resources(openp41ge_explorer
   FILES
     runtime.js
 )
+# The config logic it merges settings with, from the code editor's UI kit
+# (third_party/openp41ge-uikit/SOURCE).
+add_cef_mac_resources(openp41ge_explorer
+  DIR "${CMAKE_SOURCE_DIR}/third_party/openp41ge-uikit"
+  DEST extensions
+  FILES
+    config.js
+)
 
 # The browser's own UI, served at openp41ge://ui/ (src/ui/ui_scheme.h).
 add_cef_mac_resources(openp41ge_explorer

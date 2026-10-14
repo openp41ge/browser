@@ -36,6 +36,10 @@ struct Extension {
   std::string description;
   std::vector<ContentScript> content_scripts;
   std::vector<Feature> features;
+  // The manifest's "config": its settings' JSON Schema, with their defaults
+  // (as JSON; empty if it has none). Checked and used by the runtime in the
+  // page, with the code editor's config logic.
+  std::string config_schema;
 };
 
 namespace extensions {
