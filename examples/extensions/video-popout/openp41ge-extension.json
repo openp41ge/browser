@@ -1,0 +1,10 @@
+{
+  "manifestVersion": 1,
+  "id": "video-popout",
+  "name": "Video pop-out",
+  "version": "0.1.0",
+  "description": "An example extension: a button over each video that pops it out into a window of its own.",
+  "contentScripts": [
+    { "matches": ["<all_urls>"], "js": ["video-popout.js"], "css": ["video-popout.css"] }
+  ]
+}

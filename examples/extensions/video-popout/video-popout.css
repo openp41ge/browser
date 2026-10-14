@@ -1,0 +1,17 @@
+.openp41ge-video-popout {
+  position: fixed;
+  z-index: 2147483647;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.7);
+  color: white;
+  font: 600 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.openp41ge-video-popout:hover {
+  background: rgb(0 0 0 / 0.9);
+}
+.openp41ge-video-popout[hidden] {
+  display: none;
+}

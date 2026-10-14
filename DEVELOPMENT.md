@@ -35,14 +35,19 @@ open "build/app/Release/openp41ge explorer.app"
 
 To try an extension from a folder (its manifest,
 `openp41ge-extension.json`, is described in
-[plans/2026-10-14-extension-system.md](plans/2026-10-14-extension-system.md)):
+[plans/2026-10-14-extension-system.md](plans/2026-10-14-extension-system.md)),
+e.g. [examples/extensions/video-popout](examples/extensions/video-popout), a
+"Pop out" button over the video under the pointer:
 
 ```sh
 "build/app/Release/openp41ge explorer.app/Contents/MacOS/openp41ge explorer" \
-  --extension-folder=/path/to/extension --enable-logging=stderr
+  --extension-folder=examples/extensions/video-popout --enable-logging=stderr --log-level=0
 ```
 
-The log says whether it loaded, and why not.
+Several folders go colon-separated. Quit the app first: launched while it's
+running, it hands the address to the open app and the switches are ignored.
+The log says whether each extension loaded (`--log-level=0` for the ones
+that did), and why not.
 
 `third_party/openp41ge-uikit/` is a checked-in copy of parts of the
 openp41ge code editor's UI kit (`<json-editor>`, extension config logic),
