@@ -119,7 +119,9 @@ so on are ours to provide).
 
 ## Repository layout
 
-Two repos, both checked out side by side in `~/Repository/openp41ge/`.
+Two repos, side by side in `~/Repository/openp41ge/`, each a bare repo in
+`<repo>/.git` with its worktrees beside it (`browser/master`,
+`browser-tests/master`). The tree below is one worktree.
 
 ```
 browser/                     public: github.com/openp41ge/browser
