@@ -548,7 +548,11 @@ needs a new build target:
 6. ~~**Settings page, JSON view** with `<json-editor>`~~ (done 2026-10-14;
    see **Step 6: what was built**).
 7. **Settings page, form view:** a generic `<json-form>` in
-   `openp41ge-sdk-uikit` (code repo), added to the bundle.
+   `openp41ge-sdk-uikit` (code repo), added to the bundle. Handed to an
+   agent in the code repo (other work was under way there):
+   `plans/2026-10-14-json-form-for-code-repo.md`. The browser's part once
+   it's committed: add it to `scripts/uikit/entry.js`, run
+   `scripts/update-uikit`, and add the Form view to the settings page.
 8. **Feature hosts:** messages between tabs and pages.
 9. **Internet Utility Belt's openp41ge build;** YouTube and Shorts pop-out
    checked by hand on live sites (never a test gate).
