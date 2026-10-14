@@ -23,7 +23,8 @@ constexpr char kPolicy[] =
 // One extension's files. Fixed once made (it's used on the IO thread).
 class Files : public CefSchemeHandlerFactory {
  public:
-  explicit Files(const Extension& extension) : folder_(fs::path(extension.folder)) {
+  Files(const Extension& extension, const fs::path& resources)
+      : folder_(fs::path(extension.folder)), settings_(resources / "extension-settings"), shared_(resources / "shared") {
     for (const Extension::Page& page : extension.pages) pages_.insert("/" + page.path);
   }
 
@@ -33,21 +34,34 @@ class Files : public CefSchemeHandlerFactory {
                                        CefRefPtr<CefRequest> request) override {
     CefURLParts parts;
     if (!CefParseURL(request->GetURL(), parts)) return NotFound();
-    const std::string path = CefURIDecode(CefString(&parts.path), true, UU_SPACES).ToString();
+    std::string path = CefURIDecode(CefString(&parts.path), true, UU_SPACES).ToString();
+    // The browser's files, or the extension's.
+    const std::string browser_prefix = std::string("/") + kBrowserFolder + "/";
+    const bool browsers = path.rfind(browser_prefix, 0) == 0;
     switch (request->GetResourceType()) {
       case RT_MAIN_FRAME:
-        // Only the manifest's pages are pages.
-        if (!pages_.count(path)) return NotFound();
+        // Only the manifest's pages are pages (and the browser's settings
+        // page).
+        if (browsers ? path != std::string("/") + kSettingsPage : !pages_.count(path)) return NotFound();
         break;
       case RT_SUB_FRAME:
         return NotFound();
       default:
         break;
     }
+    const fs::path* root = &folder_;
+    if (browsers) {
+      path = path.substr(browser_prefix.size());
+      root = &settings_;
+      if (path.rfind("shared/", 0) == 0) {
+        path = path.substr(sizeof("shared/") - 1);
+        root = &shared_;
+      }
+    }
     // A file in the folder (also once links are followed).
     std::error_code error;
-    const fs::path file = fs::canonical(folder_ / fs::path(path).relative_path(), error);
-    if (error || file.string().rfind((folder_ / "").string(), 0) != 0 || !fs::is_regular_file(file)) {
+    const fs::path file = fs::canonical(*root / fs::path(path).relative_path(), error);
+    if (error || file.string().rfind((*root / "").string(), 0) != 0 || !fs::is_regular_file(file)) {
       return NotFound();
     }
     CefRefPtr<CefStreamReader> reader = CefStreamReader::CreateForFile(file.string());
@@ -72,7 +86,10 @@ class Files : public CefSchemeHandlerFactory {
     return new CefStreamResourceHandler(404, "Not Found", "text/plain", {}, body);
   }
 
-  const fs::path folder_;  // Canonical.
+  // Canonical: the extension's folder, and the browser's files.
+  const fs::path folder_;
+  const fs::path settings_;
+  const fs::path shared_;
   std::set<std::string> pages_;
 
   IMPLEMENT_REFCOUNTING(Files);
@@ -91,6 +108,10 @@ std::string Origin(const std::string& id) {
   return std::string(kScheme) + "://" + id;
 }
 
+std::string SettingsUrl(const std::string& id) {
+  return Origin(id) + "/" + kSettingsPage;
+}
+
 std::string IdOf(const std::string& url) {
   const std::string prefix = std::string(kScheme) + "://";
   if (url.rfind(prefix, 0) != 0) return std::string();
@@ -98,8 +119,11 @@ std::string IdOf(const std::string& url) {
   return url.substr(prefix.size(), end == std::string::npos ? std::string::npos : end - prefix.size());
 }
 
-void Serve(const Extension& extension) {
-  CefRequestContext::GetGlobalContext()->RegisterSchemeHandlerFactory(kScheme, extension.id, new Files(extension));
+void Serve(const Extension& extension, const std::string& resources) {
+  std::error_code error;
+  const fs::path canonical = fs::canonical(resources, error);
+  CefRequestContext::GetGlobalContext()->RegisterSchemeHandlerFactory(
+      kScheme, extension.id, new Files(extension, error ? fs::path(resources) : canonical));
 }
 
 }  // namespace extension_scheme

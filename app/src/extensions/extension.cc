@@ -134,6 +134,7 @@ bool ReadPage(Reader& reader, CefRefPtr<CefDictionaryValue> item, const std::str
       !reader.File(out->path, at, &file)) {
     return false;
   }
+  if (out->path.rfind("_openp41ge/", 0) == 0) return reader.Fail(at + ": \"_openp41ge/\" is the browser's");
   if (!role.empty() && role != "settings") return reader.Fail(at + ": \"role\" must be \"settings\"");
   out->settings = role == "settings";
   return true;

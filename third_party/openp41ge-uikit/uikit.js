@@ -974,6 +974,29 @@ function pathKey(path) {
   }
   return out;
 }
+function pinnedPaths(overrides, defaults) {
+  const out = /* @__PURE__ */ new Set();
+  const walk = (v2, d2, p2) => {
+    if (v2 === null || v2 === void 0) return;
+    if (Array.isArray(v2)) {
+      if (jsonEqual(v2, d2)) {
+        out.add(p2);
+      } else {
+        for (let i3 = 0; i3 < v2.length; i3++)
+          walk(v2[i3], d2 == null ? void 0 : d2[i3], `${p2}[${i3}]`);
+      }
+    } else if (typeof v2 === "object") {
+      const def = d2 && typeof d2 === "object" && !Array.isArray(d2) ? d2 : {};
+      for (const [k2, child] of Object.entries(v2)) {
+        walk(child, def[k2], p2 ? `${p2}.${k2}` : k2);
+      }
+    } else if (jsonEqual(v2, d2)) {
+      out.add(p2);
+    }
+  };
+  walk(overrides, defaults, "");
+  return out;
+}
 function cloneDeep(value) {
   if (value === void 0) return value;
   return JSON.parse(JSON.stringify(value));
@@ -1026,6 +1049,20 @@ function applyOverrides(target, overrides) {
     }
   }
 }
+function sortJsonKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map((v2) => sortJsonKeys(v2));
+  }
+  if (value !== null && typeof value === "object") {
+    const src = value;
+    const out = {};
+    for (const key of Object.keys(src).sort()) {
+      out[key] = sortJsonKeys(src[key]);
+    }
+    return out;
+  }
+  return value;
+}
 function getAt(value, path) {
   let cur = value;
   for (const seg of path) {
@@ -1039,6 +1076,17 @@ function getAt(value, path) {
     }
   }
   return cur;
+}
+function setAt(value, path, newValue) {
+  if (path.length === 0) return;
+  const parent = getAt(value, path.slice(0, -1));
+  const last = path[path.length - 1];
+  if (parent == null || typeof parent !== "object") return;
+  if (Array.isArray(parent)) {
+    parent[last] = newValue;
+  } else {
+    parent[last] = newValue;
+  }
 }
 function summarize(value) {
   const entries = Array.isArray(value) ? value : Object.values(value);
@@ -7381,12 +7429,17 @@ function mergeConfig(defaults, overrides) {
 }
 export {
   JSON_EDITOR_CHANGE,
+  JSON_EDITOR_OVERWRITE,
   JsonEditorElement,
+  cloneDeep,
   configDefaults,
   configErrors,
   mergeConfig,
   mergeDefaults,
+  pinnedPaths,
+  setAt,
   setJsonEditorDefaults,
+  sortJsonKeys,
   stripDefaults,
   validateConfigSchema
 };

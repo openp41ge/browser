@@ -185,6 +185,24 @@ add_cef_mac_resources(openp41ge_explorer
     runtime.js
     settings.js
 )
+# The browser's settings page for extensions, served in each extension's
+# origin (src/extensions/extension_scheme.h), with the code editor's UI kit
+# (<json-editor>); and shared/ (the theme).
+add_cef_mac_resources(openp41ge_explorer
+  DIR "${CMAKE_CURRENT_SOURCE_DIR}/ui/extension-settings"
+  DEST extension-settings
+  FILES
+    settings.css
+    settings.html
+    settings.js
+)
+add_cef_mac_resources(openp41ge_explorer
+  DIR "${CMAKE_SOURCE_DIR}/third_party/openp41ge-uikit"
+  DEST extension-settings
+  FILES
+    uikit.js
+)
+
 # The config logic it merges settings with, from the code editor's UI kit
 # (third_party/openp41ge-uikit/SOURCE).
 add_cef_mac_resources(openp41ge_explorer

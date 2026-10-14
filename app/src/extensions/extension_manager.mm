@@ -223,7 +223,7 @@ void ExtensionManager::LoadFolders(const std::vector<std::string>& folders) {
     loaded.values = ReadObject(loaded.data + "/" + kConfigFile);
     loaded.extension = std::move(*extension);
     BuildScripts(loaded);
-    extension_scheme::Serve(loaded.extension);
+    extension_scheme::Serve(loaded.extension, NSBundle.mainBundle.resourcePath.UTF8String);
     loaded_.push_back(std::move(loaded));
   }
 }

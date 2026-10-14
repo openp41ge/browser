@@ -53,9 +53,10 @@ setup, or its schema is broken).
 
 An extension's pages open at `openp41ge-extension://<id>/<path>` (type it
 in the address bar): the example's settings page is
-`openp41ge-extension://video-popout/settings.html`. Feature toggles, and
-the settings of an extension without a settings page, are set by hand
-until the browser's settings and Extensions pages exist, in the profile (`~/Library/Application
+`openp41ge-extension://video-popout/settings.html`. Every extension with
+settings also has the browser's settings page (a JSON view of them), at
+`openp41ge-extension://<id>/_openp41ge/settings.html`. Feature toggles are
+set by hand until the Extensions page exists, in the profile (`~/Library/Application
 Support/openp41ge explorer development/Default/openp41ge Extensions/<id>/`):
 `config.json` for settings (only those changed, e.g. `{ "corner":
 "bottom-left" }` for the example), `features.json` for features (`{

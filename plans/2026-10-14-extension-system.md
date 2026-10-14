@@ -492,6 +492,33 @@ needs a new build target:
   not in `pages` doesn't open as a page.
 - **Example:** `examples/extensions/video-popout` has a settings page.
 
+## Step 6: what was built
+
+- **Where:** `openp41ge-extension://<id>/_openp41ge/settings.html`, for
+  every extension: the browser's files (`app/ui/extension-settings`, and
+  `_openp41ge/shared/` from `app/ui/shared`) served in the extension's own
+  origin, so the page has that extension's `openp41ge` and saves through
+  `config.set` like any of its pages; no channel of its own. `_openp41ge/`
+  is reserved: a manifest's page can't use it.
+- **JSON view:** `<json-editor>` from the bundle (which now also exports
+  `pinnedPaths`, `setAt`, `sortJsonKeys`, `cloneDeep` and the overwrite
+  event) on the user's values, with the schema (tooltips, suggestions) and
+  "Show default values" (defaults faded, "overwrite" pins one), as the code
+  editor's `openp41ge-config-editor` does. Edits are staged; Save or Cmd-S;
+  a refusal is shown and the edits kept; Revert. A change made elsewhere
+  shows while nothing is staged (and is noted when something is).
+- **Problems** above the editor: settings that need setting (required, no
+  value), a broken schema, and stored values left out because they don't
+  fit.
+- **Secrets:** left out of the view and its schema; kept as stored when
+  saving.
+- **Opening it:** by its address for now; the Extensions page (step 10)
+  links to it, or to the extension's own `"role": "settings"` page.
+- **Tests:** the view shows the user's values without the secret; a
+  refused save (message, nothing stored), a saved one (secret kept); a
+  change made elsewhere; "needs setting". Edits are made through the
+  editor's change event, not typed.
+
 ## Steps
 
 1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
@@ -507,7 +534,8 @@ needs a new build target:
 5. ~~**Extension pages:** the scheme, opening as tabs, `openp41ge.config`
    read and write, change notifications~~ (done 2026-10-14; see **Step 5:
    what was built**).
-6. **Settings page, JSON view** with `<json-editor>`.
+6. ~~**Settings page, JSON view** with `<json-editor>`~~ (done 2026-10-14;
+   see **Step 6: what was built**).
 7. **Settings page, form view:** a generic `<json-form>` in
    `openp41ge-sdk-uikit` (code repo), added to the bundle.
 8. **Feature hosts:** messages between tabs and pages.

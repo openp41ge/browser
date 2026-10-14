@@ -1,0 +1,112 @@
+/* The browser's settings page for an extension (settings.js). The theme's
+   colours (theme.css), and what <json-editor> reads that the theme doesn't
+   define. */
+:root {
+  --bg-secondary: var(--bg-tertiary);
+  --divider: var(--border-divider);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --danger: #f14c4c;
+  --warning: #cca700;
+  height: 100%;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --danger: #c72e2e;
+    --warning: #8a6d00;
+  }
+}
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin: 0;
+  font-size: 13px;
+  background: var(--bg-primary);
+}
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 16px 16px 8px;
+}
+h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+#version {
+  margin: 0;
+  color: var(--text-secondary);
+}
+#problems {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+#problems ul {
+  margin: 0;
+  padding-left: 18px;
+}
+#problems ul:empty {
+  display: none;
+}
+#missing li {
+  color: var(--danger);
+}
+#ignored li {
+  color: var(--warning);
+}
+main {
+  flex: 1;
+  min-height: 0;
+  margin: 0 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+main > json-editor {
+  display: block;
+  height: 100%;
+}
+#note {
+  padding: 16px;
+  color: var(--text-secondary);
+}
+footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+}
+footer button {
+  font: inherit;
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+footer button:not(:disabled):hover {
+  background: var(--bg-active);
+}
+footer button:disabled {
+  opacity: 0.5;
+}
+#save:not(:disabled) {
+  border-color: var(--accent);
+}
+#status {
+  flex: 1;
+  margin: 0;
+  color: var(--text-secondary);
+}
+#status.error {
+  color: var(--danger);
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
