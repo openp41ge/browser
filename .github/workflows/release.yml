@@ -10,6 +10,14 @@ name: release
 on:
   push:
     tags: ['v*']
+  # To publish a tag without browser-tests (they failed or couldn't run):
+  #   gh workflow run release.yml --ref v0.1.8 -f skip-tests=true
+  workflow_dispatch:
+    inputs:
+      skip-tests:
+        description: Publish without browser-tests passing
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -147,21 +155,34 @@ jobs:
           spctl --assess --type open --context context:primary-signature -v "$DMG"
 
       # Nothing is published until browser-tests has passed on this commit
-      # (ci.yml asked for it when the commit was pushed).
+      # (ci.yml asked for it when the commit was pushed), unless the release
+      # was run by hand with skip-tests. A run that has started (pending) is
+      # waited for, up to 20 minutes; one that hasn't after 3 won't (its
+      # private repo's macOS minutes are paid for, and may run out).
       - name: Wait for browser-tests
+        if: ${{ !inputs.skip-tests }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for _ in $(seq 1 60); do
+          skip="To publish anyway: gh workflow run release.yml --ref $GITHUB_REF_NAME -f skip-tests=true"
+          for i in $(seq 1 40); do
             state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/statuses" \
               --jq '[.[] | select(.context == "browser-tests")][0].state // "missing"')
             echo "browser-tests: $state"
             case "$state" in
               success) exit 0 ;;
-              failure | error) exit 1 ;;
+              failure | error)
+                echo "::error::browser-tests failed on this commit. $skip"
+                exit 1 ;;
+              missing)
+                if [ "$i" -ge 6 ]; then
+                  echo "::error::browser-tests didn't run on this commit. $skip"
+                  exit 1
+                fi ;;
             esac
             sleep 30
           done
+          echo "::error::browser-tests didn't finish on this commit. $skip"
           exit 1
 
       - name: Write the appcast

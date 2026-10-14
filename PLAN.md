@@ -206,7 +206,9 @@ a laptop.
      drag it onto, and a branded background) without scripting Finder, so
      it runs headless.
   4. Wait for `browser-tests` to pass on the tagged commit (a release is
-     blocked if it fails).
+     blocked if it fails, or hasn't started within 3 minutes). To publish
+     without it, run the release by hand:
+     `gh workflow run release.yml --ref v<version> -f skip-tests=true`.
   5. Sign the update with Sparkle's EdDSA key and generate `appcast.xml`.
   6. Create the **GitHub Release** with auto-generated notes, plus the
      CEF and Chromium versions, and attach the `.dmg`, `appcast.xml` and
