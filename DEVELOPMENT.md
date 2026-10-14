@@ -33,6 +33,11 @@ cmake --build build
 open "build/app/Release/openp41ge explorer.app"
 ```
 
+`third_party/openp41ge-uikit/` is a checked-in copy of parts of the
+openp41ge code editor's UI kit (`<json-editor>`, extension config logic),
+built from a code worktree by `scripts/update-uikit` (needs `pnpm install`
+there). Don't edit it here: change the code repo and run the script again.
+
 macOS asks for the app's Keychain item (Chromium Safe Storage) again after
 every build, because each build's ad hoc signature is new. To stop that,
 sign local builds with your development certificate, and choose "Always

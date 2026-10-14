@@ -1,0 +1,40 @@
+#!/bin/bash
+# Copies the parts of the openp41ge code editor's UI kit the browser uses
+# (<json-editor> and the extension config logic) into
+# third_party/openp41ge-uikit/, as one self-contained ES module built from
+# the code repo's source (scripts/uikit/). Records the commit it came from.
+#
+# A copy for now: the UI kit may move to a repo of its own later.
+#
+# Usage: scripts/update-uikit [code worktree]
+#        (default: ../../code/master, beside this repo's worktree)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+CODE="$(cd "${1:-$ROOT/../../code/master}" && pwd)"
+UIKIT="$CODE/packages/openp41ge-sdk-uikit"
+VITE="$UIKIT/node_modules/vite/bin/vite.js"
+DEST="$ROOT/third_party/openp41ge-uikit"
+
+if [ ! -f "$VITE" ]; then
+  echo "No Vite in $UIKIT: run pnpm install in $CODE first" >&2
+  exit 1
+fi
+if [ -n "$(git -C "$CODE" status --porcelain)" ]; then
+  echo "$CODE has uncommitted changes: commit them first, so the copy matches a commit" >&2
+  exit 1
+fi
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+CODE_DIR="$CODE" OUT_DIR="$TMP" node "$VITE" build --config "$ROOT/scripts/uikit/vite.config.mjs"
+
+mkdir -p "$DEST"
+cp "$TMP/uikit.js" "$DEST/uikit.js"
+cat > "$DEST/SOURCE" <<SOURCE
+# Built by scripts/update-uikit from the openp41ge code editor repo.
+# Don't edit uikit.js: change the code repo and run the script again.
+COMMIT=$(git -C "$CODE" rev-parse HEAD)
+DATE=$(git -C "$CODE" log -1 --format=%cs)
+SOURCE
+echo "Copied $(git -C "$CODE" log -1 --format='%h %s') into third_party/openp41ge-uikit"
