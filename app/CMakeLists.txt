@@ -92,6 +92,10 @@ add_cef_mac_app(openp41ge_explorer
     src/focus_bar.mm
     src/explorer_app.cc
     src/explorer_app.h
+    src/extensions/extension.cc
+    src/extensions/extension.h
+    src/extensions/extension_manager.h
+    src/extensions/extension_manager.mm
     src/find_bar.h
     src/find_bar.mm
     src/grid_scrollbar.h
@@ -163,6 +167,14 @@ add_cef_mac_resources(openp41ge_explorer
   FILES
     core.js
     hold-autoplay.js
+)
+
+# The extension runtime, run in pages (src/extensions/extension_manager.h).
+add_cef_mac_resources(openp41ge_explorer
+  DIR "${CMAKE_CURRENT_SOURCE_DIR}/extensions"
+  DEST extensions
+  FILES
+    runtime.js
 )
 
 # The browser's own UI, served at openp41ge://ui/ (src/ui/ui_scheme.h).

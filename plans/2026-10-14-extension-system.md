@@ -368,11 +368,51 @@ needs a new build target:
 - **GitHub API limits:** unauthenticated requests are rate-limited (60 an
   hour per IP); enough for installs and daily update checks.
 
+## Step 2: what was built
+
+- **Loading:** `--extension-folder=<folder>[:<folder>…]` loads local
+  folders for that run (`src/extensions/extension.cc` reads and checks the
+  manifest: unknown keys, missing files and paths outside the folder are
+  errors, and the extension isn't loaded; the log says why). Installing,
+  and remembering what's installed, come with the Extensions page.
+- **Injection** (`src/extensions/extension_manager.mm`): for each page,
+  `Page.enable` (scripts added for new documents run only with it on), then
+  per extension `Page.addScriptToEvaluateOnNewDocument` in the world
+  `openp41ge-extension:<id>`, and the same script in the current document
+  (`Page.createIsolatedWorld`, `Runtime.evaluate`).
+- **First page of a tab:** the calls reach a new page's renderer only after
+  its first page has started, so with extensions loaded a tab's page starts
+  on `about:blank` and loads its address once they're answered (at most 2
+  s). Its tab never shows the blank page, and it's cleared from the page's
+  history (`Page.resetNavigationHistory`) as the real one commits.
+- **Pages opened by a page** (`window.open`, links to new windows) can't
+  be held back: their first page gets the extension once it's added,
+  late (so `document_start` scripts run after the page's own there); later
+  pages from the start.
+- **Runtime** (`app/extensions/runtime.js`): one function, called with the
+  extension, its JS files as functions (each file is a function's body:
+  no `eval`, so a page's CSP doesn't matter), and `core.js`. It runs once per
+  document (marked on the document: a page opened by `window.open` hands
+  its blank document's window on to its real one), in the top frame,
+  matching patterns against the path and query as Chrome does. CSS goes in
+  as constructed style sheets, which a page's CSP doesn't block.
+  `openp41ge.extension` and `openp41ge.popout` (core.js, loaded in the
+  extension's world when first used).
+- **Not in private windows.** Features run as `enabledByDefault` says until
+  toggles exist.
+- **Tests** (`browser-tests`, `smoke/extensions.mjs`, fixtures in
+  `fixtures/extensions/`): document start before the page's scripts,
+  separate worlds, CSS (also under a strict CSP), a feature off by default,
+  a throwing file not stopping the next, top frame only, pop-out from an
+  extension's button, navigation, pages opened by a page, patterns not
+  matching, a broken manifest, private windows.
+
 ## Steps
 
 1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
-2. **Load a local folder:** manifest, matching, injection, CSS, the
-   `openp41ge` API without messages; a fixture extension in the smoke tests.
+2. ~~**Load a local folder:** manifest, matching, injection, CSS, the
+   `openp41ge` API without messages; a fixture extension in the smoke
+   tests~~ (done 2026-10-14; see **Step 2: what was built**).
 3. ~~**Shared code:** `<json-editor>` and the config logic copied into
    `third_party/openp41ge-uikit/` by `scripts/update-uikit`~~ (done
    2026-10-14).

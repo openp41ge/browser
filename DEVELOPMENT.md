@@ -33,6 +33,17 @@ cmake --build build
 open "build/app/Release/openp41ge explorer.app"
 ```
 
+To try an extension from a folder (its manifest,
+`openp41ge-extension.json`, is described in
+[plans/2026-10-14-extension-system.md](plans/2026-10-14-extension-system.md)):
+
+```sh
+"build/app/Release/openp41ge explorer.app/Contents/MacOS/openp41ge explorer" \
+  --extension-folder=/path/to/extension --enable-logging=stderr
+```
+
+The log says whether it loaded, and why not.
+
 `third_party/openp41ge-uikit/` is a checked-in copy of parts of the
 openp41ge code editor's UI kit (`<json-editor>`, extension config logic),
 built from a code worktree by `scripts/update-uikit` (needs `pnpm install`

@@ -9,6 +9,7 @@
 
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
+#include "include/cef_command_line.h"
 #include "include/cef_parser.h"
 #include "include/cef_request_context.h"
 #include "include/wrapper/cef_closure_task.h"
@@ -29,6 +30,10 @@ BrowserManager* g_manager = nullptr;
 
 // Key read by the renderer (renderer_app.cc).
 constexpr char kInitScriptKey[] = "openp41ge.init_script";
+// Where a page waits for extensions' scripts (CreatePageView), and for how
+// long at most.
+constexpr char kBlankUrl[] = "about:blank";
+constexpr int kExtensionsWaitMs = 2000;
 
 // The browser keeps its own history (History); Chromium would keep another
 // (<profile>/History, with its favicons and top sites) that nothing reads,
@@ -74,12 +79,23 @@ class PageViewDelegate : public CefBrowserViewDelegate {
 BrowserManager::BrowserManager()
     : devtools_(new DevToolsClient()),
       popout_(new PopoutController(devtools_, this)),
+      extensions_(std::make_unique<ExtensionManager>(devtools_)),
       view_delegate_(new PageViewDelegate(this)),
       history_(std::make_unique<History>(CefRequestContext::GetGlobalContext()->GetCachePath())) {
   DCHECK(!g_manager);
   g_manager = this;
   DisableChromiumHistory(CefRequestContext::GetGlobalContext());
   tab_previews::Init(CefRequestContext::GetGlobalContext()->GetCachePath());
+  // Extensions in local folders, for this run:
+  // --extension-folder=<folder>[:<folder>…].
+  const std::string folders = CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("extension-folder");
+  std::vector<std::string> list;
+  for (size_t start = 0; start < folders.size();) {
+    const size_t end = std::min(folders.find(':', start), folders.size());
+    if (end > start) list.push_back(folders.substr(start, end - start));
+    start = end + 1;
+  }
+  extensions_->LoadFolders(list);
   // A development build's UI, as it's edited (ui_live_reload.h).
   ui_live_reload::Watch([this] { ReloadUi(); });
   // An update waiting for the user shows in every window's top bar.
@@ -323,10 +339,21 @@ BrowserWindow* BrowserManager::WindowAt(const CefPoint& screen) const {
   return nullptr;
 }
 
-CefRefPtr<Tab> BrowserManager::CreateTab(const std::string& url, bool is_private) {
+CefRefPtr<CefBrowserView> BrowserManager::CreatePageView(const std::string& url, bool is_private) {
   CefBrowserSettings settings;
+  // With extensions, the page starts blank and loads `url` once their
+  // scripts are in place (OnAfterCreated), so they run in its first page
+  // from the start.
+  const bool wait = !is_private && !url.empty() && extensions_->HasExtensions();
   CefRefPtr<CefBrowserView> view = CefBrowserView::CreateBrowserView(
-      this, url, settings, NewPageExtraInfo(), is_private ? PrivateContext() : nullptr, view_delegate_);
+      this, wait ? std::string(kBlankUrl) : url, settings, NewPageExtraInfo(), is_private ? PrivateContext() : nullptr,
+      view_delegate_);
+  if (wait) waiting_to_load_.push_back({view, url});
+  return view;
+}
+
+CefRefPtr<Tab> BrowserManager::CreateTab(const std::string& url, bool is_private) {
+  CefRefPtr<CefBrowserView> view = CreatePageView(url, is_private);
   CefRefPtr<Tab> tab = new Tab(next_tab_id_++, view);
   tab->url = url;
   return tab;
@@ -350,9 +377,7 @@ CefRefPtr<Tab> BrowserManager::SavedTab(const WindowLayout::SavedTab& saved) {
 
 void BrowserManager::LoadTab(CefRefPtr<Tab> tab, bool is_private) {
   if (tab->loaded()) return;
-  CefBrowserSettings settings;
-  tab->Load(CefBrowserView::CreateBrowserView(this, tab->url, settings, NewPageExtraInfo(),
-                                              is_private ? PrivateContext() : nullptr, view_delegate_));
+  tab->Load(CreatePageView(tab->url, is_private));
 }
 
 void BrowserManager::OnPopupViewCreated(CefRefPtr<CefBrowserView> opener, CefRefPtr<CefBrowserView> popup) {
@@ -663,6 +688,34 @@ bool BrowserManager::OnBeforePopup(CefRefPtr<CefBrowser> browser,
 void BrowserManager::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   devtools_->Attach(browser);
+  // Extensions don't run in private windows (as Chrome's don't, unless
+  // allowed).
+  const bool is_private = private_context_ && browser->GetHost()->GetRequestContext()->IsSame(private_context_);
+  // A page that waits for them (CreatePageView) loads its address once
+  // they're in place, or after a moment if they never answer.
+  CefRefPtr<CefBrowserView> view = CefBrowserView::GetForBrowser(browser);
+  for (auto it = waiting_to_load_.begin(); view && it != waiting_to_load_.end(); ++it) {
+    if (!it->first->IsSame(view)) continue;
+    waiting_pages_[browser->GetIdentifier()] = {browser, it->second};
+    waiting_to_load_.erase(it);
+    // Holds only the page's id (as CapturePreviewsLater's tasks do).
+    CefPostDelayedTask(TID_UI,
+                       base::BindOnce(&BrowserManager::LoadWaitingPage, base::Unretained(this), browser->GetIdentifier()),
+                       kExtensionsWaitMs);
+    break;
+  }
+  if (is_private) return;
+  const int id = browser->GetIdentifier();
+  extensions_->OnPageCreated(browser, [this, id] { LoadWaitingPage(id); });
+}
+
+void BrowserManager::LoadWaitingPage(int id) {
+  auto it = waiting_pages_.find(id);
+  if (it == waiting_pages_.end()) return;
+  const auto [browser, url] = it->second;
+  waiting_pages_.erase(it);
+  blank_in_history_.insert(id);
+  browser->GetMainFrame()->LoadURL(url);
 }
 
 bool BrowserManager::DoClose(CefRefPtr<CefBrowser> browser) {
@@ -681,6 +734,8 @@ bool BrowserManager::DoClose(CefRefPtr<CefBrowser> browser) {
 void BrowserManager::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   devtools_->Detach(browser);
+  waiting_pages_.erase(browser->GetIdentifier());
+  blank_in_history_.erase(browser->GetIdentifier());
   if (BrowserWindow* window = WindowOf(browser)) window->OnTabClosed(browser);
 }
 
@@ -698,7 +753,9 @@ void BrowserManager::OnAddressChange(CefRefPtr<CefBrowser> browser,
                                      const CefString& url) {
   CefRefPtr<Tab> tab;
   BrowserWindow* window = WindowOf(browser, &tab);
-  if (!window || !frame->IsMain()) return;
+  if (!window || !frame->IsMain() || IsWaiting(browser)) return;
+  // The blank page it waited on (CreatePageView) leaves its history.
+  if (blank_in_history_.erase(browser->GetIdentifier())) devtools_->Call(browser, "Page.resetNavigationHistory", nullptr);
   tab->url = url;
   if (tab->visited != tab->url) {
     tab->visited = tab->url;
@@ -710,7 +767,7 @@ void BrowserManager::OnAddressChange(CefRefPtr<CefBrowser> browser,
 void BrowserManager::OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString& title) {
   CefRefPtr<Tab> tab;
   BrowserWindow* window = WindowOf(browser, &tab);
-  if (!window) return;
+  if (!window || IsWaiting(browser)) return;
   tab->title = title;
   if (History* history = window->history()) history->SetTitle(tab->url, tab->title);
   window->OnTabChanged(browser);
@@ -732,7 +789,7 @@ void BrowserManager::OnLoadStart(CefRefPtr<CefBrowser> browser,
                                  TransitionType transition_type) {
   CefRefPtr<Tab> tab;
   BrowserWindow* window = WindowOf(browser, &tab);
-  if (!window || !frame->IsMain()) return;
+  if (!window || !frame->IsMain() || IsWaiting(browser)) return;
   // A new document: until it declares icons (OnFaviconURLChange), its
   // origin's default.
   tab->favicon = DefaultFavicon(frame->GetURL());
@@ -742,7 +799,7 @@ void BrowserManager::OnLoadStart(CefRefPtr<CefBrowser> browser,
 void BrowserManager::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::vector<CefString>& icon_urls) {
   CefRefPtr<Tab> tab;
   BrowserWindow* window = WindowOf(browser, &tab);
-  if (!window) return;
+  if (!window || IsWaiting(browser)) return;
   tab->favicon = icon_urls.empty() ? DefaultFavicon(browser->GetMainFrame()->GetURL()) : icon_urls.front().ToString();
   window->OnTabChanged(browser);
 }
@@ -753,7 +810,7 @@ void BrowserManager::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
                                           bool can_go_forward) {
   CefRefPtr<Tab> tab;
   BrowserWindow* window = WindowOf(browser, &tab);
-  if (!window) return;
+  if (!window || IsWaiting(browser)) return;
   tab->loading = is_loading;
   if (!is_loading) {
     if (Pane* pane = window->Locate(browser)) pane->OnPageLoaded(tab);

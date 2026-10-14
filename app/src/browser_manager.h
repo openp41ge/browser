@@ -3,7 +3,9 @@
 #ifndef OPENP41GE_EXPLORER_BROWSER_MANAGER_H_
 #define OPENP41GE_EXPLORER_BROWSER_MANAGER_H_
 
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <variant>
 #include <vector>
@@ -13,6 +15,7 @@
 
 #include "browser_window.h"
 #include "devtools_client.h"
+#include "extensions/extension_manager.h"
 #include "history.h"
 #include "popout/popout_controller.h"
 
@@ -25,6 +28,8 @@
 // - A link's context menu opens it in a new tab, window or private window.
 // - Element pop-out (PopoutController): while something is popped out, new
 //   pages hold autoplay.
+// - Extensions (ExtensionManager): their content scripts in every page but
+//   private windows'.
 // - Reopen Closed Tab (Cmd-Shift-T) brings back the last tab or window
 //   closed, as Chrome does: a tab where it was, a window with its panes and
 //   tabs. Not private ones, nor what closed as the app quit.
@@ -218,6 +223,9 @@ class BrowserManager : public CefClient,
   // (foreground or background) beside its tab, or a new window. False if
   // it's to load in the page itself.
   bool OpenLink(CefRefPtr<CefBrowser> browser, const std::string& url, WindowOpenDisposition disposition);
+  // A new page's view, loading `url`; in the private profile if
+  // `is_private`.
+  CefRefPtr<CefBrowserView> CreatePageView(const std::string& url, bool is_private);
   // Extra info for a new page: the script it runs before its own (if any),
   // read by the renderer (renderer_app.cc).
   CefRefPtr<CefDictionaryValue> NewPageExtraInfo() const;
@@ -226,6 +234,17 @@ class BrowserManager : public CefClient,
 
   CefRefPtr<DevToolsClient> devtools_;
   CefRefPtr<PopoutController> popout_;
+  std::unique_ptr<ExtensionManager> extensions_;
+  // Pages created blank, and the address each loads once extensions are in
+  // place (CreatePageView): by view until created, then by page id. While
+  // a page waits, its blank page isn't shown as its tab's.
+  std::vector<std::pair<CefRefPtr<CefBrowserView>, std::string>> waiting_to_load_;
+  std::map<int, std::pair<CefRefPtr<CefBrowser>, std::string>> waiting_pages_;
+  // Pages whose blank page is still in their history (cleared as the real
+  // one commits).
+  std::set<int> blank_in_history_;
+  void LoadWaitingPage(int id);
+  bool IsWaiting(CefRefPtr<CefBrowser> browser) const { return waiting_pages_.count(browser->GetIdentifier()) > 0; }
   CefRefPtr<CefBrowserViewDelegate> view_delegate_;
   std::unique_ptr<History> history_;
   CefRefPtr<CefRequestContext> private_context_;  // While there are private windows.
