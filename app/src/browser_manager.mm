@@ -102,7 +102,7 @@ BrowserManager::BrowserManager()
     if (end > start) list.push_back(folders.substr(start, end - start));
     start = end + 1;
   }
-  extensions_->LoadFolders(list);
+  extensions_->Start(list);
   extension_router_->AddHandler(extensions_.get(), /*first=*/false);
   // A development build's UI, as it's edited (ui_live_reload.h).
   ui_live_reload::Watch([this] { ReloadUi(); });
@@ -112,23 +112,24 @@ BrowserManager::BrowserManager()
   });
 }
 
-// About openp41ge explorer: its tab if one's open in this window (as Chrome
-// does), else a new one; a new window if there's none.
-void BrowserManager::ShowAbout() {
+// One of the browser's own pages (About, Extensions): its tab if one's open
+// in this window (as Chrome does), else a new one; a new window if there's
+// none.
+void BrowserManager::ShowPage(const std::string& url) {
   if (!current_) {
-    OpenWindow(ui_scheme::kAboutUrl);
+    OpenWindow(url);
     return;
   }
   for (const CefRefPtr<Tab>& tab : current_->tabs()) {
     CefRefPtr<CefBrowser> page = tab->browser();
-    if (!page || tab->url.rfind(ui_scheme::kAboutUrl, 0) != 0) continue;
+    if (!page || tab->url.rfind(url, 0) != 0) continue;
     if (Pane* pane = current_->Locate(page)) {
       pane->RequestActivate(tab->id());
       tab->view()->RequestFocus();
       return;
     }
   }
-  CefRefPtr<Tab> tab = current_->OpenTab(ui_scheme::kAboutUrl);
+  CefRefPtr<Tab> tab = current_->OpenTab(url);
   tab->view()->RequestFocus();
 }
 
@@ -532,6 +533,7 @@ bool BrowserManager::CanRun(Command command) const {
     case Command::kNewWindow:
     case Command::kNewPrivateWindow:
     case Command::kAbout:
+    case Command::kExtensions:
       return true;
     case Command::kReopenClosed:
       return !closed_.empty();
@@ -578,7 +580,11 @@ void BrowserManager::Run(Command command) {
     return;
   }
   if (command == Command::kAbout) {
-    ShowAbout();
+    ShowPage(ui_scheme::kAboutUrl);
+    return;
+  }
+  if (command == Command::kExtensions) {
+    ShowPage(ui_scheme::kExtensionsUrl);
     return;
   }
   if (!current_) return;

@@ -4,6 +4,7 @@
 #define OPENP41GE_EXPLORER_EXTENSIONS_EXTENSION_MANAGER_H_
 
 #include <functional>
+#include <list>
 #include <map>
 #include <string>
 #include <vector>
@@ -47,8 +48,16 @@
 // delivered to the extension's content scripts in other tabs and its
 // pages, and never leave the extension.
 //
-// For now extensions come only from `--extension-folder=<folder>[:<folder>…]`
-// (local folders, for this run). Not in private windows. UI thread.
+// Installed extensions are local folders, remembered in the profile
+// (`openp41ge Extensions/installed.json`: each one's folder, and whether
+// it's on); `--extension-folder=<folder>[:<folder>…]` adds some for one run.
+// The Extensions page (openp41ge://extensions/, app/ui/extensions) lists
+// them and manages them through the same channel as extension pages,
+// checked by its address: load a folder, switch an extension or a feature
+// on or off, reload, remove. A feature switched while pages are open
+// starts or stops in them (the runtimes' __openp41geFeaturesChanged); an
+// extension switched on or off, reloaded or removed changes the pages
+// loaded after that, as in Chrome. Not in private windows. UI thread.
 class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
  public:
   // Opens `url` in a new tab beside `opener`'s.
@@ -57,12 +66,13 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
   // `profile_folder`: the profile the user's side is kept in.
   ExtensionManager(CefRefPtr<DevToolsClient> devtools, const std::string& profile_folder, OpenTab open_tab);
 
-  // Loads the extension in each folder; one that has a problem isn't
-  // loaded, and the problem is logged. Serves their pages.
-  void LoadFolders(const std::vector<std::string>& folders);
+  // Loads the installed extensions, and the ones in `folders` for this run
+  // only. One that has a problem isn't loaded, and the problem is logged
+  // (and shown on the Extensions page). Serves their pages.
+  void Start(const std::vector<std::string>& folders);
 
   // Whether there are extensions to add to pages.
-  bool HasExtensions() const { return !loaded_.empty(); }
+  bool HasExtensions() const;
 
   // A page was created: the extensions' scripts in it, from its current
   // document on. `ready` (optional) runs once they're in place for its
@@ -79,9 +89,18 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
                const CefString& request,
                bool persistent,
                CefRefPtr<Callback> callback) override;
+  void OnQueryCanceled(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int64_t query_id) override;
 
  private:
+  // An extension the browser knows: installed, or for this run. One whose
+  // folder didn't load has only `source`, `installed`, `enabled` and
+  // `error`.
   struct Loaded {
+    std::string source;      // Its folder, as installed (or given).
+    bool installed = false;  // Remembered in the profile (else this run only).
+    bool enabled = true;     // The user's switch for the whole extension.
+    std::string error;       // Why it isn't loaded, or empty.
+    bool active() const { return error.empty() && enabled; }
     Extension extension;
     std::string world;    // Its content scripts' isolated world.
     std::string binding;  // The function that world sends to the browser with.
@@ -95,10 +114,48 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
   // id.
   struct Page {
     CefRefPtr<CefBrowser> browser;
+    bool domains = false;  // Page and Runtime enabled (once an extension is).
     std::map<std::string, std::vector<std::string>> scripts;
   };
+  // An Extensions page listening for the list.
+  struct Listener {
+    int browser_id;
+    int64_t query_id;
+    CefRefPtr<Callback> callback;
+  };
 
+  // The active extension with `id`.
   Loaded* Find(const std::string& id);
+  // The extension (active or not) whose folder is `source`.
+  Loaded* FindSource(const std::string& source);
+  // Adds the extension in `source`, loading it (on a problem, an entry
+  // with its error, logged); serves it and adds it to pages if active.
+  Loaded& Add(const std::string& source, bool installed, bool enabled);
+  // Loads `loaded`'s folder (again): its manifest and files, and the
+  // user's side; sets `error` if it can't.
+  void Load(Loaded& loaded);
+  // Serves an active extension and adds it to every page; or the reverse.
+  void Activate(Loaded& loaded);
+  void Deactivate(Loaded& loaded);
+  // Turns the page and runtime domains on in a page (once).
+  void EnableDomains(Page& page);
+  // Adds an active extension to a page: its binding and scripts.
+  void AttachTo(int page_id, const Loaded& loaded, std::function<void()> done);
+  // Removes an extension's scripts and binding from a page.
+  void DetachFrom(Page& page, const Loaded& loaded);
+  // installed.json, from the installed extensions.
+  void SaveInstalled();
+  // Sends every listening Extensions page the list.
+  void Notify();
+  CefRefPtr<CefValue> State() const;
+  // A message from the Extensions page.
+  void OnManagerQuery(CefRefPtr<CefBrowser> browser,
+                      int64_t query_id,
+                      CefRefPtr<CefDictionaryValue> message,
+                      bool persistent,
+                      CefRefPtr<Callback> callback);
+  // A feature switched: features.json, the scripts, and open pages told.
+  void SetFeature(Loaded& loaded, const std::string& feature, bool enabled);
   // (Re)builds `loaded`'s scripts from its extension and the user's side.
   static void BuildScripts(Loaded& loaded);
   // Registers `loaded`'s scripts in the page for its next documents, and
@@ -124,8 +181,9 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
   CefRefPtr<DevToolsClient> devtools_;
   const std::string data_folder_;  // <profile>/openp41ge Extensions.
   OpenTab open_tab_;
-  std::vector<Loaded> loaded_;
+  std::list<Loaded> loaded_;  // A list: its entries stay put as others come and go.
   std::map<int, Page> pages_;  // By browser id.
+  std::vector<Listener> listeners_;
 };
 
 #endif  // OPENP41GE_EXPLORER_EXTENSIONS_EXTENSION_MANAGER_H_

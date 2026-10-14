@@ -17,9 +17,9 @@
 //   main frame, before the page's own scripts.
 // - The browser's own UI pages (openp41ge://ui/) get `cefQuery`, the
 //   message channel to the browser (CefMessageRouter). Web pages don't.
-// - Extension pages (openp41ge-extension://, extension_scheme.h) get
-//   `openp41geExtensionQuery`, a channel of their own (ExtensionManager),
-//   in their main frame only.
+// - Extension pages (openp41ge-extension://, extension_scheme.h) and the
+//   Extensions page (openp41ge://extensions/) get `openp41geExtensionQuery`,
+//   a channel of their own (ExtensionManager), in their main frame only.
 class RendererApp : public CefApp, public CefRenderProcessHandler {
  public:
   RendererApp();

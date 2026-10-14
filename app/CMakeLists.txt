@@ -179,7 +179,7 @@ add_cef_mac_resources(openp41ge_explorer
 # The extension runtime, run in pages (src/extensions/extension_manager.h).
 add_cef_mac_resources(openp41ge_explorer
   DIR "${CMAKE_CURRENT_SOURCE_DIR}/extensions"
-  DEST extensions
+  DEST extension-runtime
   FILES
     messages.js
     page-runtime.js
@@ -187,8 +187,9 @@ add_cef_mac_resources(openp41ge_explorer
     settings.js
 )
 # The browser's settings page for extensions, served in each extension's
-# origin (src/extensions/extension_scheme.h), with the code editor's UI kit
-# (<json-editor>); and shared/ (the theme).
+# origin (src/extensions/extension_scheme.h), with shared/ (the theme, and
+# the code editor's UI kit: <json-editor> and the config logic, for it and
+# the Extensions page).
 add_cef_mac_resources(openp41ge_explorer
   DIR "${CMAKE_CURRENT_SOURCE_DIR}/ui/extension-settings"
   DEST extension-settings
@@ -199,7 +200,7 @@ add_cef_mac_resources(openp41ge_explorer
 )
 add_cef_mac_resources(openp41ge_explorer
   DIR "${CMAKE_SOURCE_DIR}/third_party/openp41ge-uikit"
-  DEST extension-settings
+  DEST shared
   FILES
     uikit.js
 )
@@ -208,7 +209,7 @@ add_cef_mac_resources(openp41ge_explorer
 # (third_party/openp41ge-uikit/SOURCE).
 add_cef_mac_resources(openp41ge_explorer
   DIR "${CMAKE_SOURCE_DIR}/third_party/openp41ge-uikit"
-  DEST extensions
+  DEST extension-runtime
   FILES
     config.js
 )
@@ -255,6 +256,14 @@ add_cef_mac_resources(openp41ge_explorer
   FILES
     about.css
     about.js
+    index.html
+)
+add_cef_mac_resources(openp41ge_explorer
+  DIR "${CMAKE_CURRENT_SOURCE_DIR}/ui/extensions"
+  DEST extensions
+  FILES
+    extensions.css
+    extensions.js
     index.html
 )
 

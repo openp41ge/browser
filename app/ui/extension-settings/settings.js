@@ -17,7 +17,7 @@
 // need setting (required, with no value) and the stored values left out
 // because they don't fit the schema.
 
-import { cloneDeep, configDefaults, mergeDefaults, pinnedPaths, setAt, sortJsonKeys, stripDefaults } from './uikit.js';
+import { cloneDeep, configDefaults, mergeDefaults, pinnedPaths, setAt, sortJsonKeys, stripDefaults } from './shared/uikit.js';
 
 const api = window.openp41ge;
 const $ = (id) => document.getElementById(id);

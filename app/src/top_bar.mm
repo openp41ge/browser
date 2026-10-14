@@ -37,6 +37,8 @@ std::vector<MenuWindow::Item> MenuItems() {
   separator();
   add(Command::kFind, "Find…");
   add(Command::kPrint, "Print…");
+  separator();
+  add(Command::kExtensions, "Extensions");
   add(Command::kDevTools, "Developer Tools");
   return items;
 }

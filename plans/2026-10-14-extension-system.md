@@ -572,6 +572,44 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
   an unknown feature; `openPage` from a content script (and refused); the
   binding not in the page's world; a request at document start.
 
+## Step 10: what was built
+
+- **Installed extensions** are remembered in the profile
+  (`openp41ge Extensions/installed.json`: `[{ folder, enabled }]`) and load
+  at startup; `--extension-folder` adds some for one run ("This run only").
+  An installed folder that doesn't load is still listed, with why.
+- **The Extensions page,** `openp41ge://extensions/` (`app/ui/extensions`;
+  the browser menu's and the Window menu's Extensions): a card per
+  extension with its switch, version, description, the sites it runs on
+  (in plain words), its features' switches, "Needs setup" (worked out on
+  the page with the config logic, from the bundle now in `shared/`),
+  Settings (its own settings page, else the browser's), Reload, and Remove
+  (asks again on the button; removes its settings too); and Load folder…
+  (a native folder picker). Not in private windows. Served with
+  `frame-ancestors 'self'`, as all the browser's pages now are.
+- **Its channel:** the extension system's (`openp41geExtensionQuery`), which
+  the renderer gives this page's main frame too; ExtensionManager checks the
+  address. A persistent `listen` gets the list now and after each change.
+- **Features switched while pages are open:** the content-script runtime is
+  ready in every matching page, whether the features are on or not. On: the
+  feature's CSS goes in and its scripts run if they haven't; off: its CSS
+  comes out. Either way `feature(id).onEnabledChange` callbacks are told
+  (content scripts and extension pages), and later documents are as set.
+  A script runs once per document; it tears down and sets up again itself
+  (as browser-community's youtube-popout 0.1.1 does).
+- **An extension switched on or off, reloaded or removed** changes the
+  pages loaded after that (as in Chrome); every page is known to the
+  manager, so one added while pages are open reaches them too.
+- **The bundle's folders:** the runtime moved to `extension-runtime/`
+  (`extensions/` is the page's now), and `uikit.js` to `shared/`.
+- **Tests:** the list (installed and this-run badges, sites, features,
+  needs setup, a broken one's error); a feature switched on starts in an
+  open page, and onEnabledChange off and on; an extension switched off
+  isn't in the next page (and `installed.json` says so), and is again when
+  switched on; Remove (asks, removes the settings and the installed
+  record, gone from the next page); Reload. Load folder… is checked by hand
+  (a native dialog).
+
 ## Steps
 
 1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
@@ -611,8 +649,8 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
    works when an extension's world opened the window: before, the browser
    read the place from the page's main world, missed it, and centred an
    extension's pop-out on the screen.
-10. **Extensions page:** list, toggles, settings, load folder, reload,
-    remove.
+10. ~~**Extensions page:** list, toggles, settings, load folder, reload,
+    remove~~ (done 2026-10-14; see **Step 10: what was built**).
 11. **Secrets** in the Keychain.
 12. **Install from GitHub:** releases, review, pinning, unpacking checks.
 13. **Updates** from GitHub.

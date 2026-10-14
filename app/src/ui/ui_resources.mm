@@ -88,7 +88,11 @@ class UiResourceFactory : public CefSchemeHandlerFactory {
       }
     }
     if (!reader) return NotFound();
-    return new CefStreamResourceHandler(CefGetMimeType(file.pathExtension.UTF8String), reader);
+    // The browser's pages are never framed by others (one that acts, such
+    // as the Extensions page, can't be clicked through a web page's frame).
+    CefResponse::HeaderMap headers;
+    headers.insert({"Content-Security-Policy", "frame-ancestors 'self'"});
+    return new CefStreamResourceHandler(200, "OK", CefGetMimeType(file.pathExtension.UTF8String), headers, reader);
   }
 
   // openp41ge://about/info.js: what About shows, as a module (the page has no
@@ -174,6 +178,10 @@ void RegisterHandlerFactory(CefRefPtr<CefRequestContext> context, bool is_privat
   context->RegisterSchemeHandlerFactory(kScheme, "start",
                                         new UiResourceFactory(@"start", is_private ? @"/private.html" : @"/index.html"));
   context->RegisterSchemeHandlerFactory(kScheme, "about", new UiResourceFactory(@"about", @"/index.html"));
+  // Extensions aren't in private windows: nor is their page.
+  if (!is_private) {
+    context->RegisterSchemeHandlerFactory(kScheme, "extensions", new UiResourceFactory(@"extensions", @"/index.html"));
+  }
 }
 
 }  // namespace ui_scheme

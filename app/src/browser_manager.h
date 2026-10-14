@@ -77,6 +77,7 @@ class BrowserManager : public CefClient,
     kFindPrevious,
     kUpdate,
     kAbout,
+    kExtensions,
   };
 
   BrowserManager();
@@ -274,7 +275,7 @@ class BrowserManager : public CefClient,
   void ReopenClosed();
   // The UI's views and start pages, again (a development build's UI changed).
   void ReloadUi();
-  void ShowAbout();
+  void ShowPage(const std::string& url);
   void Remember(std::variant<ClosedTab, WindowLayout> item);
   // The windows to keep in the session, back to front.
   std::vector<WindowLayout> SessionWindows() const;

@@ -35,7 +35,8 @@ void RendererApp::OnContextCreated(CefRefPtr<CefBrowser> browser,
                                    CefRefPtr<CefFrame> frame,
                                    CefRefPtr<CefV8Context> context) {
   if (ui_scheme::IsUiUrl(frame->GetURL())) router_->OnContextCreated(browser, frame, context);
-  if (frame->IsMain() && !extension_scheme::IdOf(frame->GetURL()).empty()) {
+  if (frame->IsMain() &&
+      (!extension_scheme::IdOf(frame->GetURL()).empty() || ui_scheme::IsExtensionsUrl(frame->GetURL()))) {
     extension_router_->OnContextCreated(browser, frame, context);
   }
 

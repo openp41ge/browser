@@ -100,6 +100,14 @@
   // scripts and other pages.
   Object.defineProperty(window, '__openp41geDeliver', { configurable: true, value: hosts.deliver });
 
+  // The browser calls this when the user switches features ({ id: on }).
+  Object.defineProperty(window, '__openp41geFeaturesChanged', {
+    configurable: true,
+    value: (states) => {
+      for (const [id, on] of Object.entries(states)) hosts.setEnabled(id, on);
+    },
+  });
+
   // The browser calls this when the settings change (from any page).
   Object.defineProperty(window, '__openp41geSettingsChanged', {
     configurable: true,

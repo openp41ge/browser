@@ -185,6 +185,8 @@ NSMenu* BuildMainMenu() {
   [window addItem:[NSMenuItem separatorItem]];
   AddCommand(window, @"Pop Out Video", Command::kTogglePopout, @"p", kCmdShift);
   [window addItem:[NSMenuItem separatorItem]];
+  AddCommand(window, @"Extensions", Command::kExtensions, @"", 0);
+  [window addItem:[NSMenuItem separatorItem]];
   AddItem(window, @"Bring All to Front", @selector(arrangeInFront:), @"", 0);
   NSApp.windowsMenu = window;
 

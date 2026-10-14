@@ -132,4 +132,9 @@ void Serve(const Extension& extension, const std::string& resources) {
       kScheme, extension.id, new Files(extension, error ? fs::path(resources) : canonical));
 }
 
+void Unserve(const std::string& id) {
+  // Registering none removes the one there.
+  CefRequestContext::GetGlobalContext()->RegisterSchemeHandlerFactory(kScheme, id, nullptr);
+}
+
 }  // namespace extension_scheme

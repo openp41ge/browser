@@ -34,11 +34,18 @@ cmake --build build
 open "build/app/Release/openp41ge explorer.app"
 ```
 
-To try an extension from a folder (its manifest,
-`openp41ge-extension.json`, is described in
+Extensions are managed on the Extensions page (`openp41ge://extensions/`,
+in the ⋮ menu and the Window menu): Load folder… adds an extension's
+folder (its manifest, `openp41ge-extension.json`, is described in
 [plans/2026-10-14-extension-system.md](plans/2026-10-14-extension-system.md)),
-e.g. [examples/extensions/video-popout](examples/extensions/video-popout), a
-"Pop out" button over the video under the pointer:
+which is remembered; each extension and feature has a switch, and there's
+Settings, Reload and Remove. For example,
+[examples/extensions/video-popout](examples/extensions/video-popout) (a
+"Pop out" button over the video under the pointer), or a built
+[browser-community](https://github.com/openp41ge/browser-community)
+extension's `dist/<id>` folder.
+
+For one run only, without the page:
 
 ```sh
 "build/app/Release/openp41ge explorer.app/Contents/MacOS/openp41ge explorer" \
@@ -52,16 +59,14 @@ that did), and why not; with `--log-level=0` it also has pages' console
 messages, where an extension says why it didn't run (its settings need
 setup, or its schema is broken).
 
-An extension's pages open at `openp41ge-extension://<id>/<path>` (type it
-in the address bar): the example's settings page is
-`openp41ge-extension://video-popout/settings.html`. Every extension with
-settings also has the browser's settings page (a JSON view of them), at
-`openp41ge-extension://<id>/_openp41ge/settings.html`. Feature toggles are
-set by hand until the Extensions page exists, in the profile (`~/Library/Application
-Support/openp41ge explorer development/Default/openp41ge Extensions/<id>/`):
-`config.json` for settings (only those changed, e.g. `{ "corner":
-"bottom-left" }` for the example), `features.json` for features (`{
-"<feature id>": false }`). Hand edits are read as the app starts.
+An extension's pages open at `openp41ge-extension://<id>/<path>`; every
+extension with settings also has the browser's settings page (a JSON view
+of them), at `openp41ge-extension://<id>/_openp41ge/settings.html`. The
+Extensions page's Settings opens the extension's own settings page if it
+has one, else that. What the user set is in the profile
+(`~/Library/Application Support/openp41ge explorer development/Default/openp41ge Extensions/`):
+`installed.json`, and per extension `<id>/config.json` (settings) and
+`<id>/features.json` (feature switches).
 
 `third_party/openp41ge-uikit/` is a checked-in copy of parts of the
 openp41ge code editor's UI kit (`<json-editor>`, extension config logic),

@@ -13,8 +13,15 @@
 //   request   (message) => Promise: sends { type, … } to the browser and
 //             resolves with its answer (rejects with its refusal)
 //   log       (message, error) => void
-// and gets { feature(id), deliver(featureId, message) }:
-//   feature(id).id, .name, .enabled
+// and gets { feature(id), deliver(featureId, message), isEnabled(id),
+// setEnabled(id, enabled) }:
+//   feature(id).id, .name, .enabled (as it is now)
+//   feature(id).onEnabledChange(callback) is called with true or false when
+//     the user switches the feature on or off while the page is open (the
+//     browser's Extensions page); returns a function that stops it. A
+//     feature's scripts should tear down what they added when it goes off,
+//     and set it up again when it comes back on (they run only once in a
+//     document: the first time their feature is on)
 //   feature(id).broadcast(message) sends `message` (JSON) to the feature
 //     in the extension's other tabs and pages, and resolves with their
 //     replies (one per handler that returned something; a handler that
@@ -24,12 +31,16 @@
 //     function that stops it
 //   deliver(featureId, message) is what the browser calls with another
 //     tab's or page's broadcast: the replies of this document's handlers
+//   setEnabled(id, enabled) is the runtime's, when the browser says the
+//     user switched a feature
 
 (features, request, log) => {
   'use strict';
 
   const REPLY_TIMEOUT_MS = 5000;
   const handlers = new Map(); // By feature id.
+  const enabled = new Map(features.map((f) => [f.id, f.enabled]));
+  const enabledListeners = new Map(); // By feature id.
 
   const json = (value) => {
     const text = JSON.stringify(value);
@@ -43,7 +54,14 @@
     return Object.freeze({
       id: info.id,
       name: info.name,
-      enabled: info.enabled,
+      get enabled() {
+        return enabled.get(id);
+      },
+      onEnabledChange: (callback) => {
+        if (!enabledListeners.has(id)) enabledListeners.set(id, new Set());
+        enabledListeners.get(id).add(callback);
+        return () => enabledListeners.get(id).delete(callback);
+      },
       broadcast: async (message) => request({ type: 'broadcast', feature: id, message: json(message) }),
       onMessage: (handler) => {
         if (!handlers.has(id)) handlers.set(id, new Set());
@@ -71,5 +89,19 @@
     return replies.filter((reply) => reply !== undefined);
   };
 
-  return Object.freeze({ feature, deliver });
+  const isEnabled = (id) => enabled.get(id) === true;
+
+  const setEnabled = (id, value) => {
+    if (!enabled.has(id) || enabled.get(id) === value) return;
+    enabled.set(id, value);
+    for (const callback of enabledListeners.get(id) ?? []) {
+      try {
+        callback(value);
+      } catch (error) {
+        log(`feature "${id}": an onEnabledChange callback failed`, error);
+      }
+    }
+  };
+
+  return Object.freeze({ feature, deliver, isEnabled, setEnabled });
 }

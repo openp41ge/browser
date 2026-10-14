@@ -4,6 +4,7 @@
 
 #import <Foundation/Foundation.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -18,14 +19,16 @@
 
 #include "extensions/extension_scheme.h"
 #include "popout/popout_scripts.h"
+#include "ui/ui_scheme.h"
 
 namespace {
 
 constexpr char kDataFolder[] = "openp41ge Extensions";
+constexpr char kInstalledFile[] = "installed.json";
 constexpr char kConfigFile[] = "config.json";
 constexpr char kFeaturesFile[] = "features.json";
 
-// A file in the app bundle's extensions/ folder.
+// A file in the app bundle's extension-runtime/ folder.
 std::string Resource(NSString* name) {
   NSString* path = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:name];
   NSString* text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
@@ -35,13 +38,13 @@ std::string Resource(NSString* name) {
 
 // app/extensions/runtime.js.
 const std::string& Runtime() {
-  static const std::string runtime = Resource(@"extensions/runtime.js");
+  static const std::string runtime = Resource(@"extension-runtime/runtime.js");
   return runtime;
 }
 
 // app/extensions/page-runtime.js.
 const std::string& PageRuntime() {
-  static const std::string runtime = Resource(@"extensions/page-runtime.js");
+  static const std::string runtime = Resource(@"extension-runtime/page-runtime.js");
   return runtime;
 }
 
@@ -50,14 +53,14 @@ const std::string& PageRuntime() {
 // (third_party/openp41ge-uikit/config.js, a script that defines
 // `openp41geConfig`).
 const std::string& LoadSettings() {
-  static const std::string load = "function () {\n" + Resource(@"extensions/config.js") + "\nreturn (" +
-                                  Resource(@"extensions/settings.js") + ")(openp41geConfig);\n}";
+  static const std::string load = "function () {\n" + Resource(@"extension-runtime/config.js") + "\nreturn (" +
+                                  Resource(@"extension-runtime/settings.js") + ")(openp41geConfig);\n}";
   return load;
 }
 
 // app/extensions/messages.js (an expression: the runtimes call it).
 const std::string& Messages() {
-  static const std::string messages = Resource(@"extensions/messages.js");
+  static const std::string messages = Resource(@"extension-runtime/messages.js");
   return messages;
 }
 
@@ -123,6 +126,26 @@ void WriteFile(const std::string& path, const std::string& text) {
   LOG_IF(ERROR, error) << "Couldn't write " << path << ": " << error.message();
 }
 
+// Deletes `path` and what's in it. File thread.
+void DeleteFolder(const std::string& path) {
+  std::error_code error;
+  std::filesystem::remove_all(path, error);
+  LOG_IF(ERROR, error) << "Couldn't delete " << path << ": " << error.message();
+}
+
+// A folder picker's answer, to a function.
+class FolderChosen : public CefRunFileDialogCallback {
+ public:
+  explicit FolderChosen(std::function<void(const std::string&)> done) : done_(std::move(done)) {}
+  void OnFileDialogDismissed(const std::vector<CefString>& paths) override {
+    done_(paths.empty() ? std::string() : paths.front().ToString());
+  }
+
+ private:
+  std::function<void(const std::string&)> done_;
+  IMPLEMENT_REFCOUNTING(FolderChosen);
+};
+
 std::string Json(CefRefPtr<CefValue> value) {
   return CefWriteJSON(value, JSON_WRITER_DEFAULT).ToString();
 }
@@ -170,14 +193,7 @@ std::string ContentScript(const Extension& extension,
     for (const Extension::File& file : script.css) css->SetString(css->GetSize(), file.text);
     item->SetList("css", css);
     item->SetBool("runAtStart", script.run_at_start);
-    // As the user set its feature, else as it is by default.
-    bool enabled = true;
-    for (const Extension::Feature& feature : extension.features) {
-      if (feature.id != script.feature) continue;
-      enabled = feature.enabled_by_default;
-      if (features->GetType(feature.id) == VTYPE_BOOL) enabled = features->GetBool(feature.id);
-    }
-    item->SetBool("enabled", enabled);
+    item->SetString("feature", script.feature);
     content_scripts->SetDictionary(content_scripts->GetSize(), item);
 
     scripts += "[";
@@ -275,42 +291,155 @@ ExtensionManager::ExtensionManager(CefRefPtr<DevToolsClient> devtools,
   });
 }
 
-void ExtensionManager::LoadFolders(const std::vector<std::string>& folders) {
+void ExtensionManager::Start(const std::vector<std::string>& folders) {
+  // The installed ones: [{ "folder": …, "enabled": bool }].
+  CefRefPtr<CefValue> parsed;
+  {
+    std::ifstream stream(data_folder_ + "/" + kInstalledFile, std::ios::binary);
+    const std::string text((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+    if (!text.empty()) parsed = CefParseJSON(text, JSON_PARSER_RFC);
+    LOG_IF(ERROR, !text.empty() && (!parsed || parsed->GetType() != VTYPE_LIST))
+        << "Ignoring " << data_folder_ << "/" << kInstalledFile << ": not a JSON list";
+  }
+  CefRefPtr<CefListValue> installed = parsed && parsed->GetType() == VTYPE_LIST ? parsed->GetList() : nullptr;
+  for (size_t i = 0; installed && i < installed->GetSize(); ++i) {
+    CefRefPtr<CefDictionaryValue> item = installed->GetDictionary(i);
+    if (!item || item->GetType("folder") != VTYPE_STRING) continue;
+    Add(item->GetString("folder"), /*installed=*/true,
+        item->GetType("enabled") != VTYPE_BOOL || item->GetBool("enabled"));
+  }
+  // And this run's.
   for (const std::string& folder : folders) {
-    std::string error;
-    std::optional<Extension> extension = extensions::Load(folder, &error);
-    if (!extension) {
-      LOG(ERROR) << "Extension not loaded: " << error;
-      continue;
-    }
-    if (Find(extension->id)) {
-      LOG(ERROR) << "Extension not loaded: another extension has the id \"" << extension->id << "\" (" << folder << ")";
-      continue;
-    }
-    LOG(INFO) << "Extension loaded: " << extension->name << " (" << extension->id << " " << extension->version
-              << ") from " << extension->folder;
-    Loaded loaded;
-    loaded.world = "openp41ge-extension:" + extension->id;
-    loaded.binding = BindingName(extension->id);
-    loaded.data = data_folder_ + "/" + extension->id;
-    loaded.features = ReadObject(loaded.data + "/" + kFeaturesFile);
-    for (const Extension::Feature& feature : extension->features) {
-      if (loaded.features->HasKey(feature.id) && loaded.features->GetType(feature.id) != VTYPE_BOOL) {
-        LOG(ERROR) << "Ignoring " << loaded.data << "/" << kFeaturesFile << "'s \"" << feature.id
-                   << "\": not true or false";
+    if (!FindSource(folder)) Add(folder, /*installed=*/false, /*enabled=*/true);
+  }
+}
+
+bool ExtensionManager::HasExtensions() const {
+  for (const Loaded& loaded : loaded_) {
+    if (loaded.active()) return true;
+  }
+  return false;
+}
+
+ExtensionManager::Loaded& ExtensionManager::Add(const std::string& source, bool installed, bool enabled) {
+  Loaded& loaded = loaded_.emplace_back();
+  loaded.source = source;
+  loaded.installed = installed;
+  loaded.enabled = enabled;
+  Load(loaded);
+  if (loaded.active()) Activate(loaded);
+  return loaded;
+}
+
+void ExtensionManager::Load(Loaded& loaded) {
+  std::string error;
+  std::optional<Extension> extension = extensions::Load(loaded.source, &error);
+  if (extension) {
+    for (const Loaded& other : loaded_) {
+      if (&other != &loaded && other.error.empty() && other.extension.id == extension->id) {
+        error = "another extension has the id \"" + extension->id + "\" (" + other.source + ")";
+        extension.reset();
+        break;
       }
     }
-    loaded.values = ReadObject(loaded.data + "/" + kConfigFile);
-    loaded.extension = std::move(*extension);
-    BuildScripts(loaded);
-    extension_scheme::Serve(loaded.extension, NSBundle.mainBundle.resourcePath.UTF8String);
-    loaded_.push_back(std::move(loaded));
   }
+  if (!extension) {
+    LOG(ERROR) << "Extension not loaded: " << error;
+    loaded.error = error;
+    return;
+  }
+  LOG(INFO) << "Extension loaded: " << extension->name << " (" << extension->id << " " << extension->version
+            << ") from " << extension->folder;
+  loaded.error.clear();
+  loaded.world = "openp41ge-extension:" + extension->id;
+  loaded.binding = BindingName(extension->id);
+  loaded.data = data_folder_ + "/" + extension->id;
+  loaded.features = ReadObject(loaded.data + "/" + kFeaturesFile);
+  for (const Extension::Feature& feature : extension->features) {
+    if (loaded.features->HasKey(feature.id) && loaded.features->GetType(feature.id) != VTYPE_BOOL) {
+      LOG(ERROR) << "Ignoring " << loaded.data << "/" << kFeaturesFile << "'s \"" << feature.id
+                 << "\": not true or false";
+    }
+  }
+  loaded.values = ReadObject(loaded.data + "/" + kConfigFile);
+  loaded.extension = std::move(*extension);
+  BuildScripts(loaded);
+}
+
+void ExtensionManager::Activate(Loaded& loaded) {
+  extension_scheme::Serve(loaded.extension, NSBundle.mainBundle.resourcePath.UTF8String);
+  for (auto& [page_id, page] : pages_) AttachTo(page_id, loaded, nullptr);
+}
+
+void ExtensionManager::Deactivate(Loaded& loaded) {
+  extension_scheme::Unserve(loaded.extension.id);
+  for (auto& [page_id, page] : pages_) DetachFrom(page, loaded);
+}
+
+void ExtensionManager::EnableDomains(Page& page) {
+  if (page.domains) return;
+  page.domains = true;
+  // Scripts added for new documents run only while the page domain is on;
+  // a binding for a named world reaches worlds made later only while the
+  // runtime domain is.
+  devtools_->Call(page.browser, "Page.enable", nullptr);
+  devtools_->Call(page.browser, "Runtime.enable", nullptr);
+}
+
+void ExtensionManager::AttachTo(int page_id, const Loaded& loaded, std::function<void()> done) {
+  auto page = pages_.find(page_id);
+  if (page == pages_.end()) return;
+  EnableDomains(page->second);
+  // The function its world sends to the browser with, in its world only.
+  // It reaches a new document's world just after the document's first
+  // scripts run: the runtime looks it up when it sends.
+  CefRefPtr<CefDictionaryValue> binding = CefDictionaryValue::Create();
+  binding->SetString("name", loaded.binding);
+  binding->SetString("executionContextName", loaded.world);
+  devtools_->Call(page->second.browser, "Runtime.addBinding", binding);
+  AddScripts(page_id, loaded, std::move(done));
+}
+
+void ExtensionManager::DetachFrom(Page& page, const Loaded& loaded) {
+  auto scripts = page.scripts.find(loaded.extension.id);
+  if (scripts == page.scripts.end()) return;
+  for (const std::string& identifier : scripts->second) {
+    CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+    params->SetString("identifier", identifier);
+    devtools_->Call(page.browser, "Page.removeScriptToEvaluateOnNewDocument", params);
+  }
+  page.scripts.erase(scripts);
+  CefRefPtr<CefDictionaryValue> binding = CefDictionaryValue::Create();
+  binding->SetString("name", loaded.binding);
+  devtools_->Call(page.browser, "Runtime.removeBinding", binding);
+}
+
+void ExtensionManager::SaveInstalled() {
+  CefRefPtr<CefListValue> list = CefListValue::Create();
+  for (const Loaded& loaded : loaded_) {
+    if (!loaded.installed) continue;
+    CefRefPtr<CefDictionaryValue> item = CefDictionaryValue::Create();
+    item->SetString("folder", loaded.source);
+    item->SetBool("enabled", loaded.enabled);
+    list->SetDictionary(list->GetSize(), item);
+  }
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetList(list);
+  CefPostTask(TID_FILE_USER_BLOCKING,
+              base::BindOnce(&WriteFile, data_folder_ + "/" + kInstalledFile,
+                             CefWriteJSON(value, JSON_WRITER_PRETTY_PRINT).ToString()));
 }
 
 ExtensionManager::Loaded* ExtensionManager::Find(const std::string& id) {
   for (Loaded& loaded : loaded_) {
-    if (loaded.extension.id == id) return &loaded;
+    if (loaded.active() && loaded.extension.id == id) return &loaded;
+  }
+  return nullptr;
+}
+
+ExtensionManager::Loaded* ExtensionManager::FindSource(const std::string& source) {
+  for (Loaded& loaded : loaded_) {
+    if (loaded.source == source) return &loaded;
   }
   return nullptr;
 }
@@ -322,27 +451,19 @@ void ExtensionManager::BuildScripts(Loaded& loaded) {
 
 void ExtensionManager::OnPageCreated(CefRefPtr<CefBrowser> browser, std::function<void()> ready) {
   CEF_REQUIRE_UI_THREAD();
-  if (loaded_.empty()) {
+  // Every page is known, so an extension added later reaches it too.
+  pages_[browser->GetIdentifier()] = {browser, false, {}};
+  size_t active = 0;
+  for (const Loaded& loaded : loaded_) active += loaded.active();
+  if (!active) {
     if (ready) ready();
     return;
   }
-  pages_[browser->GetIdentifier()] = {browser, {}};
-  // Scripts added for new documents run only while the page domain is on;
-  // a binding for a named world reaches worlds made later only while the
-  // runtime domain is.
-  devtools_->Call(browser, "Page.enable", nullptr);
-  devtools_->Call(browser, "Runtime.enable", nullptr);
   // `ready` runs once every extension's scripts are added.
-  auto waiting = std::make_shared<size_t>(loaded_.size());
+  auto waiting = std::make_shared<size_t>(active);
   for (const Loaded& loaded : loaded_) {
-    // The function its world sends to the browser with, in its world only.
-    // It reaches a new document's world just after the document's first
-    // scripts run: the runtime looks it up when it sends.
-    CefRefPtr<CefDictionaryValue> binding = CefDictionaryValue::Create();
-    binding->SetString("name", loaded.binding);
-    binding->SetString("executionContextName", loaded.world);
-    devtools_->Call(browser, "Runtime.addBinding", binding);
-    AddScripts(browser->GetIdentifier(), loaded, [waiting, ready] {
+    if (!loaded.active()) continue;
+    AttachTo(browser->GetIdentifier(), loaded, [waiting, ready] {
       if (--*waiting == 0 && ready) ready();
     });
   }
@@ -421,6 +542,7 @@ void ExtensionManager::SetValues(Loaded& loaded, CefRefPtr<CefDictionaryValue> v
   const std::string id = loaded.extension.id;
   const std::string origin = extension_scheme::Origin(id);
   for (auto& [page_id, page] : pages_) {
+    if (!page.scripts.count(id)) continue;  // Not in this page (a private one).
     // Later documents get the new values.
     AddScripts(page_id, loaded, nullptr);
     CefRefPtr<CefBrowser> browser = page.browser;
@@ -434,6 +556,191 @@ void ExtensionManager::SetValues(Loaded& loaded, CefRefPtr<CefDictionaryValue> v
   }
 }
 
+void ExtensionManager::SetFeature(Loaded& loaded, const std::string& feature, bool enabled) {
+  loaded.features->SetBool(feature, enabled);
+  // Only what differs from the default is the user's.
+  for (const Extension::Feature& f : loaded.extension.features) {
+    if (f.id == feature && f.enabled_by_default == enabled) loaded.features->Remove(feature);
+  }
+  CefPostTask(TID_FILE_USER_BLOCKING,
+              base::BindOnce(&WriteFile, loaded.data + "/" + kFeaturesFile, Json(loaded.features)));
+  BuildScripts(loaded);
+  const std::string id = loaded.extension.id;
+  const std::string states = "{" + JsonString(feature) + ": " + (enabled ? "true" : "false") + "}";
+  const std::string origin = extension_scheme::Origin(id);
+  for (auto& [page_id, page] : pages_) {
+    if (!page.scripts.count(id)) continue;
+    // Later documents as the user set it; and the open ones told.
+    AddScripts(page_id, loaded, nullptr);
+    EvaluateInWorld(devtools_, page.browser, loaded.world, "globalThis.__openp41geFeaturesChanged?.(" + states + ")",
+                    false, nullptr);
+    devtools_->Evaluate(page.browser,
+                        "location.origin === " + JsonString(origin) + " && window.__openp41geFeaturesChanged?.(" +
+                            states + ")",
+                        {});
+  }
+}
+
+CefRefPtr<CefValue> ExtensionManager::State() const {
+  CefRefPtr<CefListValue> list = CefListValue::Create();
+  for (const Loaded& loaded : loaded_) {
+    CefRefPtr<CefDictionaryValue> item = CefDictionaryValue::Create();
+    item->SetString("key", loaded.source);
+    item->SetString("folder", loaded.source);
+    item->SetBool("installed", loaded.installed);
+    item->SetBool("enabled", loaded.enabled);
+    item->SetString("error", loaded.error);
+    if (loaded.error.empty()) {
+      const Extension& extension = loaded.extension;
+      item->SetString("id", extension.id);
+      item->SetString("name", extension.name);
+      item->SetString("version", extension.version);
+      item->SetString("description", extension.description);
+      // The sites it runs on, each once.
+      CefRefPtr<CefListValue> sites = CefListValue::Create();
+      std::vector<std::string> seen;
+      for (const Extension::ContentScript& script : extension.content_scripts) {
+        for (const std::string& pattern : script.matches) {
+          if (std::find(seen.begin(), seen.end(), pattern) != seen.end()) continue;
+          seen.push_back(pattern);
+          sites->SetString(sites->GetSize(), pattern);
+        }
+      }
+      item->SetList("sites", sites);
+      item->SetList("features", FeatureList(extension, loaded.features));
+      // Its settings page: its own, else the browser's if it has settings.
+      std::string settings;
+      for (const Extension::Page& page : extension.pages) {
+        if (page.settings) settings = extension_scheme::Origin(extension.id) + "/" + page.path;
+      }
+      if (settings.empty() && !extension.config_schema.empty()) settings = extension_scheme::SettingsUrl(extension.id);
+      item->SetString("settings", settings);
+      // For the page to say whether it needs setup.
+      if (!extension.config_schema.empty()) {
+        CefRefPtr<CefDictionaryValue> config = CefDictionaryValue::Create();
+        config->SetValue("schema", CefParseJSON(extension.config_schema, JSON_PARSER_RFC));
+        config->SetDictionary("values", loaded.values->Copy(false));
+        item->SetDictionary("config", config);
+      }
+    }
+    list->SetDictionary(list->GetSize(), item);
+  }
+  CefRefPtr<CefValue> value = CefValue::Create();
+  value->SetList(list);
+  return value;
+}
+
+void ExtensionManager::Notify() {
+  const std::string state = Json(State());
+  for (const Listener& listener : listeners_) listener.callback->Success(state);
+}
+
+void ExtensionManager::OnQueryCanceled(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int64_t query_id) {
+  std::erase_if(listeners_, [&](const Listener& listener) {
+    return listener.browser_id == browser->GetIdentifier() && listener.query_id == query_id;
+  });
+}
+
+void ExtensionManager::OnManagerQuery(CefRefPtr<CefBrowser> browser,
+                                      int64_t query_id,
+                                      CefRefPtr<CefDictionaryValue> message,
+                                      bool persistent,
+                                      CefRefPtr<Callback> callback) {
+  const std::string type = message->GetString("type");
+  // The list, now and after every change.
+  if (type == "listen") {
+    if (!persistent) {
+      callback->Failure(0, "listen is persistent");
+      return;
+    }
+    listeners_.push_back({browser->GetIdentifier(), query_id, callback});
+    callback->Success(Json(State()));
+    return;
+  }
+  if (persistent) {
+    callback->Failure(0, "Only listen is persistent");
+    return;
+  }
+  if (type == "loadFolder") {
+    // The folder the user picks.
+    ExtensionManager* self = this;
+    browser->GetHost()->RunFileDialog(
+        FILE_DIALOG_OPEN_FOLDER, "Load an Extension Folder", "", {},
+        new FolderChosen([self, callback](const std::string& folder) {
+          if (folder.empty()) {
+            callback->Success("");
+            return;
+          }
+          if (Loaded* known = self->FindSource(folder)) {
+            callback->Failure(0, "It's loaded already" + (known->error.empty() ? "" : " (with a problem: " + known->error + ")"));
+            return;
+          }
+          Loaded& loaded = self->Add(folder, /*installed=*/true, /*enabled=*/true);
+          if (!loaded.error.empty()) {
+            const std::string error = loaded.error;
+            self->loaded_.pop_back();
+            callback->Failure(0, error);
+            return;
+          }
+          self->SaveInstalled();
+          self->Notify();
+          callback->Success("");
+        }));
+    return;
+  }
+  Loaded* loaded = FindSource(message->GetString("key"));
+  if (!loaded) {
+    callback->Failure(0, "No such extension");
+    return;
+  }
+  if (type == "setEnabled") {
+    const bool enabled = message->GetBool("enabled");
+    if (loaded->enabled != enabled) {
+      if (loaded->active()) Deactivate(*loaded);
+      loaded->enabled = enabled;
+      if (loaded->active()) Activate(*loaded);
+      if (loaded->installed) SaveInstalled();
+    }
+  } else if (type == "setFeature") {
+    const std::string feature = message->GetString("feature");
+    bool known = false;
+    for (const Extension::Feature& f : loaded->extension.features) known |= f.id == feature;
+    if (!loaded->error.empty() || !known) {
+      callback->Failure(0, "No such feature");
+      return;
+    }
+    SetFeature(*loaded, feature, message->GetBool("enabled"));
+  } else if (type == "reload") {
+    // Its folder read again; pages loaded from now on get it.
+    if (loaded->active()) Deactivate(*loaded);
+    Load(*loaded);
+    if (loaded->active()) Activate(*loaded);
+  } else if (type == "remove") {
+    if (loaded->active()) Deactivate(*loaded);
+    // Its settings and feature switches go with it.
+    if (loaded->error.empty()) CefPostTask(TID_FILE_USER_BLOCKING, base::BindOnce(&DeleteFolder, loaded->data));
+    const bool installed = loaded->installed;
+    loaded_.remove_if([&](const Loaded& l) { return &l == loaded; });
+    if (installed) SaveInstalled();
+  } else if (type == "openSettings") {
+    std::string url;
+    for (const Extension::Page& page : loaded->extension.pages) {
+      if (page.settings) url = extension_scheme::Origin(loaded->extension.id) + "/" + page.path;
+    }
+    if (url.empty() && !loaded->extension.config_schema.empty()) url = extension_scheme::SettingsUrl(loaded->extension.id);
+    if (url.empty() || !loaded->active()) {
+      callback->Failure(0, "No settings to open");
+      return;
+    }
+    open_tab_(browser, url);
+  } else {
+    callback->Failure(0, "Unknown message");
+    return;
+  }
+  Notify();
+  callback->Success("");
+}
+
 bool ExtensionManager::OnQuery(CefRefPtr<CefBrowser> browser,
                                CefRefPtr<CefFrame> frame,
                                int64_t query_id,
@@ -441,6 +748,14 @@ bool ExtensionManager::OnQuery(CefRefPtr<CefBrowser> browser,
                                bool persistent,
                                CefRefPtr<Callback> callback) {
   CEF_REQUIRE_UI_THREAD();
+  // The Extensions page.
+  if (frame && frame->IsMain() && ui_scheme::IsExtensionsUrl(frame->GetURL())) {
+    CefRefPtr<CefValue> parsed = CefParseJSON(request, JSON_PARSER_RFC);
+    CefRefPtr<CefDictionaryValue> message = parsed ? parsed->GetDictionary() : nullptr;
+    if (!message) return false;
+    OnManagerQuery(browser, query_id, message, persistent, callback);
+    return true;
+  }
   // Only from the main frame of a loaded extension's page.
   Loaded* loaded = frame && frame->IsMain() ? Find(extension_scheme::IdOf(frame->GetURL())) : nullptr;
   if (!loaded || persistent) return false;
@@ -581,7 +896,7 @@ void ExtensionManager::Broadcast(const Loaded& loaded,
   // The feature in the extension's content scripts in the other tabs, and
   // the extension's other pages.
   for (auto& [page_id, page] : pages_) {
-    if (page_id == sender_page) continue;
+    if (page_id == sender_page || !page.scripts.count(loaded.extension.id)) continue;
     state->waiting += 2;
     EvaluateInWorld(devtools_, page.browser, loaded.world, "globalThis.__openp41geDeliver?.(" + call.substr(1), true,
                     collect);

@@ -14,6 +14,10 @@ bool IsUiUrl(const std::string& url) {
   return url.rfind(kOrigin, 0) == 0;
 }
 
+bool IsExtensionsUrl(const std::string& url) {
+  return url.rfind(kExtensionsUrl, 0) == 0;
+}
+
 bool IsStartUrl(const std::string& url) {
   // An origin has no trailing slash.
   const std::string origin(kStartUrl, sizeof(kStartUrl) - 2);

@@ -9,7 +9,7 @@
 // (src/extensions/extension_manager.mm) calls it with:
 //   extension  { id, name, version, binding, features: [{ id, name,
 //              enabled }], contentScripts: [{ matches, css, runAtStart,
-//              enabled }], config?: { schema, values } }, the CSS as text;
+//              feature }], config?: { schema, values } }, the CSS as text;
 //              `enabled` as the user set the feature; `values` the user's
 //              settings, as stored; `binding` the name of the function this
 //              world has for sending to the browser (ExtensionManager)
@@ -20,9 +20,14 @@
 //              logic, and reading settings with it)
 //   messages   messages.js (feature hosts)
 //
-// In the top frame of a page whose address matches a content script, it
-// adds the script's CSS and runs its JS: straight away for
-// "document_start", once the page's DOM is ready for "document_idle".
+// In the top frame of a page whose address matches a content script whose
+// feature is on (or that has none), it adds the script's CSS and runs its
+// JS: straight away for "document_start", once the page's DOM is ready for
+// "document_idle". When the user switches a feature while the page is open
+// (the browser calls `__openp41geFeaturesChanged`): on, its scripts' CSS goes
+// in and scripts that haven't run yet run; off, their CSS comes out; and
+// the feature's onEnabledChange callbacks are told either way (a script
+// runs once per document, so it tears down and sets up again itself).
 // Extensions' code finds the browser's API at `openp41ge`.
 //
 // Settings (settings.js): the user's values merged over the schema's
@@ -56,10 +61,12 @@
 
   const log = (message, error) => console.error(`[${extension.name} (${extension.id})] ${message}`, error ?? '');
 
-  const toRun = extension.contentScripts
-    .map((script, i) => ({ ...script, js: scripts[i] }))
-    .filter((script) => script.enabled && script.matches.some((pattern) => matches(pattern, location)));
-  if (!toRun.length) return;
+  // The content scripts for this page, whether their feature is on or not
+  // (it can come on while the page is open).
+  const matching = extension.contentScripts
+    .map((script, i) => ({ ...script, js: scripts[i], sheets: null, ran: false }))
+    .filter((script) => script.matches.some((pattern) => matches(pattern, location)));
+  if (!matching.length) return;
 
   const settingsLib = extension.config ? loadSettings() : null;
   let config = settings(extension.config?.values);
@@ -128,6 +135,18 @@
     },
   });
   Object.defineProperty(globalThis, '__openp41geDeliver', { configurable: true, value: hosts.deliver });
+  // The user switched features ({ id: on }).
+  Object.defineProperty(globalThis, '__openp41geFeaturesChanged', {
+    configurable: true,
+    value: (states) => {
+      for (const [id, on] of Object.entries(states)) hosts.setEnabled(id, on);
+      for (const script of matching) {
+        if (!script.feature || !(script.feature in states)) continue;
+        if (isOn(script)) start(script, false);
+        else removeCss(script);
+      }
+    },
+  });
   Object.defineProperty(globalThis, '__openp41geSettingsChanged', {
     configurable: true,
     value: (values) => {
@@ -144,19 +163,28 @@
     },
   });
 
+  const isOn = (script) => !script.feature || hosts.isEnabled(script.feature);
+
   // CSS as constructed style sheets: a page's Content Security Policy
   // doesn't apply to them, as it would to a <style> element.
-  for (const script of toRun) {
-    for (const text of script.css) {
+  const addCss = (script) => {
+    script.sheets ??= script.css.flatMap((text) => {
       try {
         const sheet = new CSSStyleSheet();
         sheet.replaceSync(text);
-        document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+        return [sheet];
       } catch (error) {
         log('CSS failed', error);
+        return [];
       }
-    }
-  }
+    });
+    const sheets = script.sheets.filter((sheet) => !document.adoptedStyleSheets.includes(sheet));
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, ...sheets];
+  };
+  const removeCss = (script) => {
+    if (!script.sheets) return;
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter((sheet) => !script.sheets.includes(sheet));
+  };
 
   const run = (script) => {
     for (const file of script.js) {
@@ -169,9 +197,17 @@
   };
   const whenReady = (fn) =>
     document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', fn, { once: true }) : fn();
-  for (const script of toRun) {
-    if (script.runAtStart) run(script);
+  // Its CSS, and its JS if it hasn't run in this document (`atStart`: as the
+  // document starts, when "document_start" scripts run before the DOM).
+  const start = (script, atStart) => {
+    addCss(script);
+    if (script.ran) return;
+    script.ran = true;
+    if (atStart && script.runAtStart) run(script);
     else whenReady(() => run(script));
+  };
+  for (const script of matching) {
+    if (isOn(script)) start(script, true);
   }
 
   // The settings content scripts get from the user's `values` (see the

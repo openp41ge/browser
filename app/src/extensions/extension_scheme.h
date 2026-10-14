@@ -50,6 +50,8 @@ std::string SettingsUrl(const std::string& id);
 // bundle's Resources folder), in the global request context.
 // Browser process, once CEF is initialized.
 void Serve(const Extension& extension, const std::string& resources);
+// Stops serving extension `id`.
+void Unserve(const std::string& id);
 
 }  // namespace extension_scheme
 
