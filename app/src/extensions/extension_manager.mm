@@ -55,6 +55,40 @@ const std::string& LoadSettings() {
   return load;
 }
 
+// app/extensions/messages.js (an expression: the runtimes call it).
+const std::string& Messages() {
+  static const std::string messages = Resource(@"extensions/messages.js");
+  return messages;
+}
+
+// How long a broadcast waits for replies at most (the runtimes give each
+// handler 5 s).
+constexpr int kBroadcastTimeoutMs = 6000;
+
+// The name of the function an extension's world sends to the browser with
+// (Runtime.addBinding): one per extension, so its name says which.
+std::string BindingName(const std::string& id) {
+  std::string name = "__openp41geSend_" + id;
+  for (char& c : name) {
+    if (c == '-') c = '_';
+  }
+  return name;
+}
+
+// The extension's features, as the user set them, for the runtimes.
+CefRefPtr<CefListValue> FeatureList(const Extension& extension, CefRefPtr<CefDictionaryValue> features) {
+  CefRefPtr<CefListValue> list = CefListValue::Create();
+  for (const Extension::Feature& feature : extension.features) {
+    CefRefPtr<CefDictionaryValue> item = CefDictionaryValue::Create();
+    item->SetString("id", feature.id);
+    item->SetString("name", feature.name);
+    item->SetBool("enabled", features->GetType(feature.id) == VTYPE_BOOL ? features->GetBool(feature.id)
+                                                                         : feature.enabled_by_default);
+    list->SetDictionary(list->GetSize(), item);
+  }
+  return list;
+}
+
 // The JSON object in `path`; an empty one if there's no file. One that
 // isn't a JSON object is logged and read as empty (and left as it is).
 CefRefPtr<CefDictionaryValue> ReadObject(const std::string& path) {
@@ -159,19 +193,23 @@ std::string ContentScript(const Extension& extension,
   info->SetString("name", extension.name);
   info->SetString("version", extension.version);
   info->SetList("contentScripts", content_scripts);
+  info->SetList("features", FeatureList(extension, features));
+  info->SetString("binding", BindingName(extension.id));
   // The runtime reads `config` from the extension.
   std::string info_json = Json(info);
   info_json.pop_back();  // The closing brace.
   info_json += ",\"config\":" + ConfigJson(extension, values) + "}";
 
   return "(" + Runtime() + ")(\n" + info_json + ",\n" + scripts + ",\n" + AsFunction(popout_scripts::Library()) +
-         ",\n" + LoadSettings() + ");\n";
+         ",\n" + LoadSettings() + ",\n" + Messages() + ");\n";
 }
 
 // The script that runs in each document's own world, for the extension's
-// pages: the page runtime, called with the extension, its config and the
-// settings helpers.
-std::string PageScript(const Extension& extension, CefRefPtr<CefDictionaryValue> values) {
+// pages: the page runtime, called with the extension, its config, the
+// settings helpers and messages.js.
+std::string PageScript(const Extension& extension,
+                       CefRefPtr<CefDictionaryValue> features,
+                       CefRefPtr<CefDictionaryValue> values) {
   CefRefPtr<CefDictionaryValue> info = CefDictionaryValue::Create();
   info->SetString("id", extension.id);
   info->SetString("name", extension.name);
@@ -185,8 +223,45 @@ std::string PageScript(const Extension& extension, CefRefPtr<CefDictionaryValue>
     pages->SetDictionary(pages->GetSize(), item);
   }
   info->SetList("pages", pages);
+  info->SetList("features", FeatureList(extension, features));
   return "(" + PageRuntime() + ")(\n" + Json(info) + ",\n" + ConfigJson(extension, values) + ",\n" +
-         LoadSettings() + ");\n";
+         LoadSettings() + ",\n" + Messages() + ");\n";
+}
+
+// Evaluates `expression` in the page's top frame, in the isolated world
+// `world` (the same world each time: the one the extension's scripts run
+// in); `callback` (optional) gets its value (by value, a returned promise
+// awaited if `await`), or null.
+void EvaluateInWorld(CefRefPtr<DevToolsClient> devtools,
+                     CefRefPtr<CefBrowser> browser,
+                     const std::string& world,
+                     const std::string& expression,
+                     bool await,
+                     DevToolsClient::ValueCallback callback) {
+  auto fail = [callback] {
+    if (callback) callback(nullptr);
+  };
+  devtools->Call(browser, "Page.getFrameTree", nullptr, [=](CefRefPtr<CefDictionaryValue> tree) {
+    CefRefPtr<CefDictionaryValue> frame_tree = tree ? tree->GetDictionary("frameTree") : nullptr;
+    CefRefPtr<CefDictionaryValue> frame = frame_tree ? frame_tree->GetDictionary("frame") : nullptr;
+    if (!frame) return fail();
+    CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+    params->SetString("frameId", frame->GetString("id"));
+    params->SetString("worldName", world);
+    devtools->Call(browser, "Page.createIsolatedWorld", params, [=](CefRefPtr<CefDictionaryValue> created) {
+      if (!created || !created->HasKey("executionContextId")) return fail();
+      CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+      params->SetString("expression", expression);
+      params->SetInt("contextId", created->GetInt("executionContextId"));
+      params->SetBool("returnByValue", true);
+      if (await) params->SetBool("awaitPromise", true);
+      devtools->Call(browser, "Runtime.evaluate", params, [callback](CefRefPtr<CefDictionaryValue> result) {
+        if (!callback) return;
+        CefRefPtr<CefDictionaryValue> inner = result ? result->GetDictionary("result") : nullptr;
+        callback(inner && inner->HasKey("value") ? inner->GetValue("value") : nullptr);
+      });
+    });
+  });
 }
 
 }  // namespace
@@ -194,7 +269,11 @@ std::string PageScript(const Extension& extension, CefRefPtr<CefDictionaryValue>
 ExtensionManager::ExtensionManager(CefRefPtr<DevToolsClient> devtools,
                                    const std::string& profile_folder,
                                    OpenTab open_tab)
-    : devtools_(devtools), data_folder_(profile_folder + "/" + kDataFolder), open_tab_(std::move(open_tab)) {}
+    : devtools_(devtools), data_folder_(profile_folder + "/" + kDataFolder), open_tab_(std::move(open_tab)) {
+  devtools_->OnEvent("Runtime.bindingCalled", [this](CefRefPtr<CefBrowser> browser, CefRefPtr<CefDictionaryValue> params) {
+    OnBindingCalled(browser, params);
+  });
+}
 
 void ExtensionManager::LoadFolders(const std::vector<std::string>& folders) {
   for (const std::string& folder : folders) {
@@ -212,6 +291,7 @@ void ExtensionManager::LoadFolders(const std::vector<std::string>& folders) {
               << ") from " << extension->folder;
     Loaded loaded;
     loaded.world = "openp41ge-extension:" + extension->id;
+    loaded.binding = BindingName(extension->id);
     loaded.data = data_folder_ + "/" + extension->id;
     loaded.features = ReadObject(loaded.data + "/" + kFeaturesFile);
     for (const Extension::Feature& feature : extension->features) {
@@ -237,7 +317,7 @@ ExtensionManager::Loaded* ExtensionManager::Find(const std::string& id) {
 
 void ExtensionManager::BuildScripts(Loaded& loaded) {
   loaded.content_script = ContentScript(loaded.extension, loaded.features, loaded.values);
-  loaded.page_script = PageScript(loaded.extension, loaded.values);
+  loaded.page_script = PageScript(loaded.extension, loaded.features, loaded.values);
 }
 
 void ExtensionManager::OnPageCreated(CefRefPtr<CefBrowser> browser, std::function<void()> ready) {
@@ -247,11 +327,21 @@ void ExtensionManager::OnPageCreated(CefRefPtr<CefBrowser> browser, std::functio
     return;
   }
   pages_[browser->GetIdentifier()] = {browser, {}};
-  // Scripts added for new documents run only while the page domain is on.
+  // Scripts added for new documents run only while the page domain is on;
+  // a binding for a named world reaches worlds made later only while the
+  // runtime domain is.
   devtools_->Call(browser, "Page.enable", nullptr);
+  devtools_->Call(browser, "Runtime.enable", nullptr);
   // `ready` runs once every extension's scripts are added.
   auto waiting = std::make_shared<size_t>(loaded_.size());
   for (const Loaded& loaded : loaded_) {
+    // The function its world sends to the browser with, in its world only.
+    // It reaches a new document's world just after the document's first
+    // scripts run: the runtime looks it up when it sends.
+    CefRefPtr<CefDictionaryValue> binding = CefDictionaryValue::Create();
+    binding->SetString("name", loaded.binding);
+    binding->SetString("executionContextName", loaded.world);
+    devtools_->Call(browser, "Runtime.addBinding", binding);
     AddScripts(browser->GetIdentifier(), loaded, [waiting, ready] {
       if (--*waiting == 0 && ready) ready();
     });
@@ -301,23 +391,7 @@ void ExtensionManager::AddScripts(int page_id, const Loaded& loaded, std::functi
     // And the document already there, if the page got one before the
     // script was added (the runtime runs once per document, whichever way
     // it's run first).
-    devtools->Call(browser, "Page.getFrameTree", nullptr,
-                   [devtools, browser, world, content_script](CefRefPtr<CefDictionaryValue> tree) {
-      CefRefPtr<CefDictionaryValue> frame_tree = tree ? tree->GetDictionary("frameTree") : nullptr;
-      CefRefPtr<CefDictionaryValue> frame = frame_tree ? frame_tree->GetDictionary("frame") : nullptr;
-      if (!frame) return;
-      CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
-      params->SetString("frameId", frame->GetString("id"));
-      params->SetString("worldName", world);
-      devtools->Call(browser, "Page.createIsolatedWorld", params,
-                     [devtools, browser, content_script](CefRefPtr<CefDictionaryValue> created) {
-        if (!created || !created->HasKey("executionContextId")) return;
-        CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
-        params->SetString("expression", content_script);
-        params->SetInt("contextId", created->GetInt("executionContextId"));
-        devtools->Call(browser, "Runtime.evaluate", params);
-      });
-    });
+    EvaluateInWorld(devtools, browser, world, content_script, false, nullptr);
   });
 
   // The page runtime, in each document's own world (it does nothing but in
@@ -355,23 +429,8 @@ void ExtensionManager::SetValues(Loaded& loaded, CefRefPtr<CefDictionaryValue> v
                         "location.origin === " + JsonString(origin) + " && window.__openp41geSettingsChanged?.(" +
                             json + ")",
                         {});
-    const std::string world = loaded.world;
-    CefRefPtr<DevToolsClient> devtools = devtools_;
-    devtools_->Call(browser, "Page.getFrameTree", nullptr, [devtools, browser, world, json](CefRefPtr<CefDictionaryValue> tree) {
-      CefRefPtr<CefDictionaryValue> frame_tree = tree ? tree->GetDictionary("frameTree") : nullptr;
-      CefRefPtr<CefDictionaryValue> frame = frame_tree ? frame_tree->GetDictionary("frame") : nullptr;
-      if (!frame) return;
-      CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
-      params->SetString("frameId", frame->GetString("id"));
-      params->SetString("worldName", world);
-      devtools->Call(browser, "Page.createIsolatedWorld", params, [devtools, browser, json](CefRefPtr<CefDictionaryValue> created) {
-        if (!created || !created->HasKey("executionContextId")) return;
-        CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
-        params->SetString("expression", "globalThis.__openp41geSettingsChanged?.(" + json + ")");
-        params->SetInt("contextId", created->GetInt("executionContextId"));
-        devtools->Call(browser, "Runtime.evaluate", params);
-      });
-    });
+    EvaluateInWorld(devtools_, browser, loaded.world, "globalThis.__openp41geSettingsChanged?.(" + json + ")", false,
+                    nullptr);
   }
 }
 
@@ -417,6 +476,125 @@ bool ExtensionManager::OnQuery(CefRefPtr<CefBrowser> browser,
     return true;
   }
 
+  if (type == "broadcast") {
+    Broadcast(*loaded, message->GetString("feature"), message->GetValue("message"), browser->GetIdentifier(),
+              [callback](CefRefPtr<CefListValue> replies) {
+                CefRefPtr<CefValue> value = CefValue::Create();
+                value->SetList(replies);
+                callback->Success(Json(value));
+              });
+    return true;
+  }
+
   callback->Failure(0, "Unknown message");
   return true;
+}
+
+void ExtensionManager::OnBindingCalled(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDictionaryValue> params) {
+  // Which extension's world: the binding is only in its own.
+  Loaded* loaded = nullptr;
+  for (Loaded& candidate : loaded_) {
+    if (candidate.binding == params->GetString("name").ToString()) loaded = &candidate;
+  }
+  if (!loaded || !pages_.count(browser->GetIdentifier())) return;
+  const int context = params->GetInt("executionContextId");
+  CefRefPtr<CefValue> parsed = CefParseJSON(params->GetString("payload"), JSON_PARSER_RFC);
+  CefRefPtr<CefDictionaryValue> message = parsed ? parsed->GetDictionary() : nullptr;
+  if (!message) return;
+  const std::string id = Json(message->GetValue("id"));
+  // Answers the request in the world that sent it.
+  CefRefPtr<DevToolsClient> devtools = devtools_;
+  auto reply = [devtools, browser, context, id](bool ok, CefRefPtr<CefValue> value) {
+    CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+    params->SetString("expression", "globalThis.__openp41geReply?.(" + id + ", " + (ok ? "true" : "false") + ", " +
+                                        (value ? Json(value) : "null") + ")");
+    params->SetInt("contextId", context);
+    devtools->Call(browser, "Runtime.evaluate", params);
+  };
+  auto refuse = [reply](const std::string& why) {
+    CefRefPtr<CefValue> value = CefValue::Create();
+    value->SetString(why);
+    reply(false, value);
+  };
+  const std::string type = message->GetString("type");
+
+  if (type == "openPage") {
+    const std::string path = message->GetString("path");
+    for (const Extension::Page& page : loaded->extension.pages) {
+      if (page.path != path) continue;
+      open_tab_(browser, extension_scheme::Origin(loaded->extension.id) + "/" + path);
+      reply(true, nullptr);
+      return;
+    }
+    refuse("No page \"" + path + "\" in the extension's manifest");
+    return;
+  }
+
+  if (type == "broadcast") {
+    Broadcast(*loaded, message->GetString("feature"), message->GetValue("message"), browser->GetIdentifier(),
+              [reply](CefRefPtr<CefListValue> replies) {
+                CefRefPtr<CefValue> value = CefValue::Create();
+                value->SetList(replies);
+                reply(true, value);
+              });
+    return;
+  }
+
+  refuse("Unknown message");
+}
+
+void ExtensionManager::Broadcast(const Loaded& loaded,
+                                 const std::string& feature,
+                                 CefRefPtr<CefValue> message,
+                                 int sender_page,
+                                 std::function<void(CefRefPtr<CefListValue>)> done) {
+  struct State {
+    CefRefPtr<CefListValue> replies = CefListValue::Create();
+    size_t waiting = 0;
+    bool finished = false;
+    std::function<void(CefRefPtr<CefListValue>)> done;
+  };
+  auto state = std::make_shared<State>();
+  state->done = std::move(done);
+  auto finish = [state] {
+    if (state->finished) return;
+    state->finished = true;
+    state->done(state->replies);
+  };
+  auto collect = [state, finish](CefRefPtr<CefValue> value) {
+    if (value && value->GetType() == VTYPE_LIST) {
+      CefRefPtr<CefListValue> list = value->GetList();
+      for (size_t i = 0; i < list->GetSize(); ++i) {
+        state->replies->SetValue(state->replies->GetSize(), list->GetValue(i)->Copy());
+      }
+    }
+    if (--state->waiting == 0) finish();
+  };
+  if (feature.empty() || !message) {
+    finish();
+    return;
+  }
+  const std::string call = "(" + JsonString(feature) + ", " + Json(message) + ")";
+  const std::string origin = extension_scheme::Origin(loaded.extension.id);
+  DevToolsClient::EvaluateOptions awaited;
+  awaited.await_promise = true;
+  // The feature in the extension's content scripts in the other tabs, and
+  // the extension's other pages.
+  for (auto& [page_id, page] : pages_) {
+    if (page_id == sender_page) continue;
+    state->waiting += 2;
+    EvaluateInWorld(devtools_, page.browser, loaded.world, "globalThis.__openp41geDeliver?.(" + call.substr(1), true,
+                    collect);
+    devtools_->Evaluate(page.browser,
+                        "location.origin === " + JsonString(origin) + " ? window.__openp41geDeliver?.(" +
+                            call.substr(1) + " : undefined",
+                        awaited, collect);
+  }
+  if (state->waiting == 0) {
+    CefPostTask(TID_UI, base::BindOnce([](std::function<void()> finish) { finish(); }, std::function<void()>(finish)));
+    return;
+  }
+  // Whatever has answered by then.
+  CefPostDelayedTask(TID_UI, base::BindOnce([](std::function<void()> finish) { finish(); }, std::function<void()>(finish)),
+                     kBroadcastTimeoutMs);
 }

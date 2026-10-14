@@ -181,6 +181,7 @@ add_cef_mac_resources(openp41ge_explorer
   DIR "${CMAKE_CURRENT_SOURCE_DIR}/extensions"
   DEST extensions
   FILES
+    messages.js
     page-runtime.js
     runtime.js
     settings.js

@@ -77,3 +77,24 @@ void DevToolsClient::OnDevToolsMethodResult(CefRefPtr<CefBrowser> browser,
     callback(parsed_result);
   });
 }
+
+void DevToolsClient::OnEvent(const std::string& method, EventHandler handler) {
+  CEF_REQUIRE_UI_THREAD();
+  handlers_[method].push_back(std::move(handler));
+}
+
+void DevToolsClient::OnDevToolsEvent(CefRefPtr<CefBrowser> browser,
+                                     const CefString& method,
+                                     const void* params,
+                                     size_t params_size) {
+  auto it = handlers_.find(method.ToString());
+  if (it == handlers_.end()) return;
+  CefRefPtr<CefValue> parsed = CefParseJSON(params, params_size, JSON_PARSER_RFC);
+  CefRefPtr<CefDictionaryValue> parsed_params = parsed ? parsed->GetDictionary() : nullptr;
+  if (!parsed_params) return;
+  std::vector<EventHandler> handlers = it->second;
+  // After this notification returns, as for results.
+  dispatch_async(dispatch_get_main_queue(), ^{
+    for (const EventHandler& handler : handlers) handler(browser, parsed_params);
+  });
+}

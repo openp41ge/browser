@@ -7,15 +7,18 @@
 //
 // This file is one function expression. The browser
 // (src/extensions/extension_manager.mm) calls it with:
-//   extension  { id, name, version, contentScripts: [{ matches, css,
-//              runAtStart, enabled }], config?: { schema, values } }, the
-//              CSS as text; `enabled` as the user set the script's feature;
-//              `values` the user's settings, as stored
+//   extension  { id, name, version, binding, features: [{ id, name,
+//              enabled }], contentScripts: [{ matches, css, runAtStart,
+//              enabled }], config?: { schema, values } }, the CSS as text;
+//              `enabled` as the user set the feature; `values` the user's
+//              settings, as stored; `binding` the name of the function this
+//              world has for sending to the browser (ExtensionManager)
 //   scripts    for each content script, its JS files as
 //              [{ path, run: function }] (each file is a function's body)
 //   loadPopout runs packages/popout's core.js in this world
 //   loadSettings returns settings.js's helpers (the code editor's config
 //              logic, and reading settings with it)
+//   messages   messages.js (feature hosts)
 //
 // In the top frame of a page whose address matches a content script, it
 // adds the script's CSS and runs its JS: straight away for
@@ -34,7 +37,12 @@
 // the new settings; content scripts that didn't run (setup was needed) run
 // from the next page on.
 
-(extension, scripts, loadPopout, loadSettings) => {
+// Feature hosts and openPage (messages.js) go to the browser through
+// `binding`, which the browser adds only to this extension's world; it
+// answers by calling `__openp41geReply`, and delivers other tabs' and
+// pages' broadcasts by calling `__openp41geDeliver`.
+
+(extension, scripts, loadPopout, loadSettings, messages) => {
   'use strict';
 
   // Once per document (the browser can run this again in a document it
@@ -58,6 +66,29 @@
   if (!config) return;
   const listeners = new Set();
 
+  // Requests to the browser, and its answers. The browser's binding arrives
+  // just after a document's first scripts run, so it's looked up each time,
+  // and a request made before then (a document_start script's) waits for it
+  // a moment.
+  const pending = new Map();
+  let lastRequest = 0;
+  const binding = async () => {
+    for (let waited = 0; typeof globalThis[extension.binding] !== 'function' && waited < 1000; waited += 20) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    return globalThis[extension.binding];
+  };
+  const request = async (message) => {
+    const send = await binding();
+    if (typeof send !== 'function') throw new Error('No channel to the browser');
+    return new Promise((resolve, reject) => {
+      const id = ++lastRequest;
+      pending.set(id, { resolve, reject });
+      send(JSON.stringify({ ...message, id }));
+    });
+  };
+  const hosts = messages(extension.features, request, log);
+
   let popoutLoaded = false;
   const api = {
     extension: Object.freeze({ id: extension.id, name: extension.name, version: extension.version }),
@@ -72,6 +103,9 @@
         return () => listeners.delete(callback);
       },
     }),
+    feature: hosts.feature,
+    // Opens one of the extension's pages in a new tab beside this one.
+    openPage: (path) => request({ type: 'openPage', path: String(path).replace(/^\//, '') }),
     // packages/popout: __openp41ge.popout(), definePreset() and the rest.
     get popout() {
       if (!popoutLoaded) {
@@ -83,6 +117,17 @@
   };
   // Replaced in each document (configurable), for a window handed on.
   Object.defineProperty(globalThis, 'openp41ge', { value: Object.freeze(api), configurable: true });
+  Object.defineProperty(globalThis, '__openp41geReply', {
+    configurable: true,
+    value: (id, ok, value) => {
+      const request = pending.get(id);
+      if (!request) return;
+      pending.delete(id);
+      if (ok) request.resolve(value);
+      else request.reject(new Error(value));
+    },
+  });
+  Object.defineProperty(globalThis, '__openp41geDeliver', { configurable: true, value: hosts.deliver });
   Object.defineProperty(globalThis, '__openp41geSettingsChanged', {
     configurable: true,
     value: (values) => {

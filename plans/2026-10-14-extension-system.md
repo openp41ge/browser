@@ -530,6 +530,34 @@ needs a new build target:
   change made elsewhere; "needs setting". Edits are made through the
   editor's change event, not typed.
 
+## Step 8: what was built
+
+- **Content scripts' channel:** a DevTools binding per extension
+  (`Runtime.addBinding`, named after the extension, with
+  `executionContextName` = its world), so only its own world has it and
+  the binding's name says which extension sent a message. The browser
+  answers by evaluating in the context that sent it. Two things probed
+  (2026-10-14): a binding for a named world reaches worlds made later only
+  with `Runtime.enable` on (now on in every page with extensions), and even
+  then just after the document's first scripts: the runtime looks it up
+  when it sends, and a request made before it's there waits up to 1 s.
+  `DevToolsClient` passes events on (`OnEvent`).
+- **Feature hosts** (`app/extensions/messages.js`, in both runtimes):
+  `openp41ge.feature(id)` with `id`, `name`, `enabled`, `broadcast(message)`
+  and `onMessage(handler)`, as Internet Utility Belt's `FeatureHost`.
+  Messages are JSON. A broadcast goes to the feature's handlers in the
+  extension's content scripts in every other tab and in its pages (not the
+  tab that sent it), and resolves with their replies; a handler gets 5 s,
+  the whole broadcast 6 s.
+- **`openp41ge.openPage(path)`** in content scripts too (a tab beside the
+  one that asked).
+- **Not yet:** `onEnabledChange` (step 10, when features can be switched
+  while pages are open).
+- **Tests:** a content script's broadcast answered by the other tab and the
+  extension's page, not its own; a page's broadcast answered by both tabs;
+  an unknown feature; `openPage` from a content script (and refused); the
+  binding not in the page's world; a request at document start.
+
 ## Steps
 
 1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
@@ -553,7 +581,8 @@ needs a new build target:
    `plans/2026-10-14-json-form-for-code-repo.md`. The browser's part once
    it's committed: add it to `scripts/uikit/entry.js`, run
    `scripts/update-uikit`, and add the Form view to the settings page.
-8. **Feature hosts:** messages between tabs and pages.
+8. ~~**Feature hosts:** messages between tabs and pages~~ (done
+   2026-10-14; see **Step 8: what was built**).
 9. **Internet Utility Belt's openp41ge build;** YouTube and Shorts pop-out
    checked by hand on live sites (never a test gate).
 10. **Extensions page:** list, toggles, settings, load folder, reload,

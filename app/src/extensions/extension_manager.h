@@ -40,6 +40,12 @@
 // Messages from extension pages come through a message router of their own
 // (`openp41geExtensionQuery`, renderer_app.cc), handled here: only from the
 // main frame of a loaded extension's page, and only about that extension.
+// Content scripts send theirs through a DevTools binding added only to
+// their extension's world (Runtime.addBinding, one name per extension), so
+// the binding says which extension sent it; answers go back by evaluating
+// in the context that sent it. Broadcasts (feature hosts, messages.js) are
+// delivered to the extension's content scripts in other tabs and its
+// pages, and never leave the extension.
 //
 // For now extensions come only from `--extension-folder=<folder>[:<folder>…]`
 // (local folders, for this run). Not in private windows. UI thread.
@@ -77,7 +83,8 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
  private:
   struct Loaded {
     Extension extension;
-    std::string world;  // Its content scripts' isolated world.
+    std::string world;    // Its content scripts' isolated world.
+    std::string binding;  // The function that world sends to the browser with.
     std::string data;   // Its folder in the profile.
     CefRefPtr<CefDictionaryValue> features;  // features.json.
     CefRefPtr<CefDictionaryValue> values;    // config.json.
@@ -102,6 +109,17 @@ class ExtensionManager : public CefMessageRouterBrowserSide::Handler {
   void AddScripts(int page_id, const Loaded& loaded, std::function<void()> done);
   // The user's settings changed: saved, scripts replaced, pages told.
   void SetValues(Loaded& loaded, CefRefPtr<CefDictionaryValue> values);
+  // A content script's request (Runtime.bindingCalled): openPage, or a
+  // broadcast; answered in the world that sent it.
+  void OnBindingCalled(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDictionaryValue> params);
+  // Delivers a broadcast of `feature` to the extension's content scripts in
+  // every page but `sender_page`, and its pages there; `done` gets their
+  // replies (what has answered within kBroadcastTimeoutMs).
+  void Broadcast(const Loaded& loaded,
+                 const std::string& feature,
+                 CefRefPtr<CefValue> message,
+                 int sender_page,
+                 std::function<void(CefRefPtr<CefListValue>)> done);
 
   CefRefPtr<DevToolsClient> devtools_;
   const std::string data_folder_;  // <profile>/openp41ge Extensions.

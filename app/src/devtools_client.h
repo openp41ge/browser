@@ -7,16 +7,19 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "include/cef_browser.h"
 #include "include/cef_devtools_message_observer.h"
 
-// Calls DevTools protocol methods on pages and hands back their results.
-// Pages are attached once created and detached before they close.
+// Calls DevTools protocol methods on pages and hands back their results,
+// and passes on the events pages send. Pages are attached once created and
+// detached before they close.
 class DevToolsClient : public CefDevToolsMessageObserver {
  public:
   using ResultCallback = std::function<void(CefRefPtr<CefDictionaryValue>)>;
   using ValueCallback = std::function<void(CefRefPtr<CefValue>)>;
+  using EventHandler = std::function<void(CefRefPtr<CefBrowser>, CefRefPtr<CefDictionaryValue> params)>;
 
   void Attach(CefRefPtr<CefBrowser> browser);
   void Detach(CefRefPtr<CefBrowser> browser);
@@ -42,16 +45,27 @@ class DevToolsClient : public CefDevToolsMessageObserver {
                 EvaluateOptions options,
                 ValueCallback callback = nullptr);
 
+  // Calls `handler` with each `method` event from any page (e.g.
+  // "Runtime.bindingCalled"), on the UI thread. A page sends a domain's
+  // events once the domain is on (or the method that sends them was
+  // called).
+  void OnEvent(const std::string& method, EventHandler handler);
+
   // CefDevToolsMessageObserver:
   void OnDevToolsMethodResult(CefRefPtr<CefBrowser> browser,
                               int message_id,
                               bool success,
                               const void* result,
                               size_t result_size) override;
+  void OnDevToolsEvent(CefRefPtr<CefBrowser> browser,
+                       const CefString& method,
+                       const void* params,
+                       size_t params_size) override;
 
  private:
   std::map<int, CefRefPtr<CefRegistration>> registrations_;  // By browser id.
   std::map<std::pair<int, int>, ResultCallback> pending_;     // By (browser id, message id).
+  std::map<std::string, std::vector<EventHandler>> handlers_;  // By method.
 
   IMPLEMENT_REFCOUNTING(DevToolsClient);
 };
