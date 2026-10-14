@@ -12,10 +12,14 @@
 // edge, half on the tab and half on the top bar above it. The tab bar and
 // the top bar are separate web views, neither of which can draw outside
 // itself, so it's a transparent panel of its own over the window that
-// ignores the mouse (as DropPreview).
+// ignores the mouse (as DropPreview): clicks go to what's under it. With
+// the pointer over it (watched as it moves), it grows up and down into a
+// pill that says "focused".
 class FocusBar {
  public:
   static constexpr int kThickness = 3;
+  // Its height grown (even: its middle stays on the edge's whole point).
+  static constexpr int kGrownThickness = 16;
 
   explicit FocusBar(CefRefPtr<CefWindow> parent);
   ~FocusBar();
