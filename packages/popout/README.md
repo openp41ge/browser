@@ -11,7 +11,8 @@ Used by:
   `Contents/Resources/popout` and runs `core.js` in pages for its own
   pop-out command, and `hold-autoplay.js` in pages opened while something
   is popped out.
-- **Internet Utility Belt** (`packages/web-extension`), which imports
-  `core.js` in its content scripts and adds site presets (YouTube).
+- **Extensions**, through the browser: it runs `core.js` in an
+  extension's world as `openp41ge.popout`, and extensions add site presets
+  (the YouTube pop-out in openp41ge/browser-community).
 
 Plain scripts with no build step, so the browser can run them as they are.

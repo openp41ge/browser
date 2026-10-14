@@ -21,8 +21,9 @@ an Openp41ge pane.
 The Openp41ge app (`openp41ge/app`) **stays on Electron**. The browser and the
 app are separate programs that talk over a defined, versioned link.
 
-This repo is also the new home of **Internet Utility Belt**, the cross-browser
-web extension (currently `~/Repository/internet-utility-belt`).
+Extensions for the browser live in **openp41ge/browser-community**, one per
+feature (the YouTube pop-out is one). Internet Utility Belt, the cross-browser
+web extension that once lived here, was retired on 2026-10-14 (see Phase 6).
 
 ## Decisions
 
@@ -136,7 +137,7 @@ browser/                     public: github.com/openp41ge/browser
   branding/                  product name, icons, bundle ids
   scripts/                   fetch-cef, build, package, sign, notarize, publish
   packages/
-    web-extension/           Internet Utility Belt (WXT; Chrome, Firefox, Safari, Openp41ge browser)
+    popout/                  element pop-out, page side (the browser's and openp41ge.popout)
     openp41ge-link/          browser<->app protocol schema + TypeScript client for openp41ge
   patches/                   empty unless Phase 7 adopts a CEF source build
 
@@ -144,7 +145,7 @@ browser-tests/               private: github.com/openp41ge/browser-tests
   .github/workflows/         test.yml (runs against builds of the public repo)
   unit/                      C++ unit tests for app/ (GoogleTest), built against a browser checkout
   smoke/                     launch/load/play/login/persist/pop-out checks against a built .app
-  packages/                  tests for web-extension and openp41ge-link (Vitest)
+  live/                      checks against live sites, run by hand (e.g. the YouTube pop-out)
   fixtures/                  local test pages (e.g. a video page, pop-out targets)
 ```
 
@@ -162,8 +163,7 @@ repo contains no tests.
   - play video
   - persist a session across restarts
   - later, pop out an element
-- **Package tests** (Vitest) cover `packages/web-extension` and
-  `packages/openp41ge-link`.
+- **Package tests** (Vitest) cover `packages/openp41ge-link`.
 - **How results reach the public repo:** the public repo's CI builds the app
   and then triggers the private repo's test workflow (`repository_dispatch`
   with the commit SHA and build artifact id). The private workflow runs the
@@ -418,8 +418,10 @@ that sign-in, sync and Translate don't appear.
   - a shortcut that enters pick mode (hover to highlight, click to choose, step to parent/child)
   - long-press on a playing video
 - **Site presets** (e.g. "YouTube player") come from extensions, not the
-  browser: the browser's pop-out is generic, and Internet Utility Belt adds
-  per-site behaviour on the shared page-side code (`packages/popout`).
+  browser: the browser's pop-out is generic, and extensions add per-site
+  behaviour on the shared page-side code (`packages/popout`, given to
+  extensions as `openp41ge.popout`): the YouTube pop-out extension in
+  openp41ge/browser-community.
   Browser tests never depend on live sites.
 - **Persistence:** pop-outs restore with the session by reopening the source
   page and re-resolving the element (selector or preset). If an element can't
@@ -447,17 +449,17 @@ that sign-in, sync and Translate don't appear.
   side declares the protocol versions it supports, and both refuse
   incompatible peers with a clear message.
 
-### Phase 6: Internet Utility Belt in this repo
+### Phase 6: Extensions (was: Internet Utility Belt in this repo)
 
-- Move `~/Repository/internet-utility-belt` to `packages/web-extension`
-  (started 2026-10-11, carrying the YouTube and Shorts pop-out presets). It
-  remains a normal web extension for Chrome, Firefox and Safari.
-- Alloy-style pages don't load Chrome extensions, so its features reach the
-  browser through an extension system of the browser's own (decided
-  2026-10-13; it needs its own plan), not built into the browser. They're
-  plain DOM code with host services passed in, which that system provides.
-- In Chrome, Edge and Brave it stays a normal extension, using Document PiP
-  directly.
+- Internet Utility Belt moved here as `packages/web-extension` on
+  2026-10-11, carrying the YouTube and Shorts pop-out presets.
+- Alloy-style pages don't load Chrome extensions, so site features reach the
+  browser through an extension system of its own
+  (`plans/2026-10-14-extension-system.md`).
+- On 2026-10-14 Internet Utility Belt was retired: the browser's extensions
+  live in **openp41ge/browser-community**, one per feature, written in
+  TypeScript and built for releases there. The YouTube pop-out is its first
+  extension (`extensions/youtube-popout`).
 
 ### Phase 7: CEF source build gate (only if needed)
 

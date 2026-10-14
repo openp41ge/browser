@@ -6,8 +6,10 @@
 
 The browser's own extension system, decided 2026-10-13 (Phase 6 of
 [PLAN.md](../PLAN.md)). Pages are Alloy style and don't load Chrome
-extensions, so site behaviour such as Internet Utility Belt's YouTube and
-Shorts pop-out reaches the browser through extensions of the browser's own.
+extensions, so site behaviour such as the YouTube and Shorts pop-out
+reaches the browser through extensions of the browser's own (the
+extensions themselves live in openp41ge/browser-community, one per
+feature; see **The community repo**).
 The browser's pop-out stays generic; extensions add per-site presets.
 
 Extensions come from two places:
@@ -37,10 +39,10 @@ my-extension/
 ```json
 {
   "manifestVersion": 1,
-  "id": "internet-utility-belt",
-  "name": "Internet Utility Belt",
+  "id": "youtube-tools",
+  "name": "YouTube tools",
   "version": "0.3.0",
-  "description": "Small quality-of-life tools for the web.",
+  "description": "An example: a pop-out button and a Shorts option.",
   "contentScripts": [
     {
       "matches": ["*://*.youtube.com/*"],
@@ -70,7 +72,7 @@ my-extension/
     }
   },
   "pages": [
-    { "path": "guide.html", "title": "Utility Belt guide" }
+    { "path": "guide.html", "title": "YouTube tools guide" }
   ]
 }
 ```
@@ -263,28 +265,40 @@ delivers them only within the same extension. There is no emulation of
 Chrome's extension APIs (`chrome.*`, background pages); an extension that
 needs more asks for it here first.
 
-## Internet Utility Belt
+## The community repo
 
-Its features are already plain DOM code with `FeatureHost` passed in, so it
-needs a new build target:
+Decided 2026-10-14: the browser's extensions live in
+**openp41ge/browser-community** (local: `~/Repository/openp41ge/
+browser-community`, worktree `master`), **one extension per feature**, not a
+utility belt of many. Internet Utility Belt (`packages/web-extension`, a
+WXT extension for Chrome, Firefox and Safari) is retired; its YouTube and
+Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
 
-- An openp41ge entry (`packages/web-extension`) that runs each feature with
-  a host made from `openp41ge.feature(id)` instead of `browser.runtime`, and
-  uses `openp41ge.popout` instead of bundling `packages/popout`.
-- Its settings (`core/settings.ts`) read through a small adapter: WXT
-  storage in the WebExtension builds, `openp41ge.config` in this one, with
-  the defaults in one JSON Schema both builds use.
-- Its toolbar popup isn't needed in the openp41ge build: toggles are on the
-  Extensions page and settings on the browser's settings page (the popup
-  stays in the other builds).
-- A build step that writes the folder above, zipped as a release asset next
-  to the Chrome and Firefox builds.
+- **Layout:** `extensions/<id>/` with `openp41ge-extension.json` and `src/`;
+  `types/openp41ge.d.ts` (the `openp41ge` API, and the pop-out's types copied
+  from `packages/popout/src/core.d.ts`).
+- **TypeScript, built for releases** (decided 2026-10-14):
+  `scripts/build.mjs` bundles each top-level `src/*.ts` (esbuild, one plain
+  script each) and copies the rest into `dist/<id>/`, which is what the
+  browser loads (`--extension-folder=dist/<id>` while developing) and what a
+  release zips. The browser still never runs a build.
+- **Releases, one per extension and version:** a tag `<id>-v<version>`
+  (matching the manifest) runs `.github/workflows/release.yml`, which
+  publishes `<id>-<version>.openp41ge-extension.zip` and its SHA-256.
+- **Live checks** (by hand, never a gate) are in browser-tests' `live/`
+  (`live/youtube-popout.mjs`).
 
 ## Installing from GitHub
 
 - **From a release, not the source:** the user gives a repo
   (`owner/repo`, or its URL); the browser lists its releases and installs an
   asset named `*.openp41ge-extension.zip`. It never runs the repo's build.
+- **Many extensions in one repo** (as openp41ge/browser-community): each has
+  its own releases, tagged `<id>-v<version>`, with
+  `<id>-<version>.openp41ge-extension.zip`. The browser lists the repo's
+  extensions (by tag prefix), installs one, and checks for updates among
+  that extension's releases only. A repo with one extension may tag
+  `v<version>`.
 - **Review before installing:** name, version, repo, and the sites it runs
   on, in plain words ("Runs on youtube.com"), and the settings it will ask
   for. Nothing runs until the user accepts. If it has required settings,
@@ -583,8 +597,15 @@ needs a new build target:
    `scripts/update-uikit`, and add the Form view to the settings page.
 8. ~~**Feature hosts:** messages between tabs and pages~~ (done
    2026-10-14; see **Step 8: what was built**).
-9. **Internet Utility Belt's openp41ge build;** YouTube and Shorts pop-out
-   checked by hand on live sites (never a test gate).
+9. ~~**The YouTube pop-out as an extension**~~ (done 2026-10-14, in
+   openp41ge/browser-community rather than an Internet Utility Belt build:
+   see **The community repo**). Checked by hand on youtube.com
+   (`browser-tests/live/youtube-popout.mjs`): the button pops a playing
+   video out, and another tab takes the pop-out over through the feature
+   host. Shorts pop out with their controls, but the window doesn't take
+   each Short's shape: `window.resizeTo` in a Document PiP window needs user
+   activation in Alloy pages, and the browser's pop-out controller doesn't
+   resize it (a browser issue, separate from extensions).
 10. **Extensions page:** list, toggles, settings, load folder, reload,
     remove.
 11. **Secrets** in the Keychain.
@@ -614,3 +635,6 @@ reset, secrets kept out of content scripts and the JSON view.
    from the schema and a JSON view (`<json-editor>`), both from the code
    repo's `openp41ge-sdk-uikit`, copied as a built bundle until the UI kit
    gets a repo of its own.
+8. The browser's extensions live in openp41ge/browser-community, one per
+   feature, in TypeScript built for releases; Internet Utility Belt is
+   retired (2026-10-14).

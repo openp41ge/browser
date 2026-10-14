@@ -7,14 +7,15 @@ install it, see the [README](README.md); for the design and roadmap, see
 **Pop out:** Window → Pop Out Video (Shift+Cmd+P) moves the page's video
 into a frameless window over it; it keeps playing, and closing the window
 puts it back. Site-specific pop-outs (such as YouTube's player and Shorts)
-come from the [Internet Utility Belt](packages/web-extension) extension.
+come from extensions: the YouTube pop-out is in
+[openp41ge/browser-community](https://github.com/openp41ge/browser-community),
+one extension per feature.
 
 ## Layout
 
 ```
 app/                    the browser (C++, CEF)
-packages/popout/        element pop-out, page side (shared by the browser and the extension)
-packages/web-extension/ Internet Utility Belt, a cross-browser extension
+packages/popout/        element pop-out, page side (the browser's, and openp41ge.popout for extensions)
 ```
 
 ## Platforms

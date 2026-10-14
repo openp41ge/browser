@@ -11,9 +11,9 @@
 // every page); in other browsers it's the browser's usual PiP window.
 //
 // Used by the browser (app bundle, Contents/Resources/popout), which runs
-// it in the page's main world, and by Internet Utility Belt
-// (packages/web-extension), which runs it in a content script and adds
-// site presets (see definePreset below).
+// it in the page's main world, and in extensions' worlds as
+// `openp41ge.popout`, where they add site presets (see definePreset below;
+// e.g. the YouTube pop-out in openp41ge/browser-community).
 //
 // Running it defines `globalThis.__openp41ge.popout()` and friends.
 // Running it again replaces the functions but keeps the state (the open

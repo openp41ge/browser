@@ -3,10 +3,10 @@
 // Feature hosts, for the extension runtime in content scripts (runtime.js)
 // and in the extension's own pages (page-runtime.js): an extension's
 // features talk to themselves in other tabs and to its pages, through the
-// browser, which delivers messages only within the extension. Matches
-// Internet Utility Belt's FeatureHost (packages/web-extension/src/core/
-// feature.ts). See plans/2026-10-14-extension-system.md, "What content
-// scripts get".
+// browser, which delivers messages only within the extension. Matches the
+// FeatureHost of Internet Utility Belt (retired; its YouTube pop-out is
+// now openp41ge/browser-community's extensions/youtube-popout). See
+// plans/2026-10-14-extension-system.md, "What content scripts get".
 //
 // This file is one function expression. Each runtime calls it with:
 //   features  [{ id, name, enabled }]: the manifest's, as the user set them
