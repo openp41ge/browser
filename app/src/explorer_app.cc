@@ -8,10 +8,12 @@
 #include "include/cef_command_line.h"
 #include "include/wrapper/cef_helpers.h"
 
+#include "extensions/extension_scheme.h"
 #include "ui/ui_scheme.h"
 
 void ExplorerApp::OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) {
   ui_scheme::Register(registrar);
+  extension_scheme::Register(registrar);
 }
 
 void ExplorerApp::OnBeforeCommandLineProcessing(const CefString& process_type,

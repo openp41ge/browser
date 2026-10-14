@@ -7,6 +7,7 @@
   "contentScripts": [
     { "matches": ["<all_urls>"], "js": ["video-popout.js"], "css": ["video-popout.css"] }
   ],
+  "pages": [{ "path": "settings.html", "title": "Video pop-out settings", "role": "settings" }],
   "config": {
     "type": "object",
     "properties": {

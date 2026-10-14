@@ -1,0 +1,25 @@
+:root {
+  color-scheme: light dark;
+  font: 14px/1.5 system-ui, sans-serif;
+}
+main {
+  max-width: 480px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+select,
+button {
+  font: inherit;
+  padding: 4px 8px;
+  width: fit-content;
+}
+#status {
+  min-height: 1.5em;
+  opacity: 0.7;
+}

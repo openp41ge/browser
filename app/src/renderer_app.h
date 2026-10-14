@@ -17,9 +17,12 @@
 //   main frame, before the page's own scripts.
 // - The browser's own UI pages (openp41ge://ui/) get `cefQuery`, the
 //   message channel to the browser (CefMessageRouter). Web pages don't.
+// - Extension pages (openp41ge-extension://, extension_scheme.h) get
+//   `openp41geExtensionQuery`, a channel of their own (ExtensionManager),
+//   in their main frame only.
 class RendererApp : public CefApp, public CefRenderProcessHandler {
  public:
-  RendererApp() = default;
+  RendererApp();
 
   // CefApp:
   void OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) override;
@@ -42,6 +45,7 @@ class RendererApp : public CefApp, public CefRenderProcessHandler {
  private:
   CefRefPtr<CefMessageRouterRendererSide> router_ =
       CefMessageRouterRendererSide::Create(CefMessageRouterConfig());
+  CefRefPtr<CefMessageRouterRendererSide> extension_router_;
   std::map<int, std::string> init_scripts_;  // By browser id.
 
   IMPLEMENT_REFCOUNTING(RendererApp);

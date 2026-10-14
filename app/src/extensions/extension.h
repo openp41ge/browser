@@ -28,6 +28,12 @@ struct Extension {
     std::string name;
     bool enabled_by_default = true;
   };
+  // A page of its own, opened as a tab (extension_scheme.h).
+  struct Page {
+    std::string path;   // In the folder.
+    std::string title;  // What the Extensions page calls it.
+    bool settings = false;  // "role": "settings": the extension's settings.
+  };
 
   std::string folder;
   std::string id;
@@ -36,6 +42,7 @@ struct Extension {
   std::string description;
   std::vector<ContentScript> content_scripts;
   std::vector<Feature> features;
+  std::vector<Page> pages;
   // The manifest's "config": its settings' JSON Schema, with their defaults
   // (as JSON; empty if it has none). Checked and used by the runtime in the
   // page, with the code editor's config logic.

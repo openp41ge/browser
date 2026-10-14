@@ -126,6 +126,19 @@ bool ReadFeature(Reader& reader, CefRefPtr<CefDictionaryValue> item, const std::
   return true;
 }
 
+bool ReadPage(Reader& reader, CefRefPtr<CefDictionaryValue> item, const std::string& at, Extension::Page* out) {
+  std::string role;
+  Extension::File file;
+  if (!reader.CheckKeys(item, {"path", "title", "role"}, at) || !reader.String(item, "path", at, true, &out->path) ||
+      !reader.String(item, "title", at, true, &out->title) || !reader.String(item, "role", at, false, &role) ||
+      !reader.File(out->path, at, &file)) {
+    return false;
+  }
+  if (!role.empty() && role != "settings") return reader.Fail(at + ": \"role\" must be \"settings\"");
+  out->settings = role == "settings";
+  return true;
+}
+
 bool ReadContentScript(Reader& reader,
                        CefRefPtr<CefDictionaryValue> item,
                        const std::string& at,
@@ -183,8 +196,6 @@ std::optional<Extension> Load(const std::string& folder_path, std::string* error
 
   Extension extension;
   extension.folder = folder.string();
-  // pages come with extension pages (a later step of the plan): allowed,
-  // not used yet.
   bool ok = reader.CheckKeys(manifest,
                              {"manifestVersion", "id", "name", "version", "description", "contentScripts", "features",
                               "config", "pages"},
@@ -218,6 +229,19 @@ std::optional<Extension> Load(const std::string& folder_path, std::string* error
     extension.content_scripts.emplace_back();
     ok = ReadContentScript(reader, items[i], where + ": contentScripts[" + std::to_string(i) + "]", extension.features,
                            &extension.content_scripts.back());
+  }
+
+  items.clear();
+  ok = ok && reader.Objects(manifest, "pages", where, &items);
+  for (size_t i = 0; ok && i < items.size(); ++i) {
+    const std::string at = where + ": pages[" + std::to_string(i) + "]";
+    Extension::Page page;
+    ok = ReadPage(reader, items[i], at, &page);
+    for (const Extension::Page& other : extension.pages) {
+      ok = ok && (other.path != page.path || reader.Fail(at + ": another page has the path \"" + page.path + "\""));
+      ok = ok && (!(other.settings && page.settings) || reader.Fail(at + ": another page is the settings page"));
+    }
+    extension.pages.push_back(page);
   }
 
   // The schema itself is checked in the page, by the code editor's config

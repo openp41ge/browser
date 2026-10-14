@@ -96,6 +96,9 @@ add_cef_mac_app(openp41ge_explorer
     src/extensions/extension.h
     src/extensions/extension_manager.h
     src/extensions/extension_manager.mm
+    src/extensions/extension_router.h
+    src/extensions/extension_scheme.cc
+    src/extensions/extension_scheme.h
     src/find_bar.h
     src/find_bar.mm
     src/grid_scrollbar.h
@@ -140,6 +143,9 @@ add_cef_mac_app(openp41ge_explorer
     src/process_helper_mac.cc
     src/renderer_app.cc
     src/renderer_app.h
+    src/extensions/extension_router.h
+    src/extensions/extension_scheme.cc
+    src/extensions/extension_scheme.h
     src/ui/ui_scheme.cc
     src/ui/ui_scheme.h
   LIBRARIES
@@ -175,7 +181,9 @@ add_cef_mac_resources(openp41ge_explorer
   DIR "${CMAKE_CURRENT_SOURCE_DIR}/extensions"
   DEST extensions
   FILES
+    page-runtime.js
     runtime.js
+    settings.js
 )
 # The config logic it merges settings with, from the code editor's UI kit
 # (third_party/openp41ge-uikit/SOURCE).

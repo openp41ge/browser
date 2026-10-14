@@ -51,12 +51,15 @@ that did), and why not; with `--log-level=0` it also has pages' console
 messages, where an extension says why it didn't run (its settings need
 setup, or its schema is broken).
 
-Until the settings page exists, an extension's settings and feature
-toggles are set by hand, in the profile (`~/Library/Application
+An extension's pages open at `openp41ge-extension://<id>/<path>` (type it
+in the address bar): the example's settings page is
+`openp41ge-extension://video-popout/settings.html`. Feature toggles, and
+the settings of an extension without a settings page, are set by hand
+until the browser's settings and Extensions pages exist, in the profile (`~/Library/Application
 Support/openp41ge explorer development/Default/openp41ge Extensions/<id>/`):
 `config.json` for settings (only those changed, e.g. `{ "corner":
 "bottom-left" }` for the example), `features.json` for features (`{
-"<feature id>": false }`). They're read as the app starts.
+"<feature id>": false }`). Hand edits are read as the app starts.
 
 `third_party/openp41ge-uikit/` is a checked-in copy of parts of the
 openp41ge code editor's UI kit (`<json-editor>`, extension config logic),

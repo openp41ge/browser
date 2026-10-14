@@ -167,7 +167,9 @@ the Extensions page, defaulting to `enabledByDefault`.
   in every page of the extension, whichever page made the change.
 - Extension pages only: `openp41ge.config.set(value)` (the user's values,
   checked against the schema; rejected if invalid) and
-  `openp41ge.config.reset(path)`. A page in a site can't change settings.
+  `openp41ge.config.reset(key)` (a top-level setting); also `values()`,
+  `schema()` and `problems()` (see **Step 5: what was built**). A page in a
+  site can't change settings.
 
 ## Editing settings
 
@@ -441,6 +443,55 @@ needs a new build target:
   to put the user's side in the profile.
 - **Example:** `examples/extensions/video-popout` has a `corner` setting.
 
+## Step 5: what was built
+
+- **Scheme** (`src/extensions/extension_scheme.{h,cc}`):
+  `openp41ge-extension://<id>/` (standard, secure, fetch), registered in
+  every process, served per extension from its folder. A document (main
+  frame) only if the manifest's `pages` lists it; never in a frame; any
+  file in the folder for what its pages load. Headers: a CSP allowing only
+  the extension's own scripts (`script-src 'self'`, no inline ones) and no
+  framing, `Cross-Origin-Resource-Policy: same-origin` (web pages can't
+  load extension files), `nosniff`, `no-store`.
+- **Manifest:** `pages: [{ path, title, role? }]`; `role` is `"settings"`
+  (one page at most); the files must exist.
+- **API in pages** (`app/extensions/page-runtime.js`), registered in every
+  page like the content scripts' runtime but in the page's own world, where
+  it does nothing unless the page is the extension's:
+  `openp41ge.extension`, `config.get()` (with secrets: the page is the
+  extension's own), `values()`, `schema()`, `problems()`, `set(values)`
+  (checked against the schema in the page; refused if a value doesn't
+  fit), `reset(key)`, `onChange(callback)`, and `openPage(path)` (a new tab
+  beside it).
+- **Shared settings code:** `app/extensions/settings.js` (reading, fitting,
+  dropping secrets) over the code editor's config logic, for both runtimes.
+- **Channel:** a second CEF message router (`openp41geExtensionQuery`,
+  `src/extensions/extension_router.h`), given by the renderer only to the
+  main frame of extension pages; the browser takes a message only from the
+  main frame of a loaded extension's page, and only about that extension.
+  It never meets the UI's `cefQuery`.
+- **Changes:** `config.set` stores the values (`config.json`, written on the
+  file thread), registers new scripts in every page (the new ones first,
+  then the old removed: a document starting in between runs each runtime
+  once), and calls `__openp41geSettingsChanged` in open extension pages and
+  in content-script worlds, so `onChange` callbacks run in both
+  (`openp41ge.config.onChange` in content scripts too). Content scripts that
+  didn't run (setup needed) start from the next page.
+- **Late pages:** a page opened by a page (`window.open`) isn't held back
+  for the scripts; if it's an extension page it loads again once they're in,
+  so its scripts always have `openp41ge`.
+- **Not done here:** opening an extension page from a content script
+  (`openPage` there needs the content-script channel, step 8); stopping a
+  web page from navigating a tab to an extension page (harmless for now:
+  settings change only by the page's own code).
+- **Tests:** the page opens with the API and without its inline script;
+  web pages have neither the channel nor the files; `set` refused for a
+  value that doesn't fit, `reset`, then saved, heard by the page and a
+  content script (without secrets), in `config.json`, and in the next
+  document; `openPage` (and refused for a file that isn't a page); a file
+  not in `pages` doesn't open as a page.
+- **Example:** `examples/extensions/video-popout` has a settings page.
+
 ## Steps
 
 1. ~~**Probe isolated worlds**~~ (done 2026-10-14: they work; see above).
@@ -453,8 +504,9 @@ needs a new build target:
 4. ~~**Settings:** schema in the manifest, user values in the profile,
    merging, `openp41ge.config` in content scripts; feature toggles~~ (done
    2026-10-14; see **Step 4: what was built**).
-5. **Extension pages:** the scheme, opening as tabs, `openp41ge.config`
-   read and write, change notifications.
+5. ~~**Extension pages:** the scheme, opening as tabs, `openp41ge.config`
+   read and write, change notifications~~ (done 2026-10-14; see **Step 5:
+   what was built**).
 6. **Settings page, JSON view** with `<json-editor>`.
 7. **Settings page, form view:** a generic `<json-form>` in
    `openp41ge-sdk-uikit` (code repo), added to the bundle.

@@ -14,23 +14,27 @@
 //   scripts    for each content script, its JS files as
 //              [{ path, run: function }] (each file is a function's body)
 //   loadPopout runs packages/popout's core.js in this world
-//   loadConfig returns the code editor's config logic (openp41ge-sdk's
-//              config.ts: validateConfigSchema, configDefaults,
-//              configErrors, mergeConfig)
+//   loadSettings returns settings.js's helpers (the code editor's config
+//              logic, and reading settings with it)
 //
 // In the top frame of a page whose address matches a content script, it
 // adds the script's CSS and runs its JS: straight away for
 // "document_start", once the page's DOM is ready for "document_idle".
 // Extensions' code finds the browser's API at `openp41ge`.
 //
-// Settings: the user's values merged over the schema's defaults, as the code
-// editor does. A stored value that doesn't fit the schema (say, after an
-// update changed it) is left out, so its default applies. An extension with
-// a required setting that has no value (no default, and the user hasn't
-// set it) needs setup: its content scripts don't run. Nor do they if its
-// schema is broken. Secret settings are never given to content scripts.
+// Settings (settings.js): the user's values merged over the schema's
+// defaults, as the code editor does. A stored value that doesn't fit the
+// schema (say, after an update changed it) is left out, so its default
+// applies. An extension with a required setting that has no value (no
+// default, and the user hasn't set it) needs setup: its content scripts
+// don't run. Nor do they if its schema is broken. Secret settings are never
+// given to content scripts. When the settings change (an extension page
+// saved them), the browser calls `__openp41geSettingsChanged` in this world
+// with the user's new values, and `openp41ge.config.onChange` callbacks get
+// the new settings; content scripts that didn't run (setup was needed) run
+// from the next page on.
 
-(extension, scripts, loadPopout, loadConfig) => {
+(extension, scripts, loadPopout, loadSettings) => {
   'use strict';
 
   // Once per document (the browser can run this again in a document it
@@ -49,8 +53,10 @@
     .filter((script) => script.enabled && script.matches.some((pattern) => matches(pattern, location)));
   if (!toRun.length) return;
 
-  const config = settings();
+  const settingsLib = extension.config ? loadSettings() : null;
+  let config = settings(extension.config?.values);
   if (!config) return;
+  const listeners = new Set();
 
   let popoutLoaded = false;
   const api = {
@@ -59,6 +65,12 @@
       // The merged settings: a copy each time, so a script can't change
       // another's.
       get: () => structuredClone(config),
+      // Called with the new settings after each change; returns a function
+      // that stops it.
+      onChange: (callback) => {
+        listeners.add(callback);
+        return () => listeners.delete(callback);
+      },
     }),
     // packages/popout: __openp41ge.popout(), definePreset() and the rest.
     get popout() {
@@ -71,6 +83,21 @@
   };
   // Replaced in each document (configurable), for a window handed on.
   Object.defineProperty(globalThis, 'openp41ge', { value: Object.freeze(api), configurable: true });
+  Object.defineProperty(globalThis, '__openp41geSettingsChanged', {
+    configurable: true,
+    value: (values) => {
+      const next = settings(values);
+      if (!next) return;
+      config = next;
+      for (const callback of listeners) {
+        try {
+          callback(structuredClone(config));
+        } catch (error) {
+          log('settings change handler failed', error);
+        }
+      }
+    },
+  });
 
   // CSS as constructed style sheets: a page's Content Security Policy
   // doesn't apply to them, as it would to a <style> element.
@@ -102,45 +129,22 @@
     else whenReady(() => run(script));
   }
 
-  // The settings content scripts get (see the top), or null if they
-  // mustn't run.
-  function settings() {
-    if (!extension.config) return {};
-    const { validateConfigSchema, configDefaults, configErrors, mergeConfig } = loadConfig();
-    const { schema, values } = extension.config;
-    try {
-      validateConfigSchema(schema);
-    } catch (error) {
-      log(`not run: its manifest's ${error.message}`);
+  // The settings content scripts get from the user's `values` (see the
+  // top), or null if they mustn't run.
+  function settings(values) {
+    if (!settingsLib) return {};
+    const { schema } = extension.config;
+    const { config, ignored, missing, schemaError } = settingsLib.read(schema, values);
+    if (schemaError) {
+      log(`not run: its manifest's ${schemaError}`);
       return null;
     }
-    // The user's values that fit the schema, each checked on its own.
-    const fits = {};
-    const each = { type: 'object', properties: schema.properties, additionalProperties: schema.additionalProperties };
-    for (const [key, value] of Object.entries(values)) {
-      const errors = configErrors(each, { [key]: value });
-      if (errors.length) log(`setting ignored, its default used: ${errors.join('; ')}`);
-      else fits[key] = value;
-    }
-    const merged = mergeConfig(configDefaults(schema), fits);
-    const missing = configErrors(schema, merged);
+    if (ignored.length) log(`setting ignored, its default used: ${ignored.join('; ')}`);
     if (missing.length) {
       log(`not run: needs setup (${missing.join('; ')})`);
       return null;
     }
-    return withoutSecrets(schema, merged);
-  }
-
-  // `value` without the settings its schema marks "secret": true.
-  function withoutSecrets(schema, value) {
-    if (!schema?.properties || value === null || typeof value !== 'object' || Array.isArray(value)) return value;
-    const out = {};
-    for (const [key, item] of Object.entries(value)) {
-      const sub = schema.properties[key];
-      if (sub?.secret === true) continue;
-      out[key] = withoutSecrets(sub, item);
-    }
-    return out;
+    return settingsLib.withoutSecrets(schema, config);
   }
 
   // Chrome's match patterns: "<all_urls>", or scheme://host[:port]/path,

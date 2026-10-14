@@ -21,6 +21,7 @@
 #include "tab_previews.h"
 #include "ui/ui_live_reload.h"
 #include "updater.h"
+#include "extensions/extension_router.h"
 #include "ui/ui_scheme.h"
 #include "ui/ui_view.h"
 
@@ -79,8 +80,13 @@ class PageViewDelegate : public CefBrowserViewDelegate {
 BrowserManager::BrowserManager()
     : devtools_(new DevToolsClient()),
       popout_(new PopoutController(devtools_, this)),
-      extensions_(std::make_unique<ExtensionManager>(devtools_,
-                                                     CefRequestContext::GetGlobalContext()->GetCachePath())),
+      extensions_(std::make_unique<ExtensionManager>(
+          devtools_,
+          CefRequestContext::GetGlobalContext()->GetCachePath(),
+          [this](CefRefPtr<CefBrowser> opener, const std::string& url) {
+            OpenLink(opener, url, CEF_WOD_NEW_FOREGROUND_TAB);
+          })),
+      extension_router_(CefMessageRouterBrowserSide::Create(extension_router::Config())),
       view_delegate_(new PageViewDelegate(this)),
       history_(std::make_unique<History>(CefRequestContext::GetGlobalContext()->GetCachePath())) {
   DCHECK(!g_manager);
@@ -97,6 +103,7 @@ BrowserManager::BrowserManager()
     start = end + 1;
   }
   extensions_->LoadFolders(list);
+  extension_router_->AddHandler(extensions_.get(), /*first=*/false);
   // A development build's UI, as it's edited (ui_live_reload.h).
   ui_live_reload::Watch([this] { ReloadUi(); });
   // An update waiting for the user shows in every window's top bar.
@@ -734,6 +741,8 @@ bool BrowserManager::DoClose(CefRefPtr<CefBrowser> browser) {
 void BrowserManager::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   devtools_->Detach(browser);
+  extension_router_->OnBeforeClose(browser);
+  extensions_->OnPageClosed(browser);
   waiting_pages_.erase(browser->GetIdentifier());
   blank_in_history_.erase(browser->GetIdentifier());
   if (BrowserWindow* window = WindowOf(browser)) window->OnTabClosed(browser);
@@ -925,6 +934,21 @@ bool BrowserManager::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
                                     CefRefPtr<CefRequest> request,
                                     bool user_gesture,
                                     bool is_redirect) {
+  extension_router_->OnBeforeBrowse(browser, frame);
   // Web pages never load the browser's own UI.
   return ui_scheme::IsUiUrl(request->GetURL());
+}
+
+void BrowserManager::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+                                               TerminationStatus status,
+                                               int error_code,
+                                               const CefString& error_string) {
+  extension_router_->OnRenderProcessTerminated(browser);
+}
+
+bool BrowserManager::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
+                                              CefRefPtr<CefFrame> frame,
+                                              CefProcessId source_process,
+                                              CefRefPtr<CefProcessMessage> message) {
+  return extension_router_->OnProcessMessageReceived(browser, frame, source_process, message);
 }

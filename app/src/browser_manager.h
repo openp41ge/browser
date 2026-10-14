@@ -144,6 +144,10 @@ class BrowserManager : public CefClient,
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
+  bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
+                                CefRefPtr<CefFrame> frame,
+                                CefProcessId source_process,
+                                CefRefPtr<CefProcessMessage> message) override;
 
   // CefDisplayHandler:
   void OnAddressChange(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, const CefString& url) override;
@@ -216,6 +220,10 @@ class BrowserManager : public CefClient,
                       CefRefPtr<CefRequest> request,
                       bool user_gesture,
                       bool is_redirect) override;
+  void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+                                 TerminationStatus status,
+                                 int error_code,
+                                 const CefString& error_string) override;
 
  private:
   BrowserWindow* WindowOf(CefRefPtr<CefBrowser> browser, CefRefPtr<Tab>* tab = nullptr) const;
@@ -235,6 +243,8 @@ class BrowserManager : public CefClient,
   CefRefPtr<DevToolsClient> devtools_;
   CefRefPtr<PopoutController> popout_;
   std::unique_ptr<ExtensionManager> extensions_;
+  // Extension pages' messages, to `extensions_` (extension_router.h).
+  CefRefPtr<CefMessageRouterBrowserSide> extension_router_;
   // Pages created blank, and the address each loads once extensions are in
   // place (CreatePageView): by view until created, then by page id. While
   // a page waits, its blank page isn't shown as its tab's.

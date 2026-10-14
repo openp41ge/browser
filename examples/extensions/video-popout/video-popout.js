@@ -4,7 +4,8 @@
 // videos with their own controls, so the pointer's position is checked, not
 // what it's over).
 
-const { corner } = openp41ge.config.get();
+let { corner } = openp41ge.config.get();
+openp41ge.config.onChange((config) => ({ corner } = config));
 
 const button = document.createElement('button');
 button.className = 'openp41ge-video-popout';

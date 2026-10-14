@@ -2,6 +2,8 @@
 
 #include "renderer_app.h"
 
+#include "extensions/extension_router.h"
+#include "extensions/extension_scheme.h"
 #include "ui/ui_scheme.h"
 
 namespace {
@@ -11,8 +13,12 @@ constexpr char kInitScriptKey[] = "openp41ge.init_script";
 
 }  // namespace
 
+RendererApp::RendererApp()
+    : extension_router_(CefMessageRouterRendererSide::Create(extension_router::Config())) {}
+
 void RendererApp::OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) {
   ui_scheme::Register(registrar);
+  extension_scheme::Register(registrar);
 }
 
 void RendererApp::OnBrowserCreated(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDictionaryValue> extra_info) {
@@ -29,6 +35,9 @@ void RendererApp::OnContextCreated(CefRefPtr<CefBrowser> browser,
                                    CefRefPtr<CefFrame> frame,
                                    CefRefPtr<CefV8Context> context) {
   if (ui_scheme::IsUiUrl(frame->GetURL())) router_->OnContextCreated(browser, frame, context);
+  if (frame->IsMain() && !extension_scheme::IdOf(frame->GetURL()).empty()) {
+    extension_router_->OnContextCreated(browser, frame, context);
+  }
 
   auto it = init_scripts_.find(browser->GetIdentifier());
   if (it == init_scripts_.end() || !frame->IsMain()) return;
@@ -41,11 +50,13 @@ void RendererApp::OnContextReleased(CefRefPtr<CefBrowser> browser,
                                     CefRefPtr<CefFrame> frame,
                                     CefRefPtr<CefV8Context> context) {
   router_->OnContextReleased(browser, frame, context);
+  extension_router_->OnContextReleased(browser, frame, context);
 }
 
 bool RendererApp::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                            CefRefPtr<CefFrame> frame,
                                            CefProcessId source_process,
                                            CefRefPtr<CefProcessMessage> message) {
-  return router_->OnProcessMessageReceived(browser, frame, source_process, message);
+  return router_->OnProcessMessageReceived(browser, frame, source_process, message) ||
+         extension_router_->OnProcessMessageReceived(browser, frame, source_process, message);
 }
