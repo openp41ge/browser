@@ -121,6 +121,13 @@ Settings follow the openp41ge code editor's extension config contract
 (`openp41ge-sdk`'s `config.ts`), so an extension's config means the same
 thing in both apps, and the editor's AI writes one kind of schema.
 
+**Optional, but only one way:** an extension needn't have settings (no
+`config`: its scripts get `{}`, and it has no settings page). One that has
+settings declares them in `config`, and the browser stores, merges and
+edits them; a `"role": "settings"` page without `config` is a manifest
+error, and the browser's settings page exists only for extensions with
+`config`.
+
 **Declaring (developer):** `config` in the manifest is one JSON Schema
 (draft 2020-12) with an object at the root:
 

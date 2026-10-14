@@ -255,6 +255,16 @@ std::optional<Extension> Load(const std::string& folder_path, std::string* error
     }
   }
 
+  // Settings are optional, but an extension that has them declares them
+  // in "config" (stored, merged and edited by the browser): its settings
+  // page is a page for those, not settings of its own.
+  for (size_t i = 0; ok && i < extension.pages.size(); ++i) {
+    if (extension.pages[i].settings && extension.config_schema.empty()) {
+      ok = reader.Fail(where + ": pages[" + std::to_string(i) +
+                       "]: a settings page needs the settings it edits, in \"config\"");
+    }
+  }
+
   if (!ok) return failed(reader.error());
   return extension;
 }

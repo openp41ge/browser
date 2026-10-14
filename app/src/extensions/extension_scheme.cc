@@ -24,7 +24,10 @@ constexpr char kPolicy[] =
 class Files : public CefSchemeHandlerFactory {
  public:
   Files(const Extension& extension, const fs::path& resources)
-      : folder_(fs::path(extension.folder)), settings_(resources / "extension-settings"), shared_(resources / "shared") {
+      : folder_(fs::path(extension.folder)),
+        settings_(resources / "extension-settings"),
+        shared_(resources / "shared"),
+        has_settings_(!extension.config_schema.empty()) {
     for (const Extension::Page& page : extension.pages) pages_.insert("/" + page.path);
   }
 
@@ -42,7 +45,9 @@ class Files : public CefSchemeHandlerFactory {
       case RT_MAIN_FRAME:
         // Only the manifest's pages are pages (and the browser's settings
         // page).
-        if (browsers ? path != std::string("/") + kSettingsPage : !pages_.count(path)) return NotFound();
+        if (browsers ? !has_settings_ || path != std::string("/") + kSettingsPage : !pages_.count(path)) {
+          return NotFound();
+        }
         break;
       case RT_SUB_FRAME:
         return NotFound();
@@ -90,6 +95,7 @@ class Files : public CefSchemeHandlerFactory {
   const fs::path folder_;
   const fs::path settings_;
   const fs::path shared_;
+  const bool has_settings_;  // Its manifest has "config".
   std::set<std::string> pages_;
 
   IMPLEMENT_REFCOUNTING(Files);

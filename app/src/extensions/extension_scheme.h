@@ -18,7 +18,8 @@
 //   `pages`; the files those pages load (scripts, styles, images) are any
 //   in the folder.
 // - /_openp41ge/ is the browser's, in every extension's origin: its
-//   settings page for the extension (/_openp41ge/settings.html, from
+//   settings page for the extension, if it has settings
+//   (/_openp41ge/settings.html, from
 //   app/ui/extension-settings, and /_openp41ge/shared/ from app/ui/shared),
 //   which so has the extension's `openp41ge`.
 // - Served with a content security policy that lets pages run only their
