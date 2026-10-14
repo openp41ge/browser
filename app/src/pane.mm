@@ -91,12 +91,20 @@ void Pane::Remove(CefRefPtr<Tab> tab) {
   if (it == tabs_.end()) return;
   const size_t index = it - tabs_.begin();
   tabs_.erase(it);
-  if (content_) content_->RemoveChildView(tab->view());
+  if (content_ && tab->loaded()) content_->RemoveChildView(tab->view());
   if (active_ == tab) {
     // The tab to its right, else to its left, as browsers do.
     active_ = tabs_.empty() ? nullptr : tabs_[std::min(index, tabs_.size() - 1)];
     ShowActive();
   }
+  UpdateTabBar();
+}
+
+void Pane::Restore(std::vector<CefRefPtr<Tab>> tabs, int active) {
+  tabs_ = std::move(tabs);
+  active_ = tabs_.empty() ? nullptr : tabs_[std::clamp(active, 0, static_cast<int>(tabs_.size()) - 1)];
+  for (const CefRefPtr<Tab>& tab : tabs_) AddView(tab);
+  ShowActive();
   UpdateTabBar();
 }
 
@@ -151,6 +159,13 @@ void Pane::RequestClose(int id) {
 
 void Pane::RequestNavigate(int id, const std::string& url) {
   CefRefPtr<Tab> tab = Find(id);
+  if (tab && !tab->loaded()) {
+    // Not loaded yet: it loads this instead, as it's shown.
+    if (History* history = window_->history()) history->AddTyped(url);
+    tab->url = url;
+    RequestActivate(id);
+    return;
+  }
   CefRefPtr<CefBrowser> browser = tab ? tab->browser() : nullptr;
   if (!browser) return;
   if (History* history = window_->history()) history->AddTyped(url);
@@ -171,20 +186,27 @@ void Pane::RequestNewTab() {
 
 void Pane::UpdateTabBar() {
   tab_bar_->Update();
+  // What it shows is kept for the next start.
+  window_->manager()->SessionChanged();
 }
 
 // A tab's page joins the pane hidden (ShowActive shows the active one), and
-// starts loading.
+// starts loading. (A tab not loaded yet has none.)
 void Pane::AddView(CefRefPtr<Tab> tab) {
-  if (!content_) return;
+  if (!content_ || !tab->loaded()) return;
   tab->view()->SetVisible(false);
   content_->AddChildView(tab->view());
 }
 
 void Pane::ShowActive() {
   if (!content_) return;
+  // Brought back from the last session, it loads as it's first shown.
+  if (active_ && !active_->loaded()) {
+    window_->LoadTab(active_);
+    AddView(active_);
+  }
   for (const CefRefPtr<Tab>& tab : tabs_) {
-    if (tab != active_) tab->view()->SetVisible(false);
+    if (tab != active_ && tab->loaded()) tab->view()->SetVisible(false);
   }
   if (active_) {
     active_->view()->SetVisible(true);

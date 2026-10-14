@@ -9,14 +9,20 @@
 
 // One tab: a web page (an Alloy-style browser view) and what its tab shows.
 // It lives in a pane, whose active tab's view shows; the others are hidden
-// in it (and still load and run).
+// in it (and still load and run). A tab brought back from the last session
+// has no page until it's first shown (Load): just its address, title and
+// icon.
 class Tab : public CefBaseRefCounted {
  public:
   Tab(int id, CefRefPtr<CefBrowserView> view) : id_(id), view_(view) {}
 
   int id() const { return id_; }
+  // Null until it's loaded.
   CefRefPtr<CefBrowserView> view() const { return view_; }
   CefRefPtr<CefBrowser> browser() const { return view_ ? view_->GetBrowser() : nullptr; }
+  bool loaded() const { return view_ != nullptr; }
+  // Its page, made for its address.
+  void Load(CefRefPtr<CefBrowserView> view) { view_ = view; }
 
   std::string title;
   std::string url;

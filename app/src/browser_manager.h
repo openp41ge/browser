@@ -28,6 +28,9 @@
 // - Reopen Closed Tab (Cmd-Shift-T) brings back the last tab or window
 //   closed, as Chrome does: a tab where it was, a window with its panes and
 //   tabs. Not private ones, nor what closed as the app quit.
+// - The session: the windows open (not private ones) are kept in the
+//   profile (session.h), and the next start brings them back, each pane's
+//   active tab loading and the others when they're first shown.
 // - Private windows: their pages share a profile kept only in memory (a
 //   request context with no cache path: cookies, site data, cache), created
 //   for the first private window and let go with the last, so nothing of it
@@ -74,6 +77,10 @@ class BrowserManager : public CefClient,
   BrowserManager();
   static BrowserManager* Get();
 
+  // At startup: the windows open when the app last quit, back; else (or
+  // also, given one) a window with `url` (or the start page).
+  void Start(const std::string& url);
+
   // Opens a browser window, with `url` (or the start page).
   void OpenWindow(const std::string& url, bool is_private = false);
   // Opens a browser window at `bounds` (screen) holding `tab`, a tab taken
@@ -96,6 +103,13 @@ class BrowserManager : public CefClient,
   CefRefPtr<Tab> CreateTab(const std::string& url, bool is_private);
   // A tab for a page CEF created (a popup).
   CefRefPtr<Tab> AdoptTab(CefRefPtr<CefBrowserView> view);
+  // A tab brought back, not loaded yet (Tab::Load).
+  CefRefPtr<Tab> SavedTab(const WindowLayout::SavedTab& saved);
+  // Loads such a tab: its page, for its address.
+  void LoadTab(CefRefPtr<Tab> tab, bool is_private);
+  // Something kept in the session changed (a tab, a pane, a window): it's
+  // written a moment later.
+  void SessionChanged();
   PopoutController* popout() const { return popout_.get(); }
   DevToolsClient* devtools() const { return devtools_.get(); }
   History* history() const { return history_.get(); }
@@ -229,6 +243,10 @@ class BrowserManager : public CefClient,
   void ReloadUi();
   void ShowAbout();
   void Remember(std::variant<ClosedTab, WindowLayout> item);
+  // The windows to keep in the session, back to front.
+  std::vector<WindowLayout> SessionWindows() const;
+  void SaveSession(bool now);
+  bool session_save_pending_ = false;
   // Whether the popup being created should become the active tab.
   bool popup_foreground_ = true;
   bool closing_ = false;

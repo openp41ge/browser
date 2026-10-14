@@ -28,8 +28,9 @@ void ExplorerApp::OnContextInitialized() {
   CEF_REQUIRE_UI_THREAD();
   ui_scheme::RegisterHandlerFactory();
   manager_ = new BrowserManager();
-  // `--url=<url>` opens a specific page instead of the new tab page.
-  manager_->OpenWindow(CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("url"));
+  // The windows open when the app last quit, back. `--url=<url>` opens a
+  // specific page (in a window of its own) instead of the new tab page.
+  manager_->Start(CefCommandLine::GetGlobalCommandLine()->GetSwitchValue("url"));
 }
 
 CefRefPtr<CefClient> ExplorerApp::GetDefaultClient() {

@@ -39,6 +39,8 @@ class Pane {
   void Add(CefRefPtr<Tab> tab, int index, bool activate);
   // Takes `tab` out of the pane. A new tab becomes active if it was.
   void Remove(CefRefPtr<Tab> tab);
+  // Its tabs, brought back: `active` shows (loading if it isn't).
+  void Restore(std::vector<CefRefPtr<Tab>> tabs, int active);
   void Activate(int id);
   // The tab `delta` places along (wrapping), e.g. Cmd+Shift+] is 1.
   void ActivateRelative(int delta);

@@ -18,6 +18,7 @@
 #include "suggestions_popup.h"
 #include "tab_drag_image.h"
 #include "top_bar.h"
+#include "window_layout.h"
 
 class BrowserManager;
 
@@ -36,24 +37,13 @@ class BrowserManager;
 //
 // A private window's pages use the private profile (see BrowserManager), and
 // aren't recorded in History; its tabs move only to other private windows.
-// A window as it was when it closed, to bring back (Reopen Closed Window):
-// its frame, and each pane's tabs' addresses and which one was active.
-struct WindowLayout {
-  struct PaneTabs {
-    std::vector<std::string> urls;
-    int active = 0;
-  };
-  CefRect bounds;
-  std::vector<PaneTabs> panes;
-  int active_pane = 0;
-};
-
 class BrowserWindow : public CefWindowDelegate {
  public:
   BrowserWindow(BrowserManager* manager, CefRect bounds, bool is_private, std::string first_url);
   // A window for a tab taken from another one.
   BrowserWindow(BrowserManager* manager, CefRect bounds, bool is_private, CefRefPtr<Tab> first_tab);
-  // A closed window, back as it was (its pages reload).
+  // A window back as it was (closed, or open when the app last quit): each
+  // pane's active tab loads, the others when they're first shown.
   BrowserWindow(BrowserManager* manager, WindowLayout layout);
 
   // Tells this window apart from others, including ones since closed.
@@ -86,6 +76,8 @@ class BrowserWindow : public CefWindowDelegate {
   void CloseTab(CefRefPtr<Tab> tab);
   // The page is closing: its tab goes, and the window if it was the last.
   void OnTabClosed(CefRefPtr<CefBrowser> browser);
+  // Loads a tab brought back from the last session (Tab::Load).
+  void LoadTab(CefRefPtr<Tab> tab);
   // A page's title, address, icon or loading state changed.
   void OnTabChanged(CefRefPtr<CefBrowser> browser);
   // Whether `pane`'s active tab is the focused tab: the window's active pane,
@@ -134,8 +126,13 @@ class BrowserWindow : public CefWindowDelegate {
   // Takes `tab`, dragged here from another window and dropped at `screen`.
   void AcceptTab(CefRefPtr<Tab> tab, const CefPoint& screen);
 
+  // The window's panes and tabs, to bring it back (once it's closed, or
+  // when the app next starts).
+  WindowLayout Snapshot() const;
+
   // CefWindowDelegate:
   void OnWindowCreated(CefRefPtr<CefWindow> window) override;
+  void OnWindowBoundsChanged(CefRefPtr<CefWindow> window, const CefRect& new_bounds) override;
   void OnWindowActivationChanged(CefRefPtr<CefWindow> window, bool active) override;
   bool CanClose(CefRefPtr<CefWindow> window) override;
   void OnWindowDestroyed(CefRefPtr<CefWindow> window) override;
@@ -167,6 +164,8 @@ class BrowserWindow : public CefWindowDelegate {
   // The window under `screen` that could take one of this window's tabs:
   // one of the same kind (private or not).
   BrowserWindow* DropWindowAt(const CefPoint& screen) const;
+  // `tab` (in `pane`) has closed: it goes, and the window if it was the last.
+  void OnTabClosed(Pane* pane, CefRefPtr<Tab> tab);
   // `tab` has left `pane` for another window: the pane goes if it's empty,
   // and the window if it was the last.
   void OnTabLeft(Pane* pane);
@@ -197,8 +196,6 @@ class BrowserWindow : public CefWindowDelegate {
   // Puts the divider handles over the divider lines (after any layout).
   void UpdateDividerHandles();
 
-  // The window's panes and tabs, to reopen it once it's closed.
-  WindowLayout Snapshot() const;
 
   BrowserManager* manager_;  // Lives as long as the app.
   const int id_;

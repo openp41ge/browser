@@ -6,11 +6,16 @@
 
 #include <algorithm>
 
+#include "include/base/cef_callback.h"
 #include "include/cef_app.h"
 #include "include/cef_parser.h"
 #include "include/cef_request_context.h"
+#include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
 
+#include "include/views/cef_display.h"
+
+#include "session.h"
 #include "ui/ui_live_reload.h"
 #include "updater.h"
 #include "ui/ui_scheme.h"
@@ -116,6 +121,84 @@ BrowserManager* BrowserManager::Get() {
 
 // --- Windows and tabs -------------------------------------------------------
 
+namespace {
+
+constexpr int kSessionSaveDelayMs = 1000;
+
+std::string ProfileFolder() {
+  return CefRequestContext::GetGlobalContext()->GetCachePath();
+}
+
+// `bounds`, moved onto the screen nearest it if it's no longer on one (the
+// screens may have changed since).
+CefRect OnScreen(CefRect bounds) {
+  CefRefPtr<CefDisplay> display = CefDisplay::GetDisplayMatchingBounds(bounds, /*input_pixel_coords=*/false);
+  if (!display) return bounds;
+  const CefRect area = display->GetWorkArea();
+  const bool visible = bounds.x < area.x + area.width && bounds.x + bounds.width > area.x &&
+                       bounds.y < area.y + area.height && bounds.y + bounds.height > area.y;
+  if (visible) return bounds;
+  bounds.width = std::min(bounds.width, area.width);
+  bounds.height = std::min(bounds.height, area.height);
+  bounds.x = area.x + (area.width - bounds.width) / 2;
+  bounds.y = area.y + (area.height - bounds.height) / 2;
+  return bounds;
+}
+
+}  // namespace
+
+void BrowserManager::Start(const std::string& url) {
+  CEF_REQUIRE_UI_THREAD();
+  std::vector<WindowLayout> saved = session::Read(ProfileFolder());
+  for (WindowLayout& layout : saved) {
+    layout.bounds = OnScreen(layout.bounds);
+    CefRefPtr<BrowserWindow> window = new BrowserWindow(this, std::move(layout));
+    windows_.push_back(window);
+    CefWindow::CreateTopLevelWindow(window);
+  }
+  if (saved.empty() || !url.empty()) OpenWindow(url);
+}
+
+std::vector<WindowLayout> BrowserManager::SessionWindows() const {
+  // Back to front, as they're stacked on screen (so the front one, made
+  // last, is in front again).
+  std::vector<WindowLayout> layouts;
+  NSArray<NSWindow*>* ordered = NSApp.orderedWindows;
+  std::vector<std::pair<NSUInteger, const BrowserWindow*>> stacked;
+  for (const CefRefPtr<BrowserWindow>& window : windows_) {
+    if (window->is_private() || !window->window()) continue;
+    NSWindow* ns = ((__bridge NSView*)window->window()->GetWindowHandle()).window;
+    const NSUInteger at = [ordered indexOfObject:ns];
+    stacked.emplace_back(at == NSNotFound ? NSUIntegerMax : at, window.get());
+  }
+  std::stable_sort(stacked.begin(), stacked.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+  for (const auto& [at, window] : stacked) {
+    WindowLayout layout = window->Snapshot();
+    if (!layout.panes.empty()) layouts.push_back(std::move(layout));
+  }
+  return layouts;
+}
+
+void BrowserManager::SessionChanged() {
+  // Not as the app quits: what was open then is already kept (CloseAll).
+  if (closing_ || session_save_pending_) return;
+  session_save_pending_ = true;
+  CefPostDelayedTask(TID_UI,
+                     base::BindOnce(
+                         [](CefRefPtr<BrowserManager> self) {
+                           if (!self->session_save_pending_) return;
+                           self->session_save_pending_ = false;
+                           if (!self->closing_) self->SaveSession(/*now=*/false);
+                         },
+                         CefRefPtr<BrowserManager>(this)),
+                     kSessionSaveDelayMs);
+}
+
+void BrowserManager::SaveSession(bool now) {
+  session_save_pending_ = false;
+  session::Write(ProfileFolder(), SessionWindows(), now);
+}
+
 void BrowserManager::OpenWindow(const std::string& url, bool is_private) {
   CEF_REQUIRE_UI_THREAD();
   // Cascade new windows a little so they don't sit exactly on top.
@@ -162,6 +245,23 @@ CefRefPtr<Tab> BrowserManager::AdoptTab(CefRefPtr<CefBrowserView> view) {
   return new Tab(next_tab_id_++, view);
 }
 
+CefRefPtr<Tab> BrowserManager::SavedTab(const WindowLayout::SavedTab& saved) {
+  CefRefPtr<Tab> tab = new Tab(next_tab_id_++, nullptr);
+  tab->url = saved.url;
+  tab->title = saved.title;
+  tab->favicon = saved.favicon;
+  // Visited before: loading it again isn't another visit.
+  tab->visited = saved.url;
+  return tab;
+}
+
+void BrowserManager::LoadTab(CefRefPtr<Tab> tab, bool is_private) {
+  if (tab->loaded()) return;
+  CefBrowserSettings settings;
+  tab->Load(CefBrowserView::CreateBrowserView(this, tab->url, settings, NewPageExtraInfo(),
+                                              is_private ? PrivateContext() : nullptr, view_delegate_));
+}
+
 void BrowserManager::OnPopupViewCreated(CefRefPtr<CefBrowserView> opener, CefRefPtr<CefBrowserView> popup) {
   BrowserWindow* window = WindowOf(opener->GetBrowser());
   window = window ? window : current_;
@@ -186,6 +286,12 @@ void BrowserManager::OnWindowDestroyed(BrowserWindow* window) {
   // hold it too), and with it everything they kept.
   if (std::none_of(windows_.begin(), windows_.end(), [](const CefRefPtr<BrowserWindow>& w) { return w->is_private(); })) {
     private_context_ = nullptr;
+  }
+  if (windows_.empty() && !closing_) {
+    // The last window closed (not the app quitting): nothing to bring back.
+    SaveSession(/*now=*/true);
+  } else {
+    SessionChanged();
   }
   if (windows_.empty()) {
     popout_->Close();
@@ -256,6 +362,9 @@ BrowserWindow* BrowserManager::WindowOf(CefRefPtr<CefBrowser> browser, CefRefPtr
 
 void BrowserManager::CloseAll() {
   CEF_REQUIRE_UI_THREAD();
+  // What's open now is what the next start brings back (before the windows
+  // close, which would take it with them).
+  if (!closing_) SaveSession(/*now=*/true);
   closing_ = true;
   popout_->Close();
   for (const CefRefPtr<BrowserWindow>& w : std::vector<CefRefPtr<BrowserWindow>>(windows_)) {
@@ -265,6 +374,7 @@ void BrowserManager::CloseAll() {
 }
 
 void BrowserManager::OnMessageLoopEnded() {
+  if (session_save_pending_ && !closing_) SaveSession(/*now=*/true);
   history_->SaveNow();
 }
 

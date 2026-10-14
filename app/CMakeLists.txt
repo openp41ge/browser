@@ -107,6 +107,8 @@ add_cef_mac_app(openp41ge_explorer
     src/popout/popout_controller.mm
     src/popout/popout_scripts.h
     src/popout/popout_scripts.mm
+    src/session.cc
+    src/session.h
     src/tab.h
     src/tab_drag_image.h
     src/tab_drag_image.mm
@@ -127,6 +129,7 @@ add_cef_mac_app(openp41ge_explorer
     src/ui/ui_scheme.h
     src/ui/ui_view.h
     src/ui/ui_view.mm
+    src/window_layout.h
   HELPER_SOURCES
     src/process_helper_mac.cc
     src/renderer_app.cc
