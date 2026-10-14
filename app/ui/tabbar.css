@@ -34,7 +34,8 @@ body {
   display: none;
 }
 
-.tab {
+.tab,
+.closed-tab {
   position: relative;
   flex: none;
   display: flex;
@@ -51,7 +52,8 @@ body {
   font-size: 12px;
   cursor: default;
 }
-.tab.active {
+.tab.active,
+.closed-tab.active {
   background: var(--border-divider);
   color: var(--text-primary);
 }
@@ -63,6 +65,23 @@ body {
 }
 .tab.dragging {
   opacity: 0.4;
+}
+/* A closed tab shrinking away (tabbar.js sets its width as it goes): its
+ * contents stay put, cut off by the edge that moves; the right one, or
+ * the left (from-left), their right end staying put. */
+.closed-tab {
+  overflow: hidden;
+  padding-left: 0;
+  pointer-events: none;
+}
+.closed-tab > * {
+  flex: none;
+}
+.closed-tab > :first-child {
+  margin-left: 8px;
+}
+.closed-tab.from-left {
+  justify-content: flex-end;
 }
 
 .icon {

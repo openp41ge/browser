@@ -8,7 +8,8 @@
 // A tab's site is its address bar: double-click it to edit the full address
 // (selected), Return to go there (or search), Escape or clicking away to
 // leave it. Tabs are 220px wide, narrowed to 80% then 60% when that's what
-// it takes for them all to fit; past that they scroll. The filter button
+// it takes for them all to fit; past that they scroll. A closed tab shrinks
+// away, so it's clear which one went. The filter button
 // before "+" opens into a field that shows only the tabs whose site, title
 // or headings (the page's h1s) have what's typed.
 //
@@ -159,18 +160,85 @@ function render() {
   for (const [id, { el }] of elements) {
     if (ids.has(id)) continue;
     if (editing?.id === id) editing = null;
-    el.remove();
     elements.delete(id);
+    shrinkAway(el);
   }
   const els = tabs.map(tabElement);
-  // Re-order only if needed: moving an element drops its focus.
-  if (els.some((el, i) => strip.children[i] !== el) || strip.children.length !== els.length) {
+  // Re-order only if needed: moving an element drops its focus. (Re-ordering
+  // drops any tabs still shrinking away.)
+  const shown = [...strip.querySelectorAll('.tab')];
+  if (els.some((el, i) => shown[i] !== el) || shown.length !== els.length) {
     strip.replaceChildren(...els);
   }
   fit();
   applyFilter();
-  if (!editing) strip.querySelector('.tab.active')?.scrollIntoView({ inline: 'nearest' });
+  // Into view when it changes: otherwise the tabs stay where they've been
+  // scrolled to (as others close or load, say).
+  if (active !== scrolledTo && !editing) {
+    scrolledTo = active;
+    strip.querySelector('.tab.active')?.scrollIntoView({ inline: 'nearest' });
+  }
   updateFades();
+}
+
+// The active tab last scrolled into view.
+let scrolledTo = -1;
+
+// --- Closing ---------------------------------------------------------------------
+
+// How long a closed tab takes to shrink away.
+const CLOSE_MS = 180;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+/**
+ * Shrinks a closed tab's element to nothing, then removes it; what it shows
+ * stays where it is, cut off by the edge that moves. That's its right edge,
+ * the tabs after it following; but with the tabs scrolled to (or near)
+ * their end there's nothing to come in from the right, so then its left
+ * edge moves instead, the tabs scrolling back: those before it come in from
+ * the left and those after it stay put.
+ */
+function shrinkAway(el) {
+  const width = el.offsetWidth;
+  if (reduceMotion.matches || el.hidden || !width) {
+    el.remove();
+    return;
+  }
+  const fromLeft = strip.scrollLeft > 0 && strip.scrollLeft + strip.clientWidth > strip.scrollWidth - width;
+  // Its contents keep their sizes as it narrows (its padding as a margin, so
+  // it can narrow past it), and what's shown: ✕ or the spinner, which
+  // depend on its hover, which goes.
+  for (const child of el.children) {
+    child.style.display = getComputedStyle(child).display;
+    child.style.width = `${child.offsetWidth}px`;
+  }
+  el.style.width = `${width}px`;
+  // No longer a tab, but looking like one (the one it was).
+  el.classList.replace('tab', 'closed-tab');
+  el.classList.toggle('from-left', fromLeft);
+  el.removeAttribute('role');
+
+  // From the left, its right edge is held where it is by scrolling back as
+  // it narrows (by however far it has moved: the browser may have scrolled
+  // back some itself, as the tabs got shorter than the scroll).
+  const right = el.getBoundingClientRect().right;
+  const start = performance.now();
+  const step = (now) => {
+    if (!el.isConnected) return; // Dropped by a re-order.
+    const t = Math.min(1, (now - start) / CLOSE_MS);
+    el.style.width = `${width * (1 - t) ** 3}px`; // Easing out.
+    if (fromLeft) strip.scrollLeft += el.getBoundingClientRect().right - right;
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.remove();
+      // Widened now there's room (the tab took its share until it went).
+      fit();
+    }
+    updateFades();
+    reportLayout();
+  };
+  requestAnimationFrame(step);
 }
 
 // --- Widths and the filter ---------------------------------------------------
@@ -180,10 +248,12 @@ const TAB_WIDTHS = [220, 176, 132];
 // The filter button and "+", at the right.
 const BUTTONS_WIDTH = 68;
 
-/** The widest tabs that all fit; the narrowest (scrolling) if none do. */
+/** The widest tabs that all fit (closed ones too, until they've gone); the
+ * narrowest (scrolling) if none do. */
 function fit() {
   const room = bar.clientWidth - BUTTONS_WIDTH;
-  const width = TAB_WIDTHS.find((w) => tabs.length * w <= room) ?? TAB_WIDTHS.at(-1);
+  const count = tabs.length + strip.querySelectorAll('.closed-tab').length;
+  const width = TAB_WIDTHS.find((w) => count * w <= room) ?? TAB_WIDTHS.at(-1);
   strip.style.setProperty('--tab-width', `${width}px`);
 }
 
