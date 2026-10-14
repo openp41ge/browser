@@ -7,6 +7,9 @@
 #
 # The .icon: the brand tile's colour is its background, and what's on the
 # tile is its artwork, scaled to the full canvas (macOS applies the shape).
+# Flat, as the SVG is: Liquid Glass's effects (glass, specular highlights,
+# shadow, translucency), which macOS 26 gives a layer unless told not to,
+# are off.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -30,10 +33,20 @@ make() {
     {
       "layers" : [
         {
+          "glass" : false,
           "image-name" : "artwork.svg",
           "name" : "artwork"
         }
-      ]
+      ],
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
     }
   ],
   "supported-platforms" : {
