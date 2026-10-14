@@ -12,6 +12,7 @@
 #include "include/wrapper/cef_closure_task.h"
 
 #include "browser_manager.h"
+#include "tab_previews.h"
 #include "ui/ui_scheme.h"
 
 namespace {
@@ -84,7 +85,8 @@ BrowserWindow::BrowserWindow(BrowserManager* manager, WindowLayout layout)
       bounds_(layout.bounds),
       is_private_(false),
       restore_(std::move(layout)),
-      top_bar_(new TopBar(this)) {}
+      top_bar_(new TopBar(this)),
+      previews_(restore_.previews) {}
 
 History* BrowserWindow::history() const {
   return is_private_ ? nullptr : manager_->history();
@@ -121,6 +123,7 @@ void BrowserWindow::OnWindowCreated(CefRefPtr<CefWindow> window) {
   grid_->SetToBoxLayout(row);
   panes_.push_back(std::make_unique<Pane>(this));
   active_pane_ = panes_.back().get();
+  active_pane_->SetPreviews(previews_);
   window->AddChildView(grid_);
   layout->SetFlexForView(grid_, 1);
   divider_handles_ = std::make_unique<DividerHandles>(
@@ -219,12 +222,29 @@ WindowLayout BrowserWindow::Snapshot() const {
     saved.weight = pane->weight;
     for (const CefRefPtr<Tab>& tab : pane->tabs()) {
       if (tab == pane->active_tab()) saved.active = static_cast<int>(saved.tabs.size());
-      saved.tabs.push_back({tab->url, tab->title, tab->favicon});
+      // A private window's pictures aren't kept (nor is it).
+      saved.tabs.push_back({tab->url, tab->title, tab->favicon, is_private_ ? std::string() : tab->preview});
     }
     if (pane.get() == active_pane_) layout.active_pane = static_cast<int>(layout.panes.size());
     if (!saved.tabs.empty()) layout.panes.push_back(std::move(saved));
   }
+  layout.previews = previews_;
   return layout;
+}
+
+void BrowserWindow::SetPreviews(bool shown) {
+  if (shown == previews_) return;
+  previews_ = shown;
+  for (const std::unique_ptr<Pane>& pane : panes_) pane->SetPreviews(shown);
+  if (shown) CapturePreviews();
+  manager_->SessionChanged();
+}
+
+void BrowserWindow::CapturePreviews() {
+  if (!window_ || closing_ || !window_->IsVisible() || window_->IsMinimized()) return;
+  for (const std::unique_ptr<Pane>& pane : panes_) {
+    if (CefRefPtr<Tab> tab = pane->active_tab()) manager_->CapturePreview(tab, is_private_);
+  }
 }
 
 void BrowserWindow::LoadTab(CefRefPtr<Tab> tab) {
@@ -271,6 +291,7 @@ void BrowserWindow::OnTabClosed(CefRefPtr<CefBrowser> browser) {
 }
 
 void BrowserWindow::OnTabClosed(Pane* pane, CefRefPtr<Tab> tab) {
+  if (!tab->preview.empty()) tab_previews::Forget(tab->preview);
   // A tab closed on its own (not with its window) can be reopened.
   if (!closing_ && !is_private_) {
     manager_->RememberClosedTab(this, tab->url, IndexOf(pane), pane->IndexOf(tab->id()),
@@ -305,6 +326,8 @@ void BrowserWindow::OnActiveTabChanged(Pane* pane) {
     if (marked_pane_) marked_pane_->UpdateTabBar();
   }
   UpdateFocusBar();
+  // Its picture, once it has drawn.
+  if (CefRefPtr<Tab> tab = pane->active_tab()) manager_->CapturePreviewSoon(tab);
   if (pane != active_pane_) return;
   top_bar_->Update();
   UpdateTitle();
@@ -507,6 +530,7 @@ Pane* BrowserWindow::AddPane(int index) {
   for (const std::unique_ptr<Pane>& pane : panes_) pane->weight = 1000;
   auto pane = std::make_unique<Pane>(this);
   Pane* added = pane.get();
+  added->SetPreviews(previews_);
   panes_.insert(panes_.begin() + std::clamp(index, 0, static_cast<int>(panes_.size())), std::move(pane));
   Relayout();
   return added;

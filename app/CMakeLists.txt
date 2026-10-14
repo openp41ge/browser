@@ -110,6 +110,8 @@ add_cef_mac_app(openp41ge_explorer
     src/session.cc
     src/session.h
     src/tab.h
+    src/tab_previews.h
+    src/tab_previews.mm
     src/tab_drag_image.h
     src/tab_drag_image.mm
     src/suggestions_popup.h

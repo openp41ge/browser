@@ -64,8 +64,10 @@ class Pane {
   // Shows where a dragged tab would go in the tab bar (-1: nowhere).
   void ShowInsertHint(int index) { tab_bar_->ShowInsertHint(index); }
   int IndexOf(int id) const;
-  // A tab's title, address, icon or loading state changed.
+  // A tab's title, address, icon, loading state or picture changed.
   void UpdateTabBar();
+  // Its tab bar showing each tab's picture, or not (the window's choice).
+  void SetPreviews(bool shown) { tab_bar_->SetPreviews(shown); }
   // A suggestion under a tab's address was clicked.
   void PickSuggestion(int index) { tab_bar_->PickSuggestion(index); }
   // A suggestion's ✕ was clicked: forget it.

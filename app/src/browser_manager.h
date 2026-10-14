@@ -110,6 +110,10 @@ class BrowserManager : public CefClient,
   // Something kept in the session changed (a tab, a pane, a window): it's
   // written a moment later.
   void SessionChanged();
+  // Takes a picture of `tab`'s page for its preview (tab_previews.h), if it
+  // shows (its pane's active tab): now, or once it has drawn.
+  void CapturePreview(CefRefPtr<Tab> tab, bool is_private);
+  void CapturePreviewSoon(CefRefPtr<Tab> tab);
   PopoutController* popout() const { return popout_.get(); }
   DevToolsClient* devtools() const { return devtools_.get(); }
   History* history() const { return history_.get(); }
@@ -247,6 +251,8 @@ class BrowserManager : public CefClient,
   std::vector<WindowLayout> SessionWindows() const;
   void SaveSession(bool now);
   bool session_save_pending_ = false;
+  // Pictures of the tabs showing, every so often.
+  void CapturePreviewsLater();
   // Whether the popup being created should become the active tab.
   bool popup_foreground_ = true;
   bool closing_ = false;

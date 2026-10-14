@@ -41,6 +41,8 @@ class UiView : public CefClient,
 
   // The view, created on first call.
   CefRefPtr<CefBrowserView> view();
+  // A new preferred size (a bar growing, say): its parent lays it out again.
+  void SetPreferredSize(CefSize size);
   // Or instead, the page in a native view of our own (`parent`, at `bounds`
   // in it, filling it as it's resized): for a window of our own rather than
   // a CEF window, which macOS draws with rounded corners (see FindBar,
@@ -144,6 +146,7 @@ class UiView : public CefClient,
   CefSize preferred_size_;
   Background background_;
   CefRefPtr<CefBrowserView> view_;
+  CefRefPtr<CefBrowserViewDelegate> delegate_;
   CefRefPtr<CefBrowser> browser_;
   CefRefPtr<CefMessageRouterBrowserSide> router_;
   CefRefPtr<Callback> listener_;

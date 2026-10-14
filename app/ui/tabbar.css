@@ -3,7 +3,9 @@
  * A pane's tab bar, after openp41ge's tab-bar (openp41ge-sdk-uikit): 35px,
  * the surface background, a divider underneath; 12px tabs with a right
  * border, the active one highlighted; a 34px "+" at the right, and a
- * filter button before it, which opens leftward into a field.
+ * filter button before it, which opens leftward into a field. At the left,
+ * the previews button: the bar grows (expanded) to show each tab's picture
+ * under it.
  */
 
 html,
@@ -16,16 +18,24 @@ body {
   /* What's kept at the right, past the tabs: the filter (34px; 286px while
    * it's open) and "+". */
   --reserved: 68px;
+  /* The tabs' height: their row, and showing previews their pictures under
+   * it (TabBar::kPreviewHeight). */
+  --tab-height: 34px;
   position: relative;
-  height: 35px;
+  height: calc(var(--tab-height) + 1px);
   box-sizing: border-box;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-divider);
 }
 
+.bar.expanded {
+  --tab-height: 172px;
+}
+
 .tabs {
   display: flex;
-  height: 34px;
+  height: var(--tab-height);
+  margin-left: 34px;
   margin-right: var(--reserved);
   overflow-x: auto;
   scrollbar-width: none;
@@ -44,7 +54,7 @@ body {
   /* Room for the address placeholder ("Search or enter address") in full,
    * until there are too many tabs: tabbar.js narrows them (--tab-width). */
   width: var(--tab-width, 220px);
-  height: 34px;
+  height: var(--tab-height);
   box-sizing: border-box;
   padding-left: 8px;
   border-right: 1px solid var(--border-divider);
@@ -82,6 +92,71 @@ body {
 }
 .closed-tab.from-left {
   justify-content: flex-end;
+}
+.closed-tab.from-left .shot {
+  left: auto;
+  right: 0;
+}
+
+/* Showing previews: the tab's row at its top, its picture under it. */
+.bar.expanded .tab,
+.bar.expanded .closed-tab {
+  align-items: flex-start;
+}
+.bar.expanded .icon-slot {
+  margin-top: 9px;
+}
+.bar.expanded .address {
+  margin-top: 6px;
+}
+.shot {
+  display: none;
+  position: absolute;
+  top: 34px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: var(--bg-gutter);
+}
+.bar.expanded .shot {
+  display: block;
+}
+/* The page's top, filling the width (a narrower tab shows less of its
+ * sides). */
+.shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+/* No picture yet: what the tab is, and why. */
+.shot .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 12px;
+  box-sizing: border-box;
+  text-align: center;
+}
+.shot .empty .icon {
+  width: 24px;
+  height: 24px;
+}
+.shot .empty .title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--text-primary);
+}
+.shot .empty .status {
+  color: var(--text-muted);
+  font-size: 11px;
 }
 
 .icon {
@@ -173,6 +248,35 @@ svg.icon {
   color: var(--text-primary);
 }
 
+/* Previews: at the left, before the tabs. */
+.previews {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+.previews:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+.bar.expanded .previews {
+  color: var(--accent);
+}
+.previews svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 .add {
   position: absolute;
   top: 0;
@@ -215,13 +319,13 @@ svg.icon {
   position: absolute;
   top: 0;
   width: 30px;
-  height: 34px;
+  height: var(--tab-height);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s;
 }
 .fade.left {
-  left: 0;
+  left: 34px;
   background: linear-gradient(to right, var(--bg-surface), transparent);
 }
 .fade.right {
@@ -305,7 +409,7 @@ svg.icon {
   position: absolute;
   top: 0;
   width: 3px;
-  height: 34px;
+  height: var(--tab-height);
   margin-left: -1px;
   background: rgb(74, 158, 255);
   box-shadow: 0 0 10px rgba(74, 158, 255, 0.6);

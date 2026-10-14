@@ -5,6 +5,7 @@
 #include "browser_manager.h"
 #include "browser_window.h"
 #include "pane.h"
+#include "ui/ui_scheme.h"
 
 namespace {
 
@@ -30,6 +31,10 @@ void TabBar::Update() {
     t->SetString("title", tab->title);
     t->SetString("favicon", tab->favicon);
     t->SetBool("loading", tab->loading);
+    t->SetBool("loaded", tab->loaded());
+    t->SetString("preview", tab->preview.empty() ? std::string()
+                                                  : std::string(ui_scheme::kOrigin) + "preview/" + tab->preview +
+                                                        ".jpg?v=" + std::to_string(tab->preview_version));
     tabs->SetDictionary(tabs->GetSize(), t);
   }
   CefRefPtr<CefDictionaryValue> message = CefDictionaryValue::Create();
@@ -37,11 +42,17 @@ void TabBar::Update() {
   message->SetList("tabs", tabs);
   message->SetInt("active", owner_->active_tab() ? owner_->active_tab()->id() : -1);
   message->SetBool("focused", owner_->window()->ShowsFocus(owner_));
+  message->SetBool("previews", owner_->window()->previews());
   if (edit_ >= 0 && connected()) {
     message->SetInt("edit", edit_);
     edit_ = -1;
   }
   Send(message);
+}
+
+void TabBar::SetPreviews(bool shown) {
+  SetPreferredSize(CefSize(1, shown ? kHeight + kPreviewHeight : kHeight));
+  Update();
 }
 
 void TabBar::PickSuggestion(int index) {
@@ -79,6 +90,8 @@ bool TabBar::OnMessage(const std::string& type, CefRefPtr<CefDictionaryValue> me
     owner_->RequestClose(message->GetInt("id"));
   } else if (type == "new-tab") {
     owner_->RequestNewTab();
+  } else if (type == "toggle-previews") {
+    window->SetPreviews(!window->previews());
   } else if (type == "navigate") {
     owner_->RequestNavigate(message->GetInt("id"), message->GetString("url"));
   } else if (type == "suggest") {

@@ -5,6 +5,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include <algorithm>
+#include <set>
 
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
@@ -16,6 +17,7 @@
 #include "include/views/cef_display.h"
 
 #include "session.h"
+#include "tab_previews.h"
 #include "ui/ui_live_reload.h"
 #include "updater.h"
 #include "ui/ui_scheme.h"
@@ -77,6 +79,7 @@ BrowserManager::BrowserManager()
   DCHECK(!g_manager);
   g_manager = this;
   DisableChromiumHistory(CefRequestContext::GetGlobalContext());
+  tab_previews::Init(CefRequestContext::GetGlobalContext()->GetCachePath());
   // A development build's UI, as it's edited (ui_live_reload.h).
   ui_live_reload::Watch([this] { ReloadUi(); });
   // An update waiting for the user shows in every window's top bar.
@@ -124,6 +127,12 @@ BrowserManager* BrowserManager::Get() {
 namespace {
 
 constexpr int kSessionSaveDelayMs = 1000;
+// Tabs' pictures: taken this long after a page loads or shows (once it has
+// drawn), and of the tabs showing this often.
+constexpr int kPreviewDelayMs = 800;
+constexpr int kPreviewIntervalMs = 15000;
+// Their width (a 220px tab's, at 2x).
+constexpr int kPreviewWidth = 440;
 
 std::string ProfileFolder() {
   return CefRequestContext::GetGlobalContext()->GetCachePath();
@@ -157,6 +166,77 @@ void BrowserManager::Start(const std::string& url) {
     CefWindow::CreateTopLevelWindow(window);
   }
   if (saved.empty() || !url.empty()) OpenWindow(url);
+  CapturePreviewsLater();
+}
+
+// These tasks hold nothing (the manager lives as long as the app; a tab by
+// its id): one still waiting as the app quits is dropped after CEF has shut
+// down, and mustn't be what lets a page go then.
+void BrowserManager::CapturePreviewsLater() {
+  CefPostDelayedTask(TID_UI,
+                     base::BindOnce(
+                         [](BrowserManager* self) {
+                           if (self->closing_) return;
+                           for (const CefRefPtr<BrowserWindow>& window : self->windows_) window->CapturePreviews();
+                           self->CapturePreviewsLater();
+                         },
+                         base::Unretained(this)),
+                     kPreviewIntervalMs);
+}
+
+void BrowserManager::CapturePreviewSoon(CefRefPtr<Tab> tab) {
+  CefPostDelayedTask(TID_UI,
+                     base::BindOnce(
+                         [](BrowserManager* self, int id) {
+                           if (self->closing_) return;
+                           for (const CefRefPtr<BrowserWindow>& window : self->windows_) {
+                             for (const CefRefPtr<Tab>& tab : window->tabs()) {
+                               if (tab->id() != id) continue;
+                               CefRefPtr<CefWindow> cef = window->window();
+                               if (cef && cef->IsVisible() && !cef->IsMinimized()) {
+                                 self->CapturePreview(tab, window->is_private());
+                               }
+                               return;
+                             }
+                           }
+                         },
+                         base::Unretained(this), tab->id()),
+                     kPreviewDelayMs);
+}
+
+void BrowserManager::CapturePreview(CefRefPtr<Tab> tab, bool is_private) {
+  CefRefPtr<CefBrowser> browser = tab->browser();
+  BrowserWindow* window = WindowOf(browser);
+  Pane* pane = window ? window->Locate(browser) : nullptr;
+  // Only a page that shows is drawn (a hidden one's picture never comes).
+  if (!pane || pane->active_tab() != tab) return;
+  const CefRect bounds = tab->view()->GetBounds();
+  if (bounds.width <= 0 || bounds.height <= 0) return;
+  CefRefPtr<CefDictionaryValue> clip = CefDictionaryValue::Create();
+  clip->SetDouble("x", 0);
+  clip->SetDouble("y", 0);
+  clip->SetDouble("width", bounds.width);
+  clip->SetDouble("height", bounds.height);
+  clip->SetDouble("scale", std::min(1.0, static_cast<double>(kPreviewWidth) / bounds.width));
+  CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+  params->SetString("format", "jpeg");
+  params->SetInt("quality", 70);
+  params->SetDictionary("clip", clip);
+  CefRefPtr<BrowserManager> self(this);
+  devtools_->Call(browser, "Page.captureScreenshot", params, [self, tab, is_private](CefRefPtr<CefDictionaryValue> result) {
+    if (!result) return;
+    CefRefPtr<CefBinaryValue> data = CefBase64Decode(result->GetString("data"));
+    if (!data || data->GetSize() == 0) return;
+    std::string jpeg(data->GetSize(), '\0');
+    data->GetData(jpeg.data(), jpeg.size(), 0);
+    if (tab->preview.empty()) tab->preview = tab_previews::NewToken();
+    tab_previews::Put(tab->preview, std::move(jpeg), /*keep=*/!is_private);
+    ++tab->preview_version;
+    CefRefPtr<Tab> found;
+    if (BrowserWindow* window = self->WindowOf(tab->browser(), &found)) {
+      if (Pane* pane = window->Locate(tab->browser())) pane->UpdateTabBar();
+    }
+  });
 }
 
 std::vector<WindowLayout> BrowserManager::SessionWindows() const {
@@ -185,18 +265,29 @@ void BrowserManager::SessionChanged() {
   session_save_pending_ = true;
   CefPostDelayedTask(TID_UI,
                      base::BindOnce(
-                         [](CefRefPtr<BrowserManager> self) {
+                         [](BrowserManager* self) {
                            if (!self->session_save_pending_) return;
                            self->session_save_pending_ = false;
                            if (!self->closing_) self->SaveSession(/*now=*/false);
                          },
-                         CefRefPtr<BrowserManager>(this)),
+                         base::Unretained(this)),
                      kSessionSaveDelayMs);
 }
 
 void BrowserManager::SaveSession(bool now) {
   session_save_pending_ = false;
-  session::Write(ProfileFolder(), SessionWindows(), now);
+  const std::vector<WindowLayout> windows = SessionWindows();
+  session::Write(ProfileFolder(), windows, now);
+  // The pictures kept are the session's tabs'.
+  std::set<std::string> previews;
+  for (const WindowLayout& layout : windows) {
+    for (const WindowLayout::PaneTabs& pane : layout.panes) {
+      for (const WindowLayout::SavedTab& tab : pane.tabs) {
+        if (!tab.preview.empty()) previews.insert(tab.preview);
+      }
+    }
+  }
+  tab_previews::KeepOnly(std::move(previews));
 }
 
 void BrowserManager::OpenWindow(const std::string& url, bool is_private) {
@@ -250,6 +341,8 @@ CefRefPtr<Tab> BrowserManager::SavedTab(const WindowLayout::SavedTab& saved) {
   tab->url = saved.url;
   tab->title = saved.title;
   tab->favicon = saved.favicon;
+  // Its picture, as it was.
+  if (tab_previews::Load(saved.preview)) tab->preview = saved.preview;
   // Visited before: loading it again isn't another visit.
   tab->visited = saved.url;
   return tab;
@@ -664,6 +757,7 @@ void BrowserManager::OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
   tab->loading = is_loading;
   if (!is_loading) {
     if (Pane* pane = window->Locate(browser)) pane->OnPageLoaded(tab);
+    CapturePreviewSoon(tab);
   }
   window->OnTabChanged(browser);
 }

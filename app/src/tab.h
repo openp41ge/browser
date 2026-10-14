@@ -28,6 +28,10 @@ class Tab : public CefBaseRefCounted {
   std::string url;
   std::string favicon;
   bool loading = false;
+  // Its picture (tab_previews.h), if it's had one taken; and which, so the
+  // tab bar loads a new one.
+  std::string preview;
+  int preview_version = 0;
   // The address last recorded in History (a reload isn't another visit).
   std::string visited;
   // Find in page: whether its find row is open, what it's finding, and the

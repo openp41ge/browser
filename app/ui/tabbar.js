@@ -13,6 +13,11 @@
 // before "+" opens into a field that shows only the tabs whose site, title
 // or headings (the page's h1s) have what's typed.
 //
+// The previews button at the left grows every tab bar in the window to show
+// each tab's picture under it (taken while it last showed: a hidden page
+// isn't drawn), or what it is and why there's none yet: not loaded (brought
+// back, not shown since), loading, or not shown yet (opened behind).
+//
 // As an address is typed, the browser offers pages and sites from history:
 // the best one that starts with what's typed completes it inline (the rest
 // selected, so typing on replaces it), and they're listed under the tab
@@ -127,12 +132,17 @@ function tabElement(tab) {
       send({ type: 'close', id: Number(el.dataset.id) });
     });
 
-    el.append(icon, field, close, spinner);
-    parts = { el, icon, field, favicon: null };
+    // Its picture, showing previews.
+    const shot = document.createElement('div');
+    shot.className = 'shot';
+
+    el.append(icon, field, close, spinner, shot);
+    parts = { el, icon, field, shot, favicon: null, preview: null, empty: null };
     elements.set(tab.id, parts);
   }
 
   const { el, icon, field } = parts;
+  updateShot(parts, tab);
   el.classList.toggle('active', tab.id === active);
   el.setAttribute('aria-selected', String(tab.id === active));
   el.title = BLANK_PAGES.has(tab.url) ? 'New Tab' : tab.url;
@@ -153,6 +163,50 @@ function tabElement(tab) {
     }
   }
   return el;
+}
+
+/** A tab's picture, or what it is and why there's none. */
+function updateShot(parts, tab) {
+  const { shot } = parts;
+  if (tab.preview) {
+    if (parts.preview === tab.preview) return;
+    parts.preview = tab.preview;
+    parts.empty = null;
+    // Swapped in once it has loaded (no flash of nothing between pictures).
+    const img = document.createElement('img');
+    img.alt = '';
+    img.addEventListener('load', () => {
+      if (parts.preview === tab.preview) shot.replaceChildren(img);
+    });
+    img.src = tab.preview;
+    return;
+  }
+  const status = !tab.loaded ? 'Not loaded' : tab.loading ? 'Loading…' : 'Not shown yet';
+  const title = tab.title || displayAddress(tab.url) || 'New Tab';
+  const key = `${status}\n${title}\n${tab.favicon}`;
+  if (parts.empty === key) return;
+  parts.preview = null;
+  parts.empty = key;
+  const empty = document.createElement('div');
+  empty.className = 'empty';
+  const glyph = document.createElement('span');
+  glyph.className = 'icon-slot';
+  glyph.innerHTML = DEFAULT_ICON;
+  if (tab.favicon) {
+    const img = document.createElement('img');
+    img.className = 'icon';
+    img.alt = '';
+    img.addEventListener('load', () => glyph.replaceChildren(img));
+    img.src = tab.favicon;
+  }
+  const name = document.createElement('div');
+  name.className = 'title';
+  name.textContent = title;
+  const note = document.createElement('div');
+  note.className = 'status';
+  note.textContent = status;
+  empty.append(glyph, name, note);
+  shot.replaceChildren(empty);
 }
 
 function render() {
@@ -245,8 +299,8 @@ function shrinkAway(el) {
 
 // A tab's width, and the narrower ones tried (80%, 60%) before they scroll.
 const TAB_WIDTHS = [220, 176, 132];
-// The filter button and "+", at the right.
-const BUTTONS_WIDTH = 68;
+// The previews button at the left; the filter button and "+" at the right.
+const BUTTONS_WIDTH = 34 + 68;
 
 /** The widest tabs that all fit (closed ones too, until they've gone); the
  * narrowest (scrolling) if none do. */
@@ -410,7 +464,8 @@ function showSuggestions() {
     x: Math.round(r.left),
     y: Math.round(r.top),
     width: Math.round(r.width),
-    height: Math.round(r.height),
+    // Under its row (its picture, showing previews, is below that).
+    height: Math.round(Math.min(r.height, ROW_HEIGHT)),
     popupWidth: Math.max(Math.round(r.width), 480),
   });
 }
@@ -569,6 +624,23 @@ strip.addEventListener(
 
 document.getElementById('add').addEventListener('click', () => send({ type: 'new-tab' }));
 
+const previewsButton = document.getElementById('previews');
+previewsButton.addEventListener('click', () => send({ type: 'toggle-previews' }));
+// A tab's row (its address, ✕): the whole tab unless showing previews.
+const ROW_HEIGHT = 34;
+
+/** Showing previews (the window's choice, for all its tab bars), or not. */
+function showPreviews(shown) {
+  if (bar.classList.contains('expanded') === shown) return;
+  bar.classList.toggle('expanded', shown);
+  const label = shown ? 'Hide Previews' : 'Show Previews';
+  previewsButton.title = label;
+  previewsButton.setAttribute('aria-label', label);
+  previewsButton.setAttribute('aria-pressed', String(shown));
+  updateFades();
+  reportLayout();
+}
+
 listen((message) => {
   if (message.type === 'tabs') {
     // While filtering, a page that has finished loading may have new
@@ -579,6 +651,7 @@ listen((message) => {
     tabs = message.tabs;
     active = message.active;
     document.body.classList.toggle('focused', message.focused);
+    showPreviews(!!message.previews);
     render();
     reportLayout();
     // A new tab: its address, ready to type in.

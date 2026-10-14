@@ -85,6 +85,12 @@ class BrowserWindow : public CefWindowDelegate {
   bool ShowsFocus(const Pane* pane) const;
   // A pane's active tab changed.
   void OnActiveTabChanged(Pane* pane);
+  // Its tab bars showing each tab's picture (the previews button), or not.
+  bool previews() const { return previews_; }
+  void SetPreviews(bool shown);
+  // Takes pictures of the tabs showing (each pane's active one), for their
+  // previews: as they can only be taken while a page shows.
+  void CapturePreviews();
   // Puts the focus bar over the focused tab's top edge (after its tab bar
   // reports where it is, or the panes move), or hides it.
   void UpdateFocusBar();
@@ -227,6 +233,7 @@ class BrowserWindow : public CefWindowDelegate {
   std::vector<int> resize_widths_;  // Pane widths when the resize started.
   bool closing_ = false;
   bool window_active_ = false;  // The window has the keyboard.
+  bool previews_ = false;
 
   IMPLEMENT_REFCOUNTING(BrowserWindow);
 };

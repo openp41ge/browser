@@ -7,6 +7,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include "include/cef_parser.h"
+#include "include/views/cef_panel.h"
 #include "include/wrapper/cef_helpers.h"
 
 #include "ui/ui_scheme.h"
@@ -17,6 +18,7 @@ namespace {
 class UiViewDelegate : public CefBrowserViewDelegate {
  public:
   explicit UiViewDelegate(CefSize size) : size_(size) {}
+  void set_size(CefSize size) { size_ = size; }
   cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_ALLOY; }
   CefSize GetPreferredSize(CefRefPtr<CefView> view) override { return size_; }
 
@@ -64,9 +66,22 @@ CefRefPtr<CefBrowserView> UiView::view() {
   if (!view_) {
     CefBrowserSettings settings;
     settings.background_color = Color(background_);
-    view_ = CefBrowserView::CreateBrowserView(this, url_, settings, nullptr, nullptr, new UiViewDelegate(preferred_size_));
+    delegate_ = new UiViewDelegate(preferred_size_);
+    view_ = CefBrowserView::CreateBrowserView(this, url_, settings, nullptr, nullptr, delegate_);
   }
   return view_;
+}
+
+void UiView::SetPreferredSize(CefSize size) {
+  if (size == preferred_size_) return;
+  preferred_size_ = size;
+  if (!delegate_) return;
+  static_cast<UiViewDelegate*>(delegate_.get())->set_size(size);
+  // Laid out again at it.
+  if (CefRefPtr<CefView> parent = view_->GetParentView()) {
+    parent->InvalidateLayout();
+    if (CefRefPtr<CefPanel> panel = parent->AsPanel()) panel->Layout();
+  }
 }
 
 namespace {
