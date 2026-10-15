@@ -126,6 +126,31 @@
     );
   };
 
+  // The video an element shows, if it's one (it, or the one visible video in
+  // it) and it fills the element across or down: a player, often wider or
+  // taller than its picture (full-window views leave bars beside it).
+  const videoOf = (el) => {
+    const videos = [...(el.matches('video') ? [el] : []), ...el.querySelectorAll('video')].filter((v) => area(v) > 0);
+    if (videos.length !== 1) return null;
+    const [v] = videos;
+    const e = el.getBoundingClientRect();
+    const b = v.getBoundingClientRect();
+    const across = Math.abs(b.left - e.left) <= 2 && Math.abs(b.right - e.right) <= 2;
+    const down = Math.abs(b.top - e.top) <= 2 && Math.abs(b.bottom - e.bottom) <= 2;
+    return across || down || v === el ? v : null;
+  };
+  // Where the video's picture is within the element (`r`, its box): the
+  // largest box of the video's shape that fits, centred (as object-fit:
+  // contain shows it). The element's box if there's no video, or it hasn't
+  // loaded its size.
+  const pictureIn = (video, r) => {
+    if (!video?.videoWidth || !video.videoHeight) return r;
+    const aspect = video.videoWidth / video.videoHeight;
+    const width = Math.min(r.width, r.height * aspect);
+    const height = width / aspect;
+    return { left: r.left + (r.width - width) / 2, top: r.top + (r.height - height) / 2, width, height };
+  };
+
   // Whether the page has something to pop out (the browser offers "Play in
   // pop-out" on pages that do).
   op.hasPopoutTarget = (selector) => !!chooseElement(selector);
@@ -150,9 +175,13 @@
     if (!el) return 'nothing-to-pop-out';
 
     const r = el.getBoundingClientRect();
+    // The window takes the video's picture, without the bars beside it (or
+    // the element, if it's no video).
+    const video = videoOf(el);
+    const p = pictureIn(video, r);
     // Height over width; the window keeps it while resized.
-    let ratio = r.height / r.width;
-    const width = Math.round(place ? place[2] : r.width);
+    let ratio = p.height / p.width;
+    const width = Math.round(place ? place[2] : p.width);
     const height = Math.round(width * ratio);
     let win;
     try {
@@ -163,7 +192,7 @@
     }
     // Where it should go: a previous pop-out's place on screen, or the
     // element's position in this page's viewport.
-    const anchor = place ? { screen: [place[0], place[1]] } : { viewport: [r.left, r.top] };
+    const anchor = place ? { screen: [place[0], place[1]] } : { viewport: [p.left, p.top] };
     op.current = { win, anchor, size: [width, height] };
 
     // The frame the window should have, for browsers that host the window
@@ -182,9 +211,9 @@
     };
     requestFrame({ width, height });
 
-    // Open right over the element (or where the previous pop-out was).
-    const left = place ? place[0] : window.screenX + (window.outerWidth - window.innerWidth) + r.left;
-    const top = place ? place[1] : window.screenY + (window.outerHeight - window.innerHeight) + r.top;
+    // Open right over the picture (or where the previous pop-out was).
+    const left = place ? place[0] : window.screenX + (window.outerWidth - window.innerWidth) + p.left;
+    const top = place ? place[1] : window.screenY + (window.outerHeight - window.innerHeight) + p.top;
     // Chromium lets a PiP window move or resize only on a user action, and
     // opening the window used up this one: where the browser refuses
     // (browsers other than openp41ge explorer), it stays where it opened.
@@ -344,6 +373,12 @@
       }
     }
     showControls();
+
+    // The video's picture changing shape (another video plays in it): the
+    // window takes the new one.
+    const followVideo = () => setAspectRatio(video.videoWidth / video.videoHeight);
+    video?.addEventListener('resize', followVideo);
+    teardowns.push(() => video?.removeEventListener('resize', followVideo));
 
     // Keep the window at the element's proportions as it's resized.
     let settle;
