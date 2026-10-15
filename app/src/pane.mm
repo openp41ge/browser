@@ -164,6 +164,15 @@ void Pane::RequestClose(int id) {
   if (CefRefPtr<Tab> tab = Find(id)) window_->CloseTab(tab);
 }
 
+void Pane::RequestMute(int id) {
+  CefRefPtr<Tab> tab = Find(id);
+  CefRefPtr<CefBrowser> browser = tab ? tab->browser() : nullptr;
+  if (!browser) return;
+  tab->muted = !tab->muted;
+  browser->GetHost()->SetAudioMuted(tab->muted);
+  UpdateTabBar();
+}
+
 void Pane::RequestNavigate(int id, const std::string& url) {
   CefRefPtr<Tab> tab = Find(id);
   if (tab && !tab->loaded()) {
@@ -182,8 +191,12 @@ void Pane::RequestNavigate(int id, const std::string& url) {
 }
 
 void Pane::EditAddress(int id) {
+  if (CefRefPtr<Tab> tab = Find(id)) tab->editing_address = true;
   tab_bar_->EditAddress(id);
   tab_bar_->view()->RequestFocus();
+  // The keyboard comes to the window too: another of ours (the pop-out)
+  // may have it.
+  if (CefRefPtr<CefWindow> window = window_->window()) window->Activate();
 }
 
 void Pane::RequestNewTab() {
@@ -205,6 +218,23 @@ void Pane::AddView(CefRefPtr<Tab> tab) {
   content_->AddChildView(tab->view());
 }
 
+// A hidden page's media stops drawing video, even in the pop-out it's been
+// moved to: so the tab a pop-out came from stays shown, under the active
+// one, which covers it.
+void Pane::ShowPages() {
+  if (!content_) return;
+  CefRefPtr<CefBrowser> popped = window_->manager()->popout()->source();
+  for (const CefRefPtr<Tab>& tab : tabs_) {
+    if (tab == active_ || !tab->loaded()) continue;
+    tab->view()->SetVisible(popped && popped->IsSame(tab->browser()));
+  }
+  if (active_) {
+    content_->ReorderChildView(active_->view(), -1);
+    active_->view()->SetVisible(true);
+    content_->Layout();
+  }
+}
+
 void Pane::ShowActive() {
   if (!content_) return;
   // Brought back from the last session, it loads as it's first shown.
@@ -212,14 +242,8 @@ void Pane::ShowActive() {
     window_->LoadTab(active_);
     AddView(active_);
   }
-  for (const CefRefPtr<Tab>& tab : tabs_) {
-    if (tab != active_ && tab->loaded()) tab->view()->SetVisible(false);
-  }
-  if (active_) {
-    active_->view()->SetVisible(true);
-    content_->Layout();
-    active_->view()->RequestFocus();
-  }
+  ShowPages();
+  if (active_) active_->view()->RequestFocus();
   UpdateFindBar();
   window_->OnActiveTabChanged(this);
 }

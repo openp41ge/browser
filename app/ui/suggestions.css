@@ -2,8 +2,11 @@
  *
  * Suggestions under a tab's address (its own small window): a row per
  * page or site (its title and address, and a ✕ to forget it) or search, the
- * selected one highlighted, and the one under the pointer. Square, like the
- * rest of the browser's UI.
+ * selected one highlighted, and the one under the pointer. A card hanging
+ * from the tab bar, as the tab preview does: its top square against the bar
+ * (no border there), its bottom corners rounded (the panel clips them,
+ * src/suggestions_popup.mm) but where it meets the window's side. As many
+ * whole rows as fit (suggestions.js); the rest scroll.
  */
 
 html,
@@ -17,10 +20,21 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  overflow-y: auto;
+  scrollbar-width: thin;
   border: 1px solid var(--border-divider);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+}
+.list.square-left {
+  border-bottom-left-radius: 0;
+}
+.list.square-right {
+  border-bottom-right-radius: 0;
 }
 
 .row {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;

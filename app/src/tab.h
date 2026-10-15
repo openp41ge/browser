@@ -3,6 +3,7 @@
 #ifndef OPENP41GE_EXPLORER_TAB_H_
 #define OPENP41GE_EXPLORER_TAB_H_
 
+#include <set>
 #include <string>
 
 #include "include/views/cef_browser_view.h"
@@ -28,6 +29,14 @@ class Tab : public CefBaseRefCounted {
   std::string url;
   std::string favicon;
   bool loading = false;
+  // The frames whose documents are playing sound (audible.h): its tab shows
+  // a speaker while there are any.
+  std::set<std::string> audible_frames;
+  bool audible() const { return !audible_frames.empty(); }
+  // Whether its address is being edited in the tab bar.
+  bool editing_address = false;
+  // Muted from its tab's speaker (CefBrowserHost::SetAudioMuted).
+  bool muted = false;
   // Its picture (tab_previews.h), if it's had one taken; and which, so the
   // tab bar loads a new one.
   std::string preview;

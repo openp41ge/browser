@@ -121,6 +121,36 @@ body {
   }
 }
 
+/* The speaker beside ✕ while the tab plays sound, or is muted: a button
+ * that mutes it, or unmutes it. */
+.audio {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}
+.tab.audible .audio {
+  display: flex;
+}
+.audio:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+.audio svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 /* The tab's address: plain text until it's being edited. */
 .icon-slot {
   display: flex;

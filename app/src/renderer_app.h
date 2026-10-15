@@ -20,6 +20,8 @@
 // - Extension pages (openp41ge-extension://, extension_scheme.h) and the
 //   Extensions page (openp41ge://extensions/) get `openp41geExtensionQuery`,
 //   a channel of their own (ExtensionManager), in their main frame only.
+// - Web pages' documents say when they start and stop playing sound
+//   (audible.h).
 class RendererApp : public CefApp, public CefRenderProcessHandler {
  public:
   RendererApp();

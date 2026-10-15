@@ -365,6 +365,7 @@ void BrowserWindow::UpdateFocusBar() {
   const CefRect grid = grid_->GetBoundsInScreen();
   const int left = std::max(from.x, grid.x);
   const int right = std::min(from.x + static_cast<int>(range.to - range.from), grid.x + grid.width);
+  const int middle = from.x + active_pane_->focus_bar_middle() - static_cast<int>(range.from);
   if (right <= left) {
     focus_bar_->Hide();
     return;
@@ -373,7 +374,7 @@ void BrowserWindow::UpdateFocusBar() {
   // above the tab bar is the active tab's colour (--border-divider), so the
   // tab looks to start there.
   constexpr int kTopBarDivider = 1;
-  focus_bar_->Show(left, from.y - kTopBarDivider, right - left);
+  focus_bar_->Show(middle, from.y - kTopBarDivider, left, right);
 }
 
 void BrowserWindow::NewTab(Pane* pane) {

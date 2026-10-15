@@ -2,6 +2,8 @@
 
 #include "renderer_app.h"
 
+#include "audible.h"
+
 #include "extensions/extension_router.h"
 #include "extensions/extension_scheme.h"
 #include "ui/ui_scheme.h"
@@ -40,6 +42,9 @@ void RendererApp::OnContextCreated(CefRefPtr<CefBrowser> browser,
     extension_router_->OnContextCreated(browser, frame, context);
   }
 
+  // Web pages say when they play sound (not the browser's UI).
+  if (!ui_scheme::IsUiUrl(frame->GetURL())) audible::Watch(frame, context);
+
   auto it = init_scripts_.find(browser->GetIdentifier());
   if (it == init_scripts_.end() || !frame->IsMain()) return;
   CefRefPtr<CefV8Value> result;
@@ -51,6 +56,7 @@ void RendererApp::OnContextReleased(CefRefPtr<CefBrowser> browser,
                                     CefRefPtr<CefFrame> frame,
                                     CefRefPtr<CefV8Context> context) {
   router_->OnContextReleased(browser, frame, context);
+  audible::Unwatch(frame);
   extension_router_->OnContextReleased(browser, frame, context);
 }
 

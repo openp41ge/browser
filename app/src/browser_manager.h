@@ -157,6 +157,7 @@ class BrowserManager : public CefClient,
 
   // CefFocusHandler:
   void OnGotFocus(CefRefPtr<CefBrowser> browser) override;
+  bool OnSetFocus(CefRefPtr<CefBrowser> browser, FocusSource source) override;
 
   // CefKeyboardHandler:
   bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
@@ -181,6 +182,10 @@ class BrowserManager : public CefClient,
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
   bool DoClose(CefRefPtr<CefBrowser> browser) override;
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
+
+  // PopoutController::Observer:
+  void OnPopoutOpened(CefRefPtr<CefBrowser> source) override;
+  void OnPopoutClosed(CefRefPtr<CefBrowser> source) override;
 
   // CefLoadHandler:
   void OnLoadStart(CefRefPtr<CefBrowser> browser,
@@ -277,6 +282,8 @@ class BrowserManager : public CefClient,
   void ReloadUi();
   void ShowPage(const std::string& url);
   void Remember(std::variant<ClosedTab, WindowLayout> item);
+  // Closes the pop-out if `page` is the page it came from.
+  void ClosePopoutOf(CefRefPtr<CefBrowser> page);
   // The windows to keep in the session, back to front.
   std::vector<WindowLayout> SessionWindows() const;
   void SaveSession(bool now);

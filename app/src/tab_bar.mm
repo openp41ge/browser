@@ -30,6 +30,8 @@ void TabBar::Update() {
     t->SetString("title", tab->title);
     t->SetString("favicon", tab->favicon);
     t->SetBool("loading", tab->loading);
+    t->SetBool("audible", tab->audible());
+    t->SetBool("muted", tab->muted);
     t->SetBool("preview", !tab->preview.empty());
     tabs->SetDictionary(tabs->GetSize(), t);
   }
@@ -78,6 +80,12 @@ bool TabBar::OnMessage(const std::string& type, CefRefPtr<CefDictionaryValue> me
     owner_->RequestActivate(message->GetInt("id"));
   } else if (type == "close") {
     owner_->RequestClose(message->GetInt("id"));
+  } else if (type == "edit") {
+    owner_->EditAddress(message->GetInt("id"));
+  } else if (type == "editing") {
+    if (CefRefPtr<Tab> tab = owner_->Find(message->GetInt("id"))) tab->editing_address = message->GetBool("editing");
+  } else if (type == "mute") {
+    owner_->RequestMute(message->GetInt("id"));
   } else if (type == "new-tab") {
     owner_->RequestNewTab();
   } else if (type == "preview-show") {
@@ -142,7 +150,8 @@ bool TabBar::OnMessage(const std::string& type, CefRefPtr<CefDictionaryValue> me
     }
     owner_->SetTabMiddles(std::move(middles));
     CefRefPtr<CefDictionaryValue> bar = message->GetDictionary("focusBar");
-    owner_->SetFocusBar(bar ? CefRange(bar->GetInt("x"), bar->GetInt("x") + bar->GetInt("width")) : CefRange());
+    owner_->SetFocusBar(bar ? bar->GetInt("middle") : 0,
+                        bar ? CefRange(bar->GetInt("left"), bar->GetInt("right")) : CefRange());
     window->UpdateFocusBar();
   } else if (type == "drag") {
     window->DragTab(owner_, message->GetInt("id"), message->GetInt("x"), message->GetInt("y"));

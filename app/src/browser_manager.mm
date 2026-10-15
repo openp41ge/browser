@@ -17,6 +17,7 @@
 
 #include "include/views/cef_display.h"
 
+#include "audible.h"
 #include "session.h"
 #include "tab_previews.h"
 #include "ui/ui_live_reload.h"
@@ -91,6 +92,11 @@ BrowserManager::BrowserManager()
       history_(std::make_unique<History>(CefRequestContext::GetGlobalContext()->GetCachePath())) {
   DCHECK(!g_manager);
   g_manager = this;
+  // The browser's shortcuts work from its UI too.
+  UiView::SetShortcutHandler([this](CefRefPtr<CefBrowser> browser, const CefKeyEvent& event) {
+    bool is_keyboard_shortcut = false;
+    return OnPreKeyEvent(browser, event, nullptr, &is_keyboard_shortcut);
+  });
   DisableChromiumHistory(CefRequestContext::GetGlobalContext());
   tab_previews::Init(CefRequestContext::GetGlobalContext()->GetCachePath());
   // Extensions in local folders, for this run:
@@ -659,20 +665,46 @@ void BrowserManager::Run(Command command) {
   }
 }
 
-// Shift+Cmd+P: pop out (or put back). Handled before the page sees the key,
-// so it works while a page has focus (the menu item shows the shortcut).
+// Shortcuts taken before the page (or the browser's UI) sees the key. A
+// menu's shortcut reaches the menu only once the page has passed the key
+// on, a round trip: what's typed straight after Cmd+T would go to the page
+// left behind, not the new tab's address. So the ones that open somewhere
+// to type are run here, as Chrome reserves them (pages can't keep them);
+// and Shift+Cmd+P pops out (or puts back) while a page has focus. The menu
+// items show the shortcuts.
 bool BrowserManager::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
                                    const CefKeyEvent& event,
                                    CefEventHandle os_event,
                                    bool* is_keyboard_shortcut) {
+  CEF_REQUIRE_UI_THREAD();
+  if (event.type != KEYEVENT_RAWKEYDOWN) return false;
   constexpr uint32_t kModifiers = EVENTFLAG_COMMAND_DOWN | EVENTFLAG_SHIFT_DOWN | EVENTFLAG_CONTROL_DOWN |
                                   EVENTFLAG_ALT_DOWN;
-  if (event.type != KEYEVENT_RAWKEYDOWN || event.windows_key_code != 'P' ||
-      (event.modifiers & kModifiers) != (EVENTFLAG_COMMAND_DOWN | EVENTFLAG_SHIFT_DOWN)) {
-    return false;
+  constexpr uint32_t kCmd = EVENTFLAG_COMMAND_DOWN;
+  constexpr uint32_t kCmdShift = EVENTFLAG_COMMAND_DOWN | EVENTFLAG_SHIFT_DOWN;
+  const uint32_t modifiers = event.modifiers & kModifiers;
+  struct Shortcut {
+    int key;
+    uint32_t modifiers;
+    Command command;
+  };
+  static constexpr Shortcut kShortcuts[] = {
+      {'T', kCmd, Command::kNewTab},
+      {'N', kCmd, Command::kNewWindow},
+      {'N', kCmdShift, Command::kNewPrivateWindow},
+  };
+  for (const Shortcut& shortcut : kShortcuts) {
+    if (event.windows_key_code == shortcut.key && modifiers == shortcut.modifiers) {
+      Run(shortcut.command);
+      return true;
+    }
   }
-  popout_->Toggle(browser);
-  return true;
+  if (event.windows_key_code == 'P' && modifiers == kCmdShift) {
+    // From the browser's UI, the focused tab's page.
+    popout_->Toggle(WindowOf(browser) ? browser : current_ ? current_->active_browser() : nullptr);
+    return true;
+  }
+  return false;
 }
 
 // --- Life span --------------------------------------------------------------
@@ -732,12 +764,18 @@ void BrowserManager::LoadWaitingPage(int id) {
   browser->GetMainFrame()->LoadURL(url);
 }
 
+// A pop-out goes with its page: without it, it would sit there stopped.
+void BrowserManager::ClosePopoutOf(CefRefPtr<CefBrowser> page) {
+  if (popout_->source() && popout_->source()->IsSame(page)) popout_->Close();
+}
+
 bool BrowserManager::DoClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
   // A tab's page has run its unload handlers and is closing. CEF would ask
   // the page's window to close, but a tab isn't a window (and a background
   // tab's page isn't in one): take the tab out instead. Releasing its view
   // completes the close (OnBeforeClose).
+  ClosePopoutOf(browser);
   if (BrowserWindow* window = WindowOf(browser)) {
     window->OnTabClosed(browser);
     return true;
@@ -747,6 +785,7 @@ bool BrowserManager::DoClose(CefRefPtr<CefBrowser> browser) {
 
 void BrowserManager::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
+  ClosePopoutOf(browser);
   devtools_->Detach(browser);
   extension_router_->OnBeforeClose(browser);
   extensions_->OnPageClosed(browser);
@@ -755,11 +794,28 @@ void BrowserManager::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   if (BrowserWindow* window = WindowOf(browser)) window->OnTabClosed(browser);
 }
 
+// The tab a pop-out came from stays shown while it's open (Pane::ShowPages).
+void BrowserManager::OnPopoutOpened(CefRefPtr<CefBrowser> source) {
+  if (BrowserWindow* window = WindowOf(source)) window->Locate(source)->ShowPages();
+}
+
+void BrowserManager::OnPopoutClosed(CefRefPtr<CefBrowser> source) {
+  if (BrowserWindow* window = WindowOf(source)) window->Locate(source)->ShowPages();
+}
+
 // The pane whose page has the keyboard is the one commands act on.
 void BrowserManager::OnGotFocus(CefRefPtr<CefBrowser> browser) {
   for (const CefRefPtr<BrowserWindow>& window : windows_) {
     if (Pane* pane = window->Locate(browser)) window->SetActivePane(pane);
   }
+}
+
+// A page doesn't take the keyboard from its tab's address as it loads (a
+// new tab's start page would, as its first load commits, from the address
+// just opened to type in). Clicking into it isn't a focus request.
+bool BrowserManager::OnSetFocus(CefRefPtr<CefBrowser> browser, FocusSource source) {
+  CefRefPtr<Tab> tab;
+  return source == FOCUS_SOURCE_NAVIGATION && WindowOf(browser, &tab) && tab->editing_address;
 }
 
 // --- Page state -------------------------------------------------------------
@@ -951,11 +1007,30 @@ void BrowserManager::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
                                                int error_code,
                                                const CefString& error_string) {
   extension_router_->OnRenderProcessTerminated(browser);
+  // Its documents went without saying they'd stopped.
+  CefRefPtr<Tab> tab;
+  if (BrowserWindow* window = WindowOf(browser, &tab); window && tab->audible()) {
+    tab->audible_frames.clear();
+    window->OnTabChanged(browser);
+  }
 }
 
 bool BrowserManager::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                               CefRefPtr<CefFrame> frame,
                                               CefProcessId source_process,
                                               CefRefPtr<CefProcessMessage> message) {
+  if (message->GetName() == audible::kMessage) {
+    CefRefPtr<Tab> tab;
+    BrowserWindow* window = WindowOf(browser, &tab);
+    if (!window || !frame) return true;
+    const bool was = tab->audible();
+    if (message->GetArgumentList()->GetBool(0)) {
+      tab->audible_frames.insert(frame->GetIdentifier());
+    } else {
+      tab->audible_frames.erase(frame->GetIdentifier());
+    }
+    if (tab->audible() != was) window->OnTabChanged(browser);
+    return true;
+  }
   return extension_router_->OnProcessMessageReceived(browser, frame, source_process, message);
 }

@@ -69,6 +69,13 @@ const elements = new Map();
 const DEFAULT_ICON =
   '<svg class="icon" viewBox="0 -960 960 960" aria-hidden="true"><path d="M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM440-162v-78q-33 0-56.5-23.5T360-320v-40L168-552q-3 18-5.5 36t-2.5 36q0 121 79.5 212T440-162Zm276-102q41-45 62.5-100.5T800-480q0-98-54.5-179T600-776v16q0 33-23.5 56.5T520-680h-80v80q0 17-11.5 28.5T400-560h-80v80h240q17 0 28.5 11.5T600-440v120h40q26 0 47 15.5t29 40.5Z"/></svg>';
 
+// Material Symbols' "volume_up" and "volume_off" (Apache 2.0): the tab is
+// playing sound, or muted.
+const MUTED_ICON =
+  '<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M792-56 671-177q-25 16-53 27.5T560-131v-82q14-5 27.5-10t25.5-12L480-368v208L280-360H120v-240h128L56-792l56-56 736 736-56 56Zm-8-232-58-58q17-31 25.5-65t8.5-70q0-94-55-168T560-749v-82q124 28 202 125.5T840-481q0 53-14.5 102T784-288ZM650-422l-90-90v-130q47 22 73.5 66t26.5 96q0 15-2.5 29.5T650-422ZM480-592 376-696l104-104v208Zm-80 238v-94l-72-72H200v80h114l86 86Zm-36-130Z"/></svg>';
+const AUDIO_ICON =
+  '<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M560-131v-82q90-26 145-100t55-168q0-94-55-168T560-749v-82q124 28 202 125.5T840-481q0 127-78 224.5T560-131ZM120-360v-240h160l200-200v640L280-360H120Zm440 40v-322q47 22 73.5 66t26.5 96q0 51-26.5 94.5T560-320ZM400-606l-86 86H200v80h114l86 86v-252ZM300-480Z"/></svg>';
+
 function tabElement(tab) {
   let parts = elements.get(tab.id);
   if (!parts) {
@@ -135,18 +142,35 @@ function tabElement(tab) {
       send({ type: 'close', id: Number(el.dataset.id) });
     });
 
-    el.append(icon, field, close, spinner);
-    parts = { el, icon, field, favicon: null };
+    // Beside ✕ while the page plays sound, or it's muted: a click mutes or
+    // unmutes it (without switching to it).
+    const audio = document.createElement('button');
+    audio.className = 'audio';
+    audio.addEventListener('click', (event) => {
+      event.stopPropagation();
+      send({ type: 'mute', id: Number(el.dataset.id) });
+    });
+
+    el.append(icon, field, audio, close, spinner);
+    parts = { el, icon, field, audio, favicon: null, muted: null };
     elements.set(tab.id, parts);
   }
 
-  const { el, icon, field } = parts;
+  const { el, icon, field, audio } = parts;
   el.classList.toggle('active', tab.id === active);
   el.setAttribute('aria-selected', String(tab.id === active));
   el.title = BLANK_PAGES.has(tab.url) ? 'New Tab' : tab.url;
   if (editing?.field !== field) field.value = displayAddress(tab.url);
 
   el.classList.toggle('loading', tab.loading);
+  el.classList.toggle('audible', !!tab.audible || !!tab.muted);
+  if (parts.muted !== !!tab.muted) {
+    parts.muted = !!tab.muted;
+    audio.innerHTML = parts.muted ? MUTED_ICON : AUDIO_ICON;
+    audio.title = parts.muted ? 'Unmute Tab' : 'Mute Tab';
+    audio.setAttribute('aria-label', audio.title);
+    el.classList.toggle('muted', parts.muted);
+  }
   if (parts.favicon !== tab.favicon) {
     parts.favicon = tab.favicon;
     icon.innerHTML = DEFAULT_ICON;
@@ -344,6 +368,7 @@ function startEdit(id) {
   endEdit();
   const tab = tabs.find((t) => t.id === id);
   editing = { id, field: parts.field, typed: '', inline: false, rows: null, selected: 0 };
+  send({ type: 'editing', id, editing: true });
   parts.el.classList.add('editing');
   parts.field.readOnly = false;
   parts.field.value = tab && !BLANK_PAGES.has(tab.url) ? tab.url : '';
@@ -414,6 +439,8 @@ function showSuggestions() {
   // Suggestions under the tab: no picture over them.
   hidePreview();
   const r = parts.el.getBoundingClientRect();
+  // Down to the bar's bottom edge (below its divider), where it hangs from.
+  const bottom = document.querySelector('.bar').getBoundingClientRect().bottom;
   send({
     type: 'suggest-show',
     rows: editing.rows.map(({ kind, title, detail }) => ({ kind, title, detail: detail ?? '' })),
@@ -421,7 +448,7 @@ function showSuggestions() {
     x: Math.round(r.left),
     y: Math.round(r.top),
     width: Math.round(r.width),
-    height: Math.round(r.height),
+    height: Math.round(bottom - r.top),
     popupWidth: Math.max(Math.round(r.width), 480),
   });
 }
@@ -438,6 +465,7 @@ function endEdit() {
   if (!ended) return;
   hideSuggestions();
   editing = null;
+  send({ type: 'editing', id: ended.id, editing: false });
   const parts = elements.get(ended.id);
   if (!parts) return;
   parts.el.classList.remove('editing');
@@ -454,8 +482,6 @@ function updateFades() {
 }
 strip.addEventListener('scroll', updateFades);
 
-// The focus bar's width.
-const FOCUS_BAR_WIDTH = 50;
 
 // Where the tabs are, for the window to work out where a dragged tab would
 // be inserted (its middle, in this bar's coordinates; a tab the filter hides
@@ -475,11 +501,12 @@ function reportLayout() {
   if (active) {
     const r = active.getBoundingClientRect();
     const view = strip.getBoundingClientRect();
-    // The middle of the tab less its divider, as it shows.
+    // Centred on the tab less its divider, within the part of it in view
+    // (the bar sizes itself to its label).
     const middle = r.left + active.clientWidth / 2;
-    const left = Math.max(middle - FOCUS_BAR_WIDTH / 2, view.left);
-    const right = Math.min(middle + FOCUS_BAR_WIDTH / 2, view.right);
-    if (right > left) message.focusBar = { x: Math.round(left), width: Math.round(right - left) };
+    const left = Math.max(r.left, view.left);
+    const right = Math.min(r.left + active.clientWidth, view.right);
+    if (right > left) message.focusBar = { middle: Math.round(middle), left: Math.round(left), right: Math.round(right) };
   }
   send(message);
 }
@@ -493,7 +520,7 @@ let drag = null;
 strip.addEventListener('mousedown', (event) => {
   const el = event.target.closest('.tab');
   // In the address being edited: placing the caret, selecting.
-  if (!el || event.target.closest('.close') || el.classList.contains('editing')) return;
+  if (!el || event.target.closest('.close, .audio') || el.classList.contains('editing')) return;
   const id = Number(el.dataset.id);
   if (event.button === 1) {
     event.preventDefault();
@@ -501,7 +528,8 @@ strip.addEventListener('mousedown', (event) => {
     return;
   }
   if (event.button !== 0) return;
-  // The address is only for editing (double-click); the tab takes the press.
+  // The address is only for editing (double-click, or a click on an empty
+  // tab's); the tab takes the press.
   event.preventDefault();
   send({ type: 'activate', id });
   drag = { id, el, startX: event.clientX, startY: event.clientY, moved: false, frame: 0, at: null };
@@ -542,7 +570,13 @@ strip.addEventListener('dblclick', (event) => {
 addEventListener('mouseup', (event) => {
   if (!drag) return;
   const ended = endDrag();
-  if (ended.moved) send({ type: 'drop', id: ended.id, x: Math.round(event.clientX), y: Math.round(event.clientY) });
+  if (ended.moved) {
+    send({ type: 'drop', id: ended.id, x: Math.round(event.clientX), y: Math.round(event.clientY) });
+  } else if (BLANK_PAGES.has(tabs.find((t) => t.id === ended.id)?.url)) {
+    // An empty tab has nothing to show but its address: one click edits it
+    // (the browser gives this bar the keyboard, from the page).
+    send({ type: 'edit', id: ended.id });
+  }
 });
 
 addEventListener('keydown', (event) => {

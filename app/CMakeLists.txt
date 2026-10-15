@@ -137,6 +137,8 @@ add_cef_mac_app(openp41ge_explorer
     src/top_bar.mm
     src/updater.h
     src/updater.mm
+    src/ui/click_through.h
+    src/ui/click_through.mm
     src/ui/site_icon.cc
     src/ui/site_icon.h
     src/ui/ui_live_reload.h
@@ -149,6 +151,8 @@ add_cef_mac_app(openp41ge_explorer
     src/window_layout.h
   HELPER_SOURCES
     src/process_helper_mac.cc
+    src/audible.cc
+    src/audible.h
     src/renderer_app.cc
     src/renderer_app.h
     src/extensions/extension_router.h

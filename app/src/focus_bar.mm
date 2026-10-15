@@ -5,6 +5,7 @@
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -22,11 +23,9 @@ struct FocusBar::Native {
   id monitor = nil;
   bool grown = false;
 
-  // The bar's frame in the panel: thin (in from its sides), or grown to
-  // fill it.
+  // The bar's frame in the panel: as wide as it, thin or grown to fill it.
   void Layout(bool animate) {
-    const CGFloat inset = grown ? 0 : kGrownOutset;
-    const CGFloat width = panel.frame.size.width - 2 * inset;
+    const CGFloat width = panel.frame.size.width;
     [CATransaction begin];
     if (animate) {
       [CATransaction setAnimationDuration:0.15];
@@ -35,7 +34,7 @@ struct FocusBar::Native {
       [CATransaction setDisableActions:YES];
     }
     const CGFloat height = grown ? kGrownThickness : kThickness;
-    bar.frame = CGRectMake(inset, (kGrownThickness - height) / 2, width, height);
+    bar.frame = CGRectMake(0, (kGrownThickness - height) / 2, width, height);
     bar.cornerRadius = height / 2;
     label.frame = CGRectMake(0, (height - label.preferredFrameSize.height) / 2, width, label.preferredFrameSize.height);
     label.opacity = grown ? 1 : 0;
@@ -45,8 +44,7 @@ struct FocusBar::Native {
   // Grows or shrinks it for where the pointer is.
   void Track() {
     if (!panel.visible) return;
-    // Where the bar is, as it's shown.
-    const NSRect frame = grown ? panel.frame : NSInsetRect(panel.frame, kGrownOutset, 0);
+    const NSRect frame = panel.frame;
     const NSPoint at = NSEvent.mouseLocation;
     const CGFloat reach = grown ? kGrownThickness / 2.0 : kThickness / 2.0 + kHoverSlop;
     const bool over = at.x >= NSMinX(frame) && at.x < NSMaxX(frame) && std::abs(at.y - NSMidY(frame)) <= reach;
@@ -66,7 +64,7 @@ FocusBar::~FocusBar() {
   }
 }
 
-void FocusBar::Show(int x, int y, int width) {
+void FocusBar::Show(int middle, int y, int left, int right) {
   if (!native_->panel) {
     NSPanel* panel = [[NSPanel alloc] initWithContentRect:NSZeroRect
                                                 styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
@@ -115,10 +113,16 @@ void FocusBar::Show(int x, int y, int width) {
   // point (the edge): so the panel is the grown bar's size, centred on the
   // edge, and the thin bar is half a point off whole points (drawn at the
   // display's resolution).
+  // As wide as the label needs, cut off where the tab goes out of view.
+  const int width = static_cast<int>(std::ceil(native_->label.preferredFrameSize.width)) + 2 * kLabelPadding;
+  const int x = std::max(middle - width / 2, left);
+  const int end = std::min(middle - width / 2 + width, right);
+  if (end <= x) {
+    Hide();
+    return;
+  }
   const CGFloat screen_height = NSScreen.screens.firstObject.frame.size.height;
-  [panel setFrame:NSMakeRect(x - kGrownOutset, screen_height - y - kGrownThickness / 2, width + 2 * kGrownOutset,
-                             kGrownThickness)
-          display:NO];
+  [panel setFrame:NSMakeRect(x, screen_height - y - kGrownThickness / 2, end - x, kGrownThickness) display:NO];
   native_->label.contentsScale = parent.backingScaleFactor;
   native_->Layout(false);
   if (panel.parentWindow != parent) [parent addChildWindow:panel ordered:NSWindowAbove];

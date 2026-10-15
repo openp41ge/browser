@@ -16,7 +16,9 @@
 // The pop-out's window: frameless, floating above other windows (also over
 // full-screen apps), resizable at its edges. It can take the keyboard (for
 // the element's own shortcuts). A mouse-down in one of the page's
-// -webkit-app-region: drag areas moves it.
+// -webkit-app-region: drag areas moves it. Its corners are rounded: the
+// window is clear, and its content view clips the page to a rounded black
+// card (the system shadow follows that shape).
 //
 // It closes the CEF way: a close request (the page calling window.close(),
 // or our own CloseBrowser, via CEF's DoClose) asks `canClose`, which lets
@@ -59,6 +61,12 @@
   if (!self.canClose || self.canClose()) [self close];
 }
 
+// The shadow is drawn from the window's shape, so it's redrawn at each size.
+- (void)setFrame:(NSRect)frame display:(BOOL)display {
+  [super setFrame:frame display:display];
+  [self invalidateShadow];
+}
+
 // Closing tears down the page's view, which is what lets CEF finish closing
 // the page (OnBeforeClose).
 - (void)close {
@@ -82,6 +90,9 @@ struct PopoutController::Native {
 };
 
 namespace {
+
+// As rounded as a macOS window.
+constexpr CGFloat kCornerRadius = 12;
 
 std::string ToJson(CefRefPtr<CefValue> value) {
   return CefWriteJSON(value, JSON_WRITER_DEFAULT).ToString();
@@ -213,7 +224,13 @@ bool PopoutController::OnBeforePopup(CefRefPtr<CefBrowser> opener,
   window.releasedWhenClosed = NO;
   window.level = NSFloatingWindowLevel;
   window.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary;
-  window.backgroundColor = NSColor.blackColor;
+  window.opaque = NO;
+  window.backgroundColor = NSColor.clearColor;
+  window.contentView.wantsLayer = YES;
+  window.contentView.layer.backgroundColor = NSColor.blackColor.CGColor;
+  window.contentView.layer.cornerRadius = kCornerRadius;
+  window.contentView.layer.cornerCurve = kCACornerCurveContinuous;
+  window.contentView.layer.masksToBounds = YES;
   CefRefPtr<PopoutController> self(this);
   window.canClose = ^BOOL {
     if (!self->window_) return YES;

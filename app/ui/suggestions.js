@@ -17,7 +17,15 @@ const ICONS = {
   address: '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>',
 };
 
-function show(rows, selected) {
+// A row's height (suggestions.css), for how many fit.
+const ROW_HEIGHT = 32;
+
+function show(rows, selected, { maxHeight, squareLeft, squareRight }) {
+  list.classList.toggle('square-left', !!squareLeft);
+  list.classList.toggle('square-right', !!squareRight);
+  // Whole rows only, above the window's bottom (and its bottom border).
+  const fit = Math.max(1, Math.floor(((maxHeight ?? Infinity) - 1) / ROW_HEIGHT));
+  list.style.maxHeight = Number.isFinite(fit) ? `${fit * ROW_HEIGHT + 1}px` : '';
   list.replaceChildren(
     ...rows.map((row, index) => {
       const el = document.createElement('div');
@@ -57,9 +65,10 @@ function show(rows, selected) {
       return el;
     }),
   );
+  list.querySelector('.row.selected')?.scrollIntoView({ block: 'nearest' });
   send({ type: 'size', height: Math.ceil(list.getBoundingClientRect().height) });
 }
 
 listen((message) => {
-  if (message.type === 'rows') show(message.rows, message.selected);
+  if (message.type === 'rows') show(message.rows, message.selected, message);
 });

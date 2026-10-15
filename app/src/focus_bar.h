@@ -14,21 +14,21 @@
 // itself, so it's a transparent panel of its own over the window that
 // ignores the mouse (as DropPreview): clicks go to what's under it. With
 // the pointer over it (watched as it moves), it grows up and down into a
-// pill that says "FOCUSED".
+// pill that says "FOCUSED". It's as wide as that pill needs, thin or grown.
 class FocusBar {
  public:
   static constexpr int kThickness = 3;
   // Its height grown (even: its middle stays on the edge's whole point).
   static constexpr int kGrownThickness = 16;
-  // How far it grows out to each side (a 50pt bar is a 60pt pill).
-  static constexpr int kGrownOutset = 5;
+  // Room either side of the label.
+  static constexpr int kLabelPadding = 7;
 
   explicit FocusBar(CefRefPtr<CefWindow> parent);
   ~FocusBar();
 
-  // Shows it centred on the horizontal edge at `y` from `x`, `width` long
-  // (CEF screen coordinates).
-  void Show(int x, int y, int width);
+  // Shows it centred on the horizontal edge at `y`, and along it on
+  // `middle`, cut off outside `left` to `right` (CEF screen coordinates).
+  void Show(int middle, int y, int left, int right);
   void Hide();
 
  private:

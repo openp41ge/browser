@@ -22,6 +22,7 @@
 class UiView : public CefClient,
                public CefContextMenuHandler,
                public CefDragHandler,
+               public CefKeyboardHandler,
                public CefLifeSpanHandler,
                public CefPermissionHandler,
                public CefRequestHandler,
@@ -38,6 +39,11 @@ class UiView : public CefClient,
   // Reloads every UI view's page (a development build's UI changed, see
   // ui_live_reload.h). Each sends its state again once its page listens.
   static void ReloadAll();
+
+  // Keys the browser takes before a UI page sees them (its shortcuts, see
+  // BrowserManager::OnPreKeyEvent): true if `handler` took the key.
+  using ShortcutHandler = std::function<bool(CefRefPtr<CefBrowser> browser, const CefKeyEvent& event)>;
+  static void SetShortcutHandler(ShortcutHandler handler);
 
   // The view, created on first call.
   CefRefPtr<CefBrowserView> view();
@@ -61,6 +67,7 @@ class UiView : public CefClient,
   // CefClient:
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
   CefRefPtr<CefDragHandler> GetDragHandler() override { return this; }
+  CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
@@ -74,6 +81,12 @@ class UiView : public CefClient,
                            CefRefPtr<CefFrame> frame,
                            CefRefPtr<CefContextMenuParams> params,
                            CefRefPtr<CefMenuModel> model) override;
+
+  // CefKeyboardHandler:
+  bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
+                     const CefKeyEvent& event,
+                     CefEventHandle os_event,
+                     bool* is_keyboard_shortcut) override;
 
   // CefDragHandler:
   void OnDraggableRegionsChanged(CefRefPtr<CefBrowser> browser,
@@ -139,6 +152,7 @@ class UiView : public CefClient,
   virtual void OnDragRegions(const std::vector<CefDraggableRegion>& regions) {}
 
  private:
+  static bool IsAt(void* window, const CefPoint& point);
   bool own_window_ = false;      // Made with CreateIn.
   const void* host_window_ = nullptr;  // Its window (an NSWindow, retained) until it's closed.
   bool close_pending_ = false;  // Asked to close before it was made.

@@ -49,15 +49,22 @@ class Pane {
   // From the tab bar.
   void RequestActivate(int id);
   void RequestClose(int id);
+  // Mutes the tab, or unmutes it.
+  void RequestMute(int id);
   void RequestNewTab();
   // Loads `url` (typed in the tab's address) in the tab, and focuses it.
   void RequestNavigate(int id, const std::string& url);
   // Where each tab sits in the tab bar (its middle, in the bar's
   // coordinates), for working out where a dragged tab would be inserted.
   void SetTabMiddles(std::vector<std::pair<int, int>> middles) { tab_middles_ = std::move(middles); }
-  // Where the active tab's focus bar goes along the tab bar (from, to; empty
-  // if it's out of view), from the tab bar.
-  void SetFocusBar(CefRange range) { focus_bar_ = range; }
+  // Where the active tab's focus bar goes along the tab bar, from the tab
+  // bar: centred on `middle`, within `visible` (the part of the tab in view;
+  // empty if it's out of view).
+  void SetFocusBar(int middle, CefRange visible) {
+    focus_bar_middle_ = middle;
+    focus_bar_ = visible;
+  }
+  int focus_bar_middle() const { return focus_bar_middle_; }
   CefRange focus_bar() const { return focus_bar_; }
   // The index a tab dropped at `x` (tab bar coordinates) would get.
   int InsertIndexAt(int x) const;
@@ -87,6 +94,9 @@ class Pane {
   // Shows, places or hides the find row for the active tab (after a
   // layout, or a tab switch).
   void UpdateFindBar();
+  // Shows the active tab's page and hides the others, except one with an
+  // element popped out (see ShowPages).
+  void ShowPages();
 
  private:
   // `tab` stops being the active one: when, for its preview.
@@ -108,6 +118,7 @@ class Pane {
   std::vector<CefRefPtr<Tab>> tabs_;
   CefRefPtr<Tab> active_;
   std::vector<std::pair<int, int>> tab_middles_;  // (tab id, middle x)
+  int focus_bar_middle_ = 0;
   CefRange focus_bar_;
   CefRefPtr<FindBar> find_bar_;  // Made on first use.
 };

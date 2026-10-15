@@ -8,8 +8,10 @@
 
 #include "include/cef_parser.h"
 #include "include/views/cef_panel.h"
+#include "include/views/cef_window.h"
 #include "include/wrapper/cef_helpers.h"
 
+#include "ui/click_through.h"
 #include "ui/ui_scheme.h"
 
 namespace {
@@ -50,10 +52,43 @@ UiView::UiView(std::string page, CefSize preferred_size, Background background)
   router_ = CefMessageRouterBrowserSide::Create(CefMessageRouterConfig());
   router_->AddHandler(this, false);
   LiveViews().insert(this);
+  click_through::Install(&IsAt);
+}
+
+// A UI page shown in a CEF window, under `point` in `window`.
+bool UiView::IsAt(void* window, const CefPoint& point) {
+  for (UiView* ui : LiveViews()) {
+    if (!ui->view_ || !ui->view_->IsDrawn()) continue;
+    CefRefPtr<CefWindow> in = ui->view_->GetWindow();
+    id handle = in ? (__bridge id)in->GetWindowHandle() : nil;
+    NSWindow* native = [handle isKindOfClass:NSView.class] ? ((NSView*)handle).window : handle;
+    if (native != (__bridge NSWindow*)window) continue;
+    const CefRect r = ui->view_->GetBoundsInScreen();
+    if (point.x >= r.x && point.y >= r.y && point.x < r.x + r.width && point.y < r.y + r.height) return true;
+  }
+  return false;
 }
 
 UiView::~UiView() {
   LiveViews().erase(this);
+}
+
+namespace {
+UiView::ShortcutHandler& Shortcuts() {
+  static UiView::ShortcutHandler handler;
+  return handler;
+}
+}  // namespace
+
+void UiView::SetShortcutHandler(ShortcutHandler handler) {
+  Shortcuts() = std::move(handler);
+}
+
+bool UiView::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
+                           const CefKeyEvent& event,
+                           CefEventHandle os_event,
+                           bool* is_keyboard_shortcut) {
+  return Shortcuts() && Shortcuts()(browser, event);
 }
 
 void UiView::ReloadAll() {
@@ -123,6 +158,7 @@ void UiView::CloseInWindow() {
 void UiView::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   browser_ = browser;
   if (!own_window_) return;
+  click_through::Allow(browser->GetHost()->GetWindowHandle());
   ((__bridge NSView*)browser->GetHost()->GetWindowHandle()).autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
   if (close_pending_) browser->GetHost()->CloseBrowser(true);
 }
