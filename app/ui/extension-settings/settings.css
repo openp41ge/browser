@@ -1,6 +1,6 @@
 /* The browser's settings page for an extension (settings.js). The theme's
-   colours (theme.css), and what <json-editor> reads that the theme doesn't
-   define. */
+   colours (theme.css), and what <json-editor> and <json-form> read that the
+   theme doesn't define. */
 :root {
   --bg-secondary: var(--bg-tertiary);
   --divider: var(--border-divider);
@@ -65,9 +65,20 @@ main {
   border-radius: 6px;
   overflow: hidden;
 }
-main > json-editor {
+main > json-editor,
+main > json-form {
   display: block;
   height: 100%;
+}
+/* The form scrolls itself, padded, so its drawers cover the page. */
+main > json-form {
+  --jf-padding: 16px;
+}
+main > [hidden] {
+  display: none;
+}
+.toggle[hidden] {
+  display: none;
 }
 #note {
   padding: 16px;

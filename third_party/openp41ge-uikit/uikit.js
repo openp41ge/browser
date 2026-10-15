@@ -7,18 +7,18 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
  * SPDX-License-Identifier: BSD-3-Clause
  */
 var _a;
-const t$3 = globalThis, e$3 = t$3.ShadowRoot && (void 0 === t$3.ShadyCSS || t$3.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, s$2 = Symbol(), o$4 = /* @__PURE__ */ new WeakMap();
+const t$4 = globalThis, e$4 = t$4.ShadowRoot && (void 0 === t$4.ShadyCSS || t$4.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, s$3 = Symbol(), o$5 = /* @__PURE__ */ new WeakMap();
 let n$3 = class n {
   constructor(t2, e2, o2) {
-    if (this._$cssResult$ = true, o2 !== s$2) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
+    if (this._$cssResult$ = true, o2 !== s$3) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
     this.cssText = t2, this.t = e2;
   }
   get styleSheet() {
     let t2 = this.o;
     const s2 = this.t;
-    if (e$3 && void 0 === t2) {
+    if (e$4 && void 0 === t2) {
       const e2 = void 0 !== s2 && 1 === s2.length;
-      e2 && (t2 = o$4.get(s2)), void 0 === t2 && ((this.o = t2 = new CSSStyleSheet()).replaceSync(this.cssText), e2 && o$4.set(s2, t2));
+      e2 && (t2 = o$5.get(s2)), void 0 === t2 && ((this.o = t2 = new CSSStyleSheet()).replaceSync(this.cssText), e2 && o$5.set(s2, t2));
     }
     return t2;
   }
@@ -26,20 +26,20 @@ let n$3 = class n {
     return this.cssText;
   }
 };
-const r$5 = (t2) => new n$3("string" == typeof t2 ? t2 : t2 + "", void 0, s$2), i$4 = (t2, ...e2) => {
+const r$5 = (t2) => new n$3("string" == typeof t2 ? t2 : t2 + "", void 0, s$3), i$5 = (t2, ...e2) => {
   const o2 = 1 === t2.length ? t2[0] : e2.reduce((e3, s2, o3) => e3 + ((t3) => {
     if (true === t3._$cssResult$) return t3.cssText;
     if ("number" == typeof t3) return t3;
     throw Error("Value passed to 'css' function must be a 'css' function result: " + t3 + ". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.");
   })(s2) + t2[o3 + 1], t2[0]);
-  return new n$3(o2, t2, s$2);
+  return new n$3(o2, t2, s$3);
 }, S$1 = (s2, o2) => {
-  if (e$3) s2.adoptedStyleSheets = o2.map((t2) => t2 instanceof CSSStyleSheet ? t2 : t2.styleSheet);
+  if (e$4) s2.adoptedStyleSheets = o2.map((t2) => t2 instanceof CSSStyleSheet ? t2 : t2.styleSheet);
   else for (const e2 of o2) {
-    const o3 = document.createElement("style"), n3 = t$3.litNonce;
+    const o3 = document.createElement("style"), n3 = t$4.litNonce;
     void 0 !== n3 && o3.setAttribute("nonce", n3), o3.textContent = e2.cssText, s2.appendChild(o3);
   }
-}, c$2 = e$3 ? (t2) => t2 : (t2) => t2 instanceof CSSStyleSheet ? ((t3) => {
+}, c$3 = e$4 ? (t2) => t2 : (t2) => t2 instanceof CSSStyleSheet ? ((t3) => {
   let e2 = "";
   for (const s2 of t3.cssRules) e2 += s2.cssText;
   return r$5(e2);
@@ -49,7 +49,7 @@ const r$5 = (t2) => new n$3("string" == typeof t2 ? t2 : t2 + "", void 0, s$2), 
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const { is: i$3, defineProperty: e$2, getOwnPropertyDescriptor: h$1, getOwnPropertyNames: r$4, getOwnPropertySymbols: o$3, getPrototypeOf: n$2 } = Object, a$1 = globalThis, c$1 = a$1.trustedTypes, l$2 = c$1 ? c$1.emptyScript : "", p$2 = a$1.reactiveElementPolyfillSupport, d$1 = (t2, s2) => t2, u$1 = { toAttribute(t2, s2) {
+const { is: i$4, defineProperty: e$3, getOwnPropertyDescriptor: h$2, getOwnPropertyNames: r$4, getOwnPropertySymbols: o$4, getPrototypeOf: n$2 } = Object, a$1 = globalThis, c$2 = a$1.trustedTypes, l$2 = c$2 ? c$2.emptyScript : "", p$2 = a$1.reactiveElementPolyfillSupport, d$1 = (t2, s2) => t2, u$3 = { toAttribute(t2, s2) {
   switch (s2) {
     case Boolean:
       t2 = t2 ? l$2 : null;
@@ -60,24 +60,24 @@ const { is: i$3, defineProperty: e$2, getOwnPropertyDescriptor: h$1, getOwnPrope
   }
   return t2;
 }, fromAttribute(t2, s2) {
-  let i3 = t2;
+  let i4 = t2;
   switch (s2) {
     case Boolean:
-      i3 = null !== t2;
+      i4 = null !== t2;
       break;
     case Number:
-      i3 = null === t2 ? null : Number(t2);
+      i4 = null === t2 ? null : Number(t2);
       break;
     case Object:
     case Array:
       try {
-        i3 = JSON.parse(t2);
+        i4 = JSON.parse(t2);
       } catch (t3) {
-        i3 = null;
+        i4 = null;
       }
   }
-  return i3;
-} }, f$1 = (t2, s2) => !i$3(t2, s2), b$1 = { attribute: true, type: String, converter: u$1, reflect: false, useDefault: false, hasChanged: f$1 };
+  return i4;
+} }, f$1 = (t2, s2) => !i$4(t2, s2), b$1 = { attribute: true, type: String, converter: u$3, reflect: false, useDefault: false, hasChanged: f$1 };
 Symbol.metadata ?? (Symbol.metadata = Symbol("metadata")), a$1.litPropertyMetadata ?? (a$1.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
 let y$1 = class y extends HTMLElement {
   static addInitializer(t2) {
@@ -88,19 +88,19 @@ let y$1 = class y extends HTMLElement {
   }
   static createProperty(t2, s2 = b$1) {
     if (s2.state && (s2.attribute = false), this._$Ei(), this.prototype.hasOwnProperty(t2) && ((s2 = Object.create(s2)).wrapped = true), this.elementProperties.set(t2, s2), !s2.noAccessor) {
-      const i3 = Symbol(), h2 = this.getPropertyDescriptor(t2, i3, s2);
-      void 0 !== h2 && e$2(this.prototype, t2, h2);
+      const i4 = Symbol(), h2 = this.getPropertyDescriptor(t2, i4, s2);
+      void 0 !== h2 && e$3(this.prototype, t2, h2);
     }
   }
-  static getPropertyDescriptor(t2, s2, i3) {
-    const { get: e2, set: r2 } = h$1(this.prototype, t2) ?? { get() {
+  static getPropertyDescriptor(t2, s2, i4) {
+    const { get: e2, set: r2 } = h$2(this.prototype, t2) ?? { get() {
       return this[s2];
     }, set(t3) {
       this[s2] = t3;
     } };
     return { get: e2, set(s3) {
       const h2 = e2 == null ? void 0 : e2.call(this);
-      r2 == null ? void 0 : r2.call(this, s3), this.requestUpdate(t2, h2, i3);
+      r2 == null ? void 0 : r2.call(this, s3), this.requestUpdate(t2, h2, i4);
     }, configurable: true, enumerable: true };
   }
   static getPropertyOptions(t2) {
@@ -114,32 +114,32 @@ let y$1 = class y extends HTMLElement {
   static finalize() {
     if (this.hasOwnProperty(d$1("finalized"))) return;
     if (this.finalized = true, this._$Ei(), this.hasOwnProperty(d$1("properties"))) {
-      const t3 = this.properties, s2 = [...r$4(t3), ...o$3(t3)];
-      for (const i3 of s2) this.createProperty(i3, t3[i3]);
+      const t3 = this.properties, s2 = [...r$4(t3), ...o$4(t3)];
+      for (const i4 of s2) this.createProperty(i4, t3[i4]);
     }
     const t2 = this[Symbol.metadata];
     if (null !== t2) {
       const s2 = litPropertyMetadata.get(t2);
-      if (void 0 !== s2) for (const [t3, i3] of s2) this.elementProperties.set(t3, i3);
+      if (void 0 !== s2) for (const [t3, i4] of s2) this.elementProperties.set(t3, i4);
     }
     this._$Eh = /* @__PURE__ */ new Map();
     for (const [t3, s2] of this.elementProperties) {
-      const i3 = this._$Eu(t3, s2);
-      void 0 !== i3 && this._$Eh.set(i3, t3);
+      const i4 = this._$Eu(t3, s2);
+      void 0 !== i4 && this._$Eh.set(i4, t3);
     }
     this.elementStyles = this.finalizeStyles(this.styles);
   }
   static finalizeStyles(s2) {
-    const i3 = [];
+    const i4 = [];
     if (Array.isArray(s2)) {
       const e2 = new Set(s2.flat(1 / 0).reverse());
-      for (const s3 of e2) i3.unshift(c$2(s3));
-    } else void 0 !== s2 && i3.push(c$2(s2));
-    return i3;
+      for (const s3 of e2) i4.unshift(c$3(s3));
+    } else void 0 !== s2 && i4.push(c$3(s2));
+    return i4;
   }
   static _$Eu(t2, s2) {
-    const i3 = s2.attribute;
-    return false === i3 ? void 0 : "string" == typeof i3 ? i3 : "string" == typeof t2 ? t2.toLowerCase() : void 0;
+    const i4 = s2.attribute;
+    return false === i4 ? void 0 : "string" == typeof i4 ? i4 : "string" == typeof t2 ? t2.toLowerCase() : void 0;
   }
   constructor() {
     super(), this._$Ep = void 0, this.isUpdatePending = false, this.hasUpdated = false, this._$Em = null, this._$Ev();
@@ -158,7 +158,7 @@ let y$1 = class y extends HTMLElement {
   }
   _$E_() {
     const t2 = /* @__PURE__ */ new Map(), s2 = this.constructor.elementProperties;
-    for (const i3 of s2.keys()) this.hasOwnProperty(i3) && (t2.set(i3, this[i3]), delete this[i3]);
+    for (const i4 of s2.keys()) this.hasOwnProperty(i4) && (t2.set(i4, this[i4]), delete this[i4]);
     t2.size > 0 && (this._$Ep = t2);
   }
   createRenderRoot() {
@@ -181,38 +181,38 @@ let y$1 = class y extends HTMLElement {
       return (_a3 = t2.hostDisconnected) == null ? void 0 : _a3.call(t2);
     });
   }
-  attributeChangedCallback(t2, s2, i3) {
-    this._$AK(t2, i3);
+  attributeChangedCallback(t2, s2, i4) {
+    this._$AK(t2, i4);
   }
   _$ET(t2, s2) {
     var _a2;
-    const i3 = this.constructor.elementProperties.get(t2), e2 = this.constructor._$Eu(t2, i3);
-    if (void 0 !== e2 && true === i3.reflect) {
-      const h2 = (void 0 !== ((_a2 = i3.converter) == null ? void 0 : _a2.toAttribute) ? i3.converter : u$1).toAttribute(s2, i3.type);
+    const i4 = this.constructor.elementProperties.get(t2), e2 = this.constructor._$Eu(t2, i4);
+    if (void 0 !== e2 && true === i4.reflect) {
+      const h2 = (void 0 !== ((_a2 = i4.converter) == null ? void 0 : _a2.toAttribute) ? i4.converter : u$3).toAttribute(s2, i4.type);
       this._$Em = t2, null == h2 ? this.removeAttribute(e2) : this.setAttribute(e2, h2), this._$Em = null;
     }
   }
   _$AK(t2, s2) {
     var _a2, _b;
-    const i3 = this.constructor, e2 = i3._$Eh.get(t2);
+    const i4 = this.constructor, e2 = i4._$Eh.get(t2);
     if (void 0 !== e2 && this._$Em !== e2) {
-      const t3 = i3.getPropertyOptions(e2), h2 = "function" == typeof t3.converter ? { fromAttribute: t3.converter } : void 0 !== ((_a2 = t3.converter) == null ? void 0 : _a2.fromAttribute) ? t3.converter : u$1;
+      const t3 = i4.getPropertyOptions(e2), h2 = "function" == typeof t3.converter ? { fromAttribute: t3.converter } : void 0 !== ((_a2 = t3.converter) == null ? void 0 : _a2.fromAttribute) ? t3.converter : u$3;
       this._$Em = e2;
       const r2 = h2.fromAttribute(s2, t3.type);
       this[e2] = r2 ?? ((_b = this._$Ej) == null ? void 0 : _b.get(e2)) ?? r2, this._$Em = null;
     }
   }
-  requestUpdate(t2, s2, i3, e2 = false, h2) {
+  requestUpdate(t2, s2, i4, e2 = false, h2) {
     var _a2;
     if (void 0 !== t2) {
       const r2 = this.constructor;
-      if (false === e2 && (h2 = this[t2]), i3 ?? (i3 = r2.getPropertyOptions(t2)), !((i3.hasChanged ?? f$1)(h2, s2) || i3.useDefault && i3.reflect && h2 === ((_a2 = this._$Ej) == null ? void 0 : _a2.get(t2)) && !this.hasAttribute(r2._$Eu(t2, i3)))) return;
-      this.C(t2, s2, i3);
+      if (false === e2 && (h2 = this[t2]), i4 ?? (i4 = r2.getPropertyOptions(t2)), !((i4.hasChanged ?? f$1)(h2, s2) || i4.useDefault && i4.reflect && h2 === ((_a2 = this._$Ej) == null ? void 0 : _a2.get(t2)) && !this.hasAttribute(r2._$Eu(t2, i4)))) return;
+      this.C(t2, s2, i4);
     }
     false === this.isUpdatePending && (this._$ES = this._$EP());
   }
-  C(t2, s2, { useDefault: i3, reflect: e2, wrapped: h2 }, r2) {
-    i3 && !(this._$Ej ?? (this._$Ej = /* @__PURE__ */ new Map())).has(t2) && (this._$Ej.set(t2, r2 ?? s2 ?? this[t2]), true !== h2 || void 0 !== r2) || (this._$AL.has(t2) || (this.hasUpdated || i3 || (s2 = void 0), this._$AL.set(t2, s2)), true === e2 && this._$Em !== t2 && (this._$Eq ?? (this._$Eq = /* @__PURE__ */ new Set())).add(t2));
+  C(t2, s2, { useDefault: i4, reflect: e2, wrapped: h2 }, r2) {
+    i4 && !(this._$Ej ?? (this._$Ej = /* @__PURE__ */ new Map())).has(t2) && (this._$Ej.set(t2, r2 ?? s2 ?? this[t2]), true !== h2 || void 0 !== r2) || (this._$AL.has(t2) || (this.hasUpdated || i4 || (s2 = void 0), this._$AL.set(t2, s2)), true === e2 && this._$Em !== t2 && (this._$Eq ?? (this._$Eq = /* @__PURE__ */ new Set())).add(t2));
   }
   async _$EP() {
     this.isUpdatePending = true;
@@ -236,9 +236,9 @@ let y$1 = class y extends HTMLElement {
         this._$Ep = void 0;
       }
       const t3 = this.constructor.elementProperties;
-      if (t3.size > 0) for (const [s3, i3] of t3) {
-        const { wrapped: t4 } = i3, e2 = this[s3];
-        true !== t4 || this._$AL.has(s3) || void 0 === e2 || this.C(s3, void 0, i3, e2);
+      if (t3.size > 0) for (const [s3, i4] of t3) {
+        const { wrapped: t4 } = i4, e2 = this[s3];
+        true !== t4 || this._$AL.has(s3) || void 0 === e2 || this.C(s3, void 0, i4, e2);
       }
     }
     let t2 = false;
@@ -288,71 +288,71 @@ y$1.elementStyles = [], y$1.shadowRootOptions = { mode: "open" }, y$1[d$1("eleme
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t$2 = globalThis, i$2 = (t2) => t2, s$1 = t$2.trustedTypes, e$1 = s$1 ? s$1.createPolicy("lit-html", { createHTML: (t2) => t2 }) : void 0, h = "$lit$", o$2 = `lit$${Math.random().toFixed(9).slice(2)}$`, n$1 = "?" + o$2, r$3 = `<${n$1}>`, l$1 = document, c = () => l$1.createComment(""), a = (t2) => null === t2 || "object" != typeof t2 && "function" != typeof t2, u = Array.isArray, d = (t2) => u(t2) || "function" == typeof (t2 == null ? void 0 : t2[Symbol.iterator]), f = "[ 	\n\f\r]", v = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, _ = /-->/g, m$1 = />/g, p$1 = RegExp(`>|${f}(?:([^\\s"'>=/]+)(${f}*=${f}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), g = /'/g, $ = /"/g, y2 = /^(?:script|style|textarea|title)$/i, x = (t2) => (i3, ...s2) => ({ _$litType$: t2, strings: i3, values: s2 }), b = x(1), E = Symbol.for("lit-noChange"), A = Symbol.for("lit-nothing"), C = /* @__PURE__ */ new WeakMap(), P = l$1.createTreeWalker(l$1, 129);
-function V(t2, i3) {
-  if (!u(t2) || !t2.hasOwnProperty("raw")) throw Error("invalid template strings array");
-  return void 0 !== e$1 ? e$1.createHTML(i3) : i3;
+const t$3 = globalThis, i$3 = (t2) => t2, s$2 = t$3.trustedTypes, e$2 = s$2 ? s$2.createPolicy("lit-html", { createHTML: (t2) => t2 }) : void 0, h$1 = "$lit$", o$3 = `lit$${Math.random().toFixed(9).slice(2)}$`, n$1 = "?" + o$3, r$3 = `<${n$1}>`, l$1 = document, c$1 = () => l$1.createComment(""), a = (t2) => null === t2 || "object" != typeof t2 && "function" != typeof t2, u$2 = Array.isArray, d = (t2) => u$2(t2) || "function" == typeof (t2 == null ? void 0 : t2[Symbol.iterator]), f = "[ 	\n\f\r]", v$1 = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, _ = /-->/g, m$1 = />/g, p$1 = RegExp(`>|${f}(?:([^\\s"'>=/]+)(${f}*=${f}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`, "g"), g = /'/g, $ = /"/g, y2 = /^(?:script|style|textarea|title)$/i, x = (t2) => (i4, ...s2) => ({ _$litType$: t2, strings: i4, values: s2 }), b = x(1), E = Symbol.for("lit-noChange"), A = Symbol.for("lit-nothing"), C = /* @__PURE__ */ new WeakMap(), P = l$1.createTreeWalker(l$1, 129);
+function V(t2, i4) {
+  if (!u$2(t2) || !t2.hasOwnProperty("raw")) throw Error("invalid template strings array");
+  return void 0 !== e$2 ? e$2.createHTML(i4) : i4;
 }
-const N = (t2, i3) => {
+const N = (t2, i4) => {
   const s2 = t2.length - 1, e2 = [];
-  let n3, l2 = 2 === i3 ? "<svg>" : 3 === i3 ? "<math>" : "", c2 = v;
-  for (let i4 = 0; i4 < s2; i4++) {
-    const s3 = t2[i4];
+  let n3, l2 = 2 === i4 ? "<svg>" : 3 === i4 ? "<math>" : "", c2 = v$1;
+  for (let i5 = 0; i5 < s2; i5++) {
+    const s3 = t2[i5];
     let a2, u2, d2 = -1, f2 = 0;
-    for (; f2 < s3.length && (c2.lastIndex = f2, u2 = c2.exec(s3), null !== u2); ) f2 = c2.lastIndex, c2 === v ? "!--" === u2[1] ? c2 = _ : void 0 !== u2[1] ? c2 = m$1 : void 0 !== u2[2] ? (y2.test(u2[2]) && (n3 = RegExp("</" + u2[2], "g")), c2 = p$1) : void 0 !== u2[3] && (c2 = p$1) : c2 === p$1 ? ">" === u2[0] ? (c2 = n3 ?? v, d2 = -1) : void 0 === u2[1] ? d2 = -2 : (d2 = c2.lastIndex - u2[2].length, a2 = u2[1], c2 = void 0 === u2[3] ? p$1 : '"' === u2[3] ? $ : g) : c2 === $ || c2 === g ? c2 = p$1 : c2 === _ || c2 === m$1 ? c2 = v : (c2 = p$1, n3 = void 0);
-    const x2 = c2 === p$1 && t2[i4 + 1].startsWith("/>") ? " " : "";
-    l2 += c2 === v ? s3 + r$3 : d2 >= 0 ? (e2.push(a2), s3.slice(0, d2) + h + s3.slice(d2) + o$2 + x2) : s3 + o$2 + (-2 === d2 ? i4 : x2);
+    for (; f2 < s3.length && (c2.lastIndex = f2, u2 = c2.exec(s3), null !== u2); ) f2 = c2.lastIndex, c2 === v$1 ? "!--" === u2[1] ? c2 = _ : void 0 !== u2[1] ? c2 = m$1 : void 0 !== u2[2] ? (y2.test(u2[2]) && (n3 = RegExp("</" + u2[2], "g")), c2 = p$1) : void 0 !== u2[3] && (c2 = p$1) : c2 === p$1 ? ">" === u2[0] ? (c2 = n3 ?? v$1, d2 = -1) : void 0 === u2[1] ? d2 = -2 : (d2 = c2.lastIndex - u2[2].length, a2 = u2[1], c2 = void 0 === u2[3] ? p$1 : '"' === u2[3] ? $ : g) : c2 === $ || c2 === g ? c2 = p$1 : c2 === _ || c2 === m$1 ? c2 = v$1 : (c2 = p$1, n3 = void 0);
+    const x2 = c2 === p$1 && t2[i5 + 1].startsWith("/>") ? " " : "";
+    l2 += c2 === v$1 ? s3 + r$3 : d2 >= 0 ? (e2.push(a2), s3.slice(0, d2) + h$1 + s3.slice(d2) + o$3 + x2) : s3 + o$3 + (-2 === d2 ? i5 : x2);
   }
-  return [V(t2, l2 + (t2[s2] || "<?>") + (2 === i3 ? "</svg>" : 3 === i3 ? "</math>" : "")), e2];
+  return [V(t2, l2 + (t2[s2] || "<?>") + (2 === i4 ? "</svg>" : 3 === i4 ? "</math>" : "")), e2];
 };
 class S {
-  constructor({ strings: t2, _$litType$: i3 }, e2) {
+  constructor({ strings: t2, _$litType$: i4 }, e2) {
     let r2;
     this.parts = [];
     let l2 = 0, a2 = 0;
-    const u2 = t2.length - 1, d2 = this.parts, [f2, v2] = N(t2, i3);
-    if (this.el = S.createElement(f2, e2), P.currentNode = this.el.content, 2 === i3 || 3 === i3) {
+    const u2 = t2.length - 1, d2 = this.parts, [f2, v2] = N(t2, i4);
+    if (this.el = S.createElement(f2, e2), P.currentNode = this.el.content, 2 === i4 || 3 === i4) {
       const t3 = this.el.content.firstChild;
       t3.replaceWith(...t3.childNodes);
     }
     for (; null !== (r2 = P.nextNode()) && d2.length < u2; ) {
       if (1 === r2.nodeType) {
-        if (r2.hasAttributes()) for (const t3 of r2.getAttributeNames()) if (t3.endsWith(h)) {
-          const i4 = v2[a2++], s2 = r2.getAttribute(t3).split(o$2), e3 = /([.?@])?(.*)/.exec(i4);
+        if (r2.hasAttributes()) for (const t3 of r2.getAttributeNames()) if (t3.endsWith(h$1)) {
+          const i5 = v2[a2++], s2 = r2.getAttribute(t3).split(o$3), e3 = /([.?@])?(.*)/.exec(i5);
           d2.push({ type: 1, index: l2, name: e3[2], strings: s2, ctor: "." === e3[1] ? I : "?" === e3[1] ? L : "@" === e3[1] ? z : H }), r2.removeAttribute(t3);
-        } else t3.startsWith(o$2) && (d2.push({ type: 6, index: l2 }), r2.removeAttribute(t3));
+        } else t3.startsWith(o$3) && (d2.push({ type: 6, index: l2 }), r2.removeAttribute(t3));
         if (y2.test(r2.tagName)) {
-          const t3 = r2.textContent.split(o$2), i4 = t3.length - 1;
-          if (i4 > 0) {
-            r2.textContent = s$1 ? s$1.emptyScript : "";
-            for (let s2 = 0; s2 < i4; s2++) r2.append(t3[s2], c()), P.nextNode(), d2.push({ type: 2, index: ++l2 });
-            r2.append(t3[i4], c());
+          const t3 = r2.textContent.split(o$3), i5 = t3.length - 1;
+          if (i5 > 0) {
+            r2.textContent = s$2 ? s$2.emptyScript : "";
+            for (let s2 = 0; s2 < i5; s2++) r2.append(t3[s2], c$1()), P.nextNode(), d2.push({ type: 2, index: ++l2 });
+            r2.append(t3[i5], c$1());
           }
         }
       } else if (8 === r2.nodeType) if (r2.data === n$1) d2.push({ type: 2, index: l2 });
       else {
         let t3 = -1;
-        for (; -1 !== (t3 = r2.data.indexOf(o$2, t3 + 1)); ) d2.push({ type: 7, index: l2 }), t3 += o$2.length - 1;
+        for (; -1 !== (t3 = r2.data.indexOf(o$3, t3 + 1)); ) d2.push({ type: 7, index: l2 }), t3 += o$3.length - 1;
       }
       l2++;
     }
   }
-  static createElement(t2, i3) {
+  static createElement(t2, i4) {
     const s2 = l$1.createElement("template");
     return s2.innerHTML = t2, s2;
   }
 }
-function M(t2, i3, s2 = t2, e2) {
+function M$1(t2, i4, s2 = t2, e2) {
   var _a2, _b;
-  if (i3 === E) return i3;
+  if (i4 === E) return i4;
   let h2 = void 0 !== e2 ? (_a2 = s2._$Co) == null ? void 0 : _a2[e2] : s2._$Cl;
-  const o2 = a(i3) ? void 0 : i3._$litDirective$;
-  return (h2 == null ? void 0 : h2.constructor) !== o2 && ((_b = h2 == null ? void 0 : h2._$AO) == null ? void 0 : _b.call(h2, false), void 0 === o2 ? h2 = void 0 : (h2 = new o2(t2), h2._$AT(t2, s2, e2)), void 0 !== e2 ? (s2._$Co ?? (s2._$Co = []))[e2] = h2 : s2._$Cl = h2), void 0 !== h2 && (i3 = M(t2, h2._$AS(t2, i3.values), h2, e2)), i3;
+  const o2 = a(i4) ? void 0 : i4._$litDirective$;
+  return (h2 == null ? void 0 : h2.constructor) !== o2 && ((_b = h2 == null ? void 0 : h2._$AO) == null ? void 0 : _b.call(h2, false), void 0 === o2 ? h2 = void 0 : (h2 = new o2(t2), h2._$AT(t2, s2, e2)), void 0 !== e2 ? (s2._$Co ?? (s2._$Co = []))[e2] = h2 : s2._$Cl = h2), void 0 !== h2 && (i4 = M$1(t2, h2._$AS(t2, i4.values), h2, e2)), i4;
 }
 class R {
-  constructor(t2, i3) {
-    this._$AV = [], this._$AN = void 0, this._$AD = t2, this._$AM = i3;
+  constructor(t2, i4) {
+    this._$AV = [], this._$AN = void 0, this._$AD = t2, this._$AM = i4;
   }
   get parentNode() {
     return this._$AM.parentNode;
@@ -361,21 +361,21 @@ class R {
     return this._$AM._$AU;
   }
   u(t2) {
-    const { el: { content: i3 }, parts: s2 } = this._$AD, e2 = ((t2 == null ? void 0 : t2.creationScope) ?? l$1).importNode(i3, true);
+    const { el: { content: i4 }, parts: s2 } = this._$AD, e2 = ((t2 == null ? void 0 : t2.creationScope) ?? l$1).importNode(i4, true);
     P.currentNode = e2;
     let h2 = P.nextNode(), o2 = 0, n3 = 0, r2 = s2[0];
     for (; void 0 !== r2; ) {
       if (o2 === r2.index) {
-        let i4;
-        2 === r2.type ? i4 = new k(h2, h2.nextSibling, this, t2) : 1 === r2.type ? i4 = new r2.ctor(h2, r2.name, r2.strings, this, t2) : 6 === r2.type && (i4 = new Z(h2, this, t2)), this._$AV.push(i4), r2 = s2[++n3];
+        let i5;
+        2 === r2.type ? i5 = new k(h2, h2.nextSibling, this, t2) : 1 === r2.type ? i5 = new r2.ctor(h2, r2.name, r2.strings, this, t2) : 6 === r2.type && (i5 = new Z(h2, this, t2)), this._$AV.push(i5), r2 = s2[++n3];
       }
       o2 !== (r2 == null ? void 0 : r2.index) && (h2 = P.nextNode(), o2++);
     }
     return P.currentNode = l$1, e2;
   }
   p(t2) {
-    let i3 = 0;
-    for (const s2 of this._$AV) void 0 !== s2 && (void 0 !== s2.strings ? (s2._$AI(t2, s2, i3), i3 += s2.strings.length - 2) : s2._$AI(t2[i3])), i3++;
+    let i4 = 0;
+    for (const s2 of this._$AV) void 0 !== s2 && (void 0 !== s2.strings ? (s2._$AI(t2, s2, i4), i4 += s2.strings.length - 2) : s2._$AI(t2[i4])), i4++;
   }
 }
 class k {
@@ -383,13 +383,13 @@ class k {
     var _a2;
     return ((_a2 = this._$AM) == null ? void 0 : _a2._$AU) ?? this._$Cv;
   }
-  constructor(t2, i3, s2, e2) {
-    this.type = 2, this._$AH = A, this._$AN = void 0, this._$AA = t2, this._$AB = i3, this._$AM = s2, this.options = e2, this._$Cv = (e2 == null ? void 0 : e2.isConnected) ?? true;
+  constructor(t2, i4, s2, e2) {
+    this.type = 2, this._$AH = A, this._$AN = void 0, this._$AA = t2, this._$AB = i4, this._$AM = s2, this.options = e2, this._$Cv = (e2 == null ? void 0 : e2.isConnected) ?? true;
   }
   get parentNode() {
     let t2 = this._$AA.parentNode;
-    const i3 = this._$AM;
-    return void 0 !== i3 && 11 === (t2 == null ? void 0 : t2.nodeType) && (t2 = i3.parentNode), t2;
+    const i4 = this._$AM;
+    return void 0 !== i4 && 11 === (t2 == null ? void 0 : t2.nodeType) && (t2 = i4.parentNode), t2;
   }
   get startNode() {
     return this._$AA;
@@ -397,8 +397,8 @@ class k {
   get endNode() {
     return this._$AB;
   }
-  _$AI(t2, i3 = this) {
-    t2 = M(this, t2, i3), a(t2) ? t2 === A || null == t2 || "" === t2 ? (this._$AH !== A && this._$AR(), this._$AH = A) : t2 !== this._$AH && t2 !== E && this._(t2) : void 0 !== t2._$litType$ ? this.$(t2) : void 0 !== t2.nodeType ? this.T(t2) : d(t2) ? this.k(t2) : this._(t2);
+  _$AI(t2, i4 = this) {
+    t2 = M$1(this, t2, i4), a(t2) ? t2 === A || null == t2 || "" === t2 ? (this._$AH !== A && this._$AR(), this._$AH = A) : t2 !== this._$AH && t2 !== E && this._(t2) : void 0 !== t2._$litType$ ? this.$(t2) : void 0 !== t2.nodeType ? this.T(t2) : d(t2) ? this.k(t2) : this._(t2);
   }
   O(t2) {
     return this._$AA.parentNode.insertBefore(t2, this._$AB);
@@ -411,29 +411,29 @@ class k {
   }
   $(t2) {
     var _a2;
-    const { values: i3, _$litType$: s2 } = t2, e2 = "number" == typeof s2 ? this._$AC(t2) : (void 0 === s2.el && (s2.el = S.createElement(V(s2.h, s2.h[0]), this.options)), s2);
-    if (((_a2 = this._$AH) == null ? void 0 : _a2._$AD) === e2) this._$AH.p(i3);
+    const { values: i4, _$litType$: s2 } = t2, e2 = "number" == typeof s2 ? this._$AC(t2) : (void 0 === s2.el && (s2.el = S.createElement(V(s2.h, s2.h[0]), this.options)), s2);
+    if (((_a2 = this._$AH) == null ? void 0 : _a2._$AD) === e2) this._$AH.p(i4);
     else {
       const t3 = new R(e2, this), s3 = t3.u(this.options);
-      t3.p(i3), this.T(s3), this._$AH = t3;
+      t3.p(i4), this.T(s3), this._$AH = t3;
     }
   }
   _$AC(t2) {
-    let i3 = C.get(t2.strings);
-    return void 0 === i3 && C.set(t2.strings, i3 = new S(t2)), i3;
+    let i4 = C.get(t2.strings);
+    return void 0 === i4 && C.set(t2.strings, i4 = new S(t2)), i4;
   }
   k(t2) {
-    u(this._$AH) || (this._$AH = [], this._$AR());
-    const i3 = this._$AH;
+    u$2(this._$AH) || (this._$AH = [], this._$AR());
+    const i4 = this._$AH;
     let s2, e2 = 0;
-    for (const h2 of t2) e2 === i3.length ? i3.push(s2 = new k(this.O(c()), this.O(c()), this, this.options)) : s2 = i3[e2], s2._$AI(h2), e2++;
-    e2 < i3.length && (this._$AR(s2 && s2._$AB.nextSibling, e2), i3.length = e2);
+    for (const h2 of t2) e2 === i4.length ? i4.push(s2 = new k(this.O(c$1()), this.O(c$1()), this, this.options)) : s2 = i4[e2], s2._$AI(h2), e2++;
+    e2 < i4.length && (this._$AR(s2 && s2._$AB.nextSibling, e2), i4.length = e2);
   }
   _$AR(t2 = this._$AA.nextSibling, s2) {
     var _a2;
     for ((_a2 = this._$AP) == null ? void 0 : _a2.call(this, false, true, s2); t2 !== this._$AB; ) {
-      const s3 = i$2(t2).nextSibling;
-      i$2(t2).remove(), t2 = s3;
+      const s3 = i$3(t2).nextSibling;
+      i$3(t2).remove(), t2 = s3;
     }
   }
   setConnected(t2) {
@@ -448,17 +448,17 @@ class H {
   get _$AU() {
     return this._$AM._$AU;
   }
-  constructor(t2, i3, s2, e2, h2) {
-    this.type = 1, this._$AH = A, this._$AN = void 0, this.element = t2, this.name = i3, this._$AM = e2, this.options = h2, s2.length > 2 || "" !== s2[0] || "" !== s2[1] ? (this._$AH = Array(s2.length - 1).fill(new String()), this.strings = s2) : this._$AH = A;
+  constructor(t2, i4, s2, e2, h2) {
+    this.type = 1, this._$AH = A, this._$AN = void 0, this.element = t2, this.name = i4, this._$AM = e2, this.options = h2, s2.length > 2 || "" !== s2[0] || "" !== s2[1] ? (this._$AH = Array(s2.length - 1).fill(new String()), this.strings = s2) : this._$AH = A;
   }
-  _$AI(t2, i3 = this, s2, e2) {
+  _$AI(t2, i4 = this, s2, e2) {
     const h2 = this.strings;
     let o2 = false;
-    if (void 0 === h2) t2 = M(this, t2, i3, 0), o2 = !a(t2) || t2 !== this._$AH && t2 !== E, o2 && (this._$AH = t2);
+    if (void 0 === h2) t2 = M$1(this, t2, i4, 0), o2 = !a(t2) || t2 !== this._$AH && t2 !== E, o2 && (this._$AH = t2);
     else {
       const e3 = t2;
       let n3, r2;
-      for (t2 = h2[0], n3 = 0; n3 < h2.length - 1; n3++) r2 = M(this, e3[s2 + n3], i3, n3), r2 === E && (r2 = this._$AH[n3]), o2 || (o2 = !a(r2) || r2 !== this._$AH[n3]), r2 === A ? t2 = A : t2 !== A && (t2 += (r2 ?? "") + h2[n3 + 1]), this._$AH[n3] = r2;
+      for (t2 = h2[0], n3 = 0; n3 < h2.length - 1; n3++) r2 = M$1(this, e3[s2 + n3], i4, n3), r2 === E && (r2 = this._$AH[n3]), o2 || (o2 = !a(r2) || r2 !== this._$AH[n3]), r2 === A ? t2 = A : t2 !== A && (t2 += (r2 ?? "") + h2[n3 + 1]), this._$AH[n3] = r2;
     }
     o2 && !e2 && this.j(t2);
   }
@@ -483,11 +483,11 @@ class L extends H {
   }
 }
 class z extends H {
-  constructor(t2, i3, s2, e2, h2) {
-    super(t2, i3, s2, e2, h2), this.type = 5;
+  constructor(t2, i4, s2, e2, h2) {
+    super(t2, i4, s2, e2, h2), this.type = 5;
   }
-  _$AI(t2, i3 = this) {
-    if ((t2 = M(this, t2, i3, 0) ?? A) === E) return;
+  _$AI(t2, i4 = this) {
+    if ((t2 = M$1(this, t2, i4, 0) ?? A) === E) return;
     const s2 = this._$AH, e2 = t2 === A && s2 !== A || t2.capture !== s2.capture || t2.once !== s2.once || t2.passive !== s2.passive, h2 = t2 !== A && (s2 === A || e2);
     e2 && this.element.removeEventListener(this.name, this, s2), h2 && this.element.addEventListener(this.name, this, t2), this._$AH = t2;
   }
@@ -497,24 +497,24 @@ class z extends H {
   }
 }
 class Z {
-  constructor(t2, i3, s2) {
-    this.element = t2, this.type = 6, this._$AN = void 0, this._$AM = i3, this.options = s2;
+  constructor(t2, i4, s2) {
+    this.element = t2, this.type = 6, this._$AN = void 0, this._$AM = i4, this.options = s2;
   }
   get _$AU() {
     return this._$AM._$AU;
   }
   _$AI(t2) {
-    M(this, t2);
+    M$1(this, t2);
   }
 }
-const B = t$2.litHtmlPolyfillSupport;
-B == null ? void 0 : B(S, k), (t$2.litHtmlVersions ?? (t$2.litHtmlVersions = [])).push("3.3.3");
-const D = (t2, i3, s2) => {
-  const e2 = (s2 == null ? void 0 : s2.renderBefore) ?? i3;
+const j = { I: k }, B = t$3.litHtmlPolyfillSupport;
+B == null ? void 0 : B(S, k), (t$3.litHtmlVersions ?? (t$3.litHtmlVersions = [])).push("3.3.3");
+const D = (t2, i4, s2) => {
+  const e2 = (s2 == null ? void 0 : s2.renderBefore) ?? i4;
   let h2 = e2._$litPart$;
   if (void 0 === h2) {
     const t3 = (s2 == null ? void 0 : s2.renderBefore) ?? null;
-    e2._$litPart$ = h2 = new k(i3.insertBefore(c(), t3), t3, void 0, s2 ?? {});
+    e2._$litPart$ = h2 = new k(i4.insertBefore(c$1(), t3), t3, void 0, s2 ?? {});
   }
   return h2._$AI(t2), h2;
 };
@@ -523,8 +523,8 @@ const D = (t2, i3, s2) => {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const s = globalThis;
-let i$1 = class i extends y$1 {
+const s$1 = globalThis;
+let i$2 = class i extends y$1 {
   constructor() {
     super(...arguments), this.renderOptions = { host: this }, this._$Do = void 0;
   }
@@ -549,16 +549,16 @@ let i$1 = class i extends y$1 {
     return E;
   }
 };
-i$1._$litElement$ = true, i$1["finalized"] = true, (_a = s.litElementHydrateSupport) == null ? void 0 : _a.call(s, { LitElement: i$1 });
-const o$1 = s.litElementPolyfillSupport;
-o$1 == null ? void 0 : o$1({ LitElement: i$1 });
-(s.litElementVersions ?? (s.litElementVersions = [])).push("4.2.2");
+i$2._$litElement$ = true, i$2["finalized"] = true, (_a = s$1.litElementHydrateSupport) == null ? void 0 : _a.call(s$1, { LitElement: i$2 });
+const o$2 = s$1.litElementPolyfillSupport;
+o$2 == null ? void 0 : o$2({ LitElement: i$2 });
+(s$1.litElementVersions ?? (s$1.litElementVersions = [])).push("4.2.2");
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t$1 = (t2) => (e2, o2) => {
+const t$2 = (t2) => (e2, o2) => {
   void 0 !== o2 ? o2.addInitializer(() => {
     customElements.define(t2, e2);
   }) : customElements.define(t2, e2);
@@ -568,10 +568,10 @@ const t$1 = (t2) => (e2, o2) => {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const o = { attribute: true, type: String, converter: u$1, reflect: false, hasChanged: f$1 }, r$2 = (t2 = o, e2, r2) => {
-  const { kind: n3, metadata: i3 } = r2;
-  let s2 = globalThis.litPropertyMetadata.get(i3);
-  if (void 0 === s2 && globalThis.litPropertyMetadata.set(i3, s2 = /* @__PURE__ */ new Map()), "setter" === n3 && ((t2 = Object.create(t2)).wrapped = true), s2.set(r2.name, t2), "accessor" === n3) {
+const o$1 = { attribute: true, type: String, converter: u$3, reflect: false, hasChanged: f$1 }, r$2 = (t2 = o$1, e2, r2) => {
+  const { kind: n3, metadata: i4 } = r2;
+  let s2 = globalThis.litPropertyMetadata.get(i4);
+  if (void 0 === s2 && globalThis.litPropertyMetadata.set(i4, s2 = /* @__PURE__ */ new Map()), "setter" === n3 && ((t2 = Object.create(t2)).wrapped = true), s2.set(r2.name, t2), "accessor" === n3) {
     const { name: o2 } = r2;
     return { set(r3) {
       const n4 = e2.get.call(this);
@@ -608,15 +608,15 @@ function r$1(r2) {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t = { ATTRIBUTE: 1, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4 }, e = (t2) => (...e2) => ({ _$litDirective$: t2, values: e2 });
-class i2 {
+const t$1 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4 }, e$1 = (t2) => (...e2) => ({ _$litDirective$: t2, values: e2 });
+let i$1 = class i2 {
   constructor(t2) {
   }
   get _$AU() {
     return this._$AM._$AU;
   }
-  _$AT(t2, e2, i3) {
-    this._$Ct = t2, this._$AM = e2, this._$Ci = i3;
+  _$AT(t2, e2, i4) {
+    this._$Ct = t2, this._$AM = e2, this._$Ci = i4;
   }
   _$AS(t2, e2) {
     return this.update(t2, e2);
@@ -624,35 +624,58 @@ class i2 {
   update(t2, e2) {
     return this.render(...e2);
   }
-}
+};
 /**
  * @license
  * Copyright 2020 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const r = (o2) => void 0 === o2.strings, m = {}, p = (o2, t2 = m) => o2._$AH = t2;
+const { I: t } = j, i3 = (o2) => o2, r = (o2) => void 0 === o2.strings, s = () => document.createComment(""), v = (o2, n3, e2) => {
+  var _a2;
+  const l2 = o2._$AA.parentNode, d2 = void 0 === n3 ? o2._$AB : n3._$AA;
+  if (void 0 === e2) {
+    const i4 = l2.insertBefore(s(), d2), n4 = l2.insertBefore(s(), d2);
+    e2 = new t(i4, n4, o2, o2.options);
+  } else {
+    const t2 = e2._$AB.nextSibling, n4 = e2._$AM, c2 = n4 !== o2;
+    if (c2) {
+      let t3;
+      (_a2 = e2._$AQ) == null ? void 0 : _a2.call(e2, o2), e2._$AM = o2, void 0 !== e2._$AP && (t3 = o2._$AU) !== n4._$AU && e2._$AP(t3);
+    }
+    if (t2 !== d2 || c2) {
+      let o3 = e2._$AA;
+      for (; o3 !== t2; ) {
+        const t3 = i3(o3).nextSibling;
+        i3(l2).insertBefore(o3, d2), o3 = t3;
+      }
+    }
+  }
+  return e2;
+}, u$1 = (o2, t2, i4 = o2) => (o2._$AI(t2, i4), o2), m = {}, p = (o2, t2 = m) => o2._$AH = t2, M = (o2) => o2._$AH, h = (o2) => {
+  o2._$AR(), o2._$AA.remove();
+};
 /**
  * @license
  * Copyright 2020 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const l = e(class extends i2 {
+const l = e$1(class extends i$1 {
   constructor(r$12) {
-    if (super(r$12), r$12.type !== t.PROPERTY && r$12.type !== t.ATTRIBUTE && r$12.type !== t.BOOLEAN_ATTRIBUTE) throw Error("The `live` directive is not allowed on child or event bindings");
+    if (super(r$12), r$12.type !== t$1.PROPERTY && r$12.type !== t$1.ATTRIBUTE && r$12.type !== t$1.BOOLEAN_ATTRIBUTE) throw Error("The `live` directive is not allowed on child or event bindings");
     if (!r(r$12)) throw Error("`live` bindings can only contain a single expression");
   }
   render(r2) {
     return r2;
   }
-  update(i3, [t$12]) {
-    if (t$12 === E || t$12 === A) return t$12;
-    const o2 = i3.element, l2 = i3.name;
-    if (i3.type === t.PROPERTY) {
-      if (t$12 === o2[l2]) return E;
-    } else if (i3.type === t.BOOLEAN_ATTRIBUTE) {
-      if (!!t$12 === o2.hasAttribute(l2)) return E;
-    } else if (i3.type === t.ATTRIBUTE && o2.getAttribute(l2) === t$12 + "") return E;
-    return p(i3), t$12;
+  update(i4, [t2]) {
+    if (t2 === E || t2 === A) return t2;
+    const o2 = i4.element, l2 = i4.name;
+    if (i4.type === t$1.PROPERTY) {
+      if (t2 === o2[l2]) return E;
+    } else if (i4.type === t$1.BOOLEAN_ATTRIBUTE) {
+      if (!!t2 === o2.hasAttribute(l2)) return E;
+    } else if (i4.type === t$1.ATTRIBUTE && o2.getAttribute(l2) === t2 + "") return E;
+    return p(i4), t2;
   }
 });
 class JsonParseError extends Error {
@@ -890,10 +913,10 @@ function pathForLine(node, line, path = []) {
       if (r2) return r2;
     }
   } else if (node.type === "array" && node.elements) {
-    for (let i3 = 0; i3 < node.elements.length; i3++) {
-      const el = node.elements[i3];
-      if (el.line === line) return [...path, i3];
-      const r2 = pathForLine(el, line, [...path, i3]);
+    for (let i4 = 0; i4 < node.elements.length; i4++) {
+      const el = node.elements[i4];
+      if (el.line === line) return [...path, i4];
+      const r2 = pathForLine(el, line, [...path, i4]);
       if (r2) return r2;
     }
   }
@@ -928,8 +951,8 @@ function schemaDescription(schema) {
   return typeof d2 === "string" && d2.trim() ? d2 : null;
 }
 function schemaDescriptionForPath(schema, path) {
-  for (let i3 = path.length; i3 >= 0; i3--) {
-    const d2 = schemaDescription(schemaAtPath(schema, path.slice(0, i3)));
+  for (let i4 = path.length; i4 >= 0; i4--) {
+    const d2 = schemaDescription(schemaAtPath(schema, path.slice(0, i4)));
     if (d2) return d2;
   }
   return null;
@@ -982,8 +1005,8 @@ function pinnedPaths(overrides, defaults) {
       if (jsonEqual(v2, d2)) {
         out.add(p2);
       } else {
-        for (let i3 = 0; i3 < v2.length; i3++)
-          walk(v2[i3], d2 == null ? void 0 : d2[i3], `${p2}[${i3}]`);
+        for (let i4 = 0; i4 < v2.length; i4++)
+          walk(v2[i4], d2 == null ? void 0 : d2[i4], `${p2}[${i4}]`);
       }
     } else if (typeof v2 === "object") {
       const def = d2 && typeof d2 === "object" && !Array.isArray(d2) ? d2 : {};
@@ -1118,8 +1141,8 @@ function stringAt(text, pos) {
   let open = -1;
   let esc = false;
   let inStr = false;
-  for (let i3 = 0; i3 < text.length; i3++) {
-    const c2 = text[i3];
+  for (let i4 = 0; i4 < text.length; i4++) {
+    const c2 = text[i4];
     if (inStr) {
       if (esc) {
         esc = false;
@@ -1130,7 +1153,7 @@ function stringAt(text, pos) {
         continue;
       }
       if (c2 === '"') {
-        if (pos > open && pos <= i3) return { open, close: i3 };
+        if (pos > open && pos <= i4) return { open, close: i4 };
         inStr = false;
         open = -1;
       }
@@ -1138,7 +1161,7 @@ function stringAt(text, pos) {
     }
     if (c2 === '"') {
       inStr = true;
-      open = i3;
+      open = i4;
     }
   }
   return null;
@@ -1146,24 +1169,24 @@ function stringAt(text, pos) {
 function ownerPathAt(text, lineStart) {
   const stack = [];
   let pendingKey = null;
-  let i3 = 0;
-  while (i3 < lineStart) {
-    const c2 = text[i3];
+  let i4 = 0;
+  while (i4 < lineStart) {
+    const c2 = text[i4];
     if (c2 === '"') {
-      let j = i3 + 1;
+      let j2 = i4 + 1;
       let s2 = "";
-      while (j < lineStart) {
-        const cc = text[j];
+      while (j2 < lineStart) {
+        const cc = text[j2];
         if (cc === "\\") {
-          s2 += text[j + 1] ?? "";
-          j += 2;
+          s2 += text[j2 + 1] ?? "";
+          j2 += 2;
           continue;
         }
         if (cc === '"') break;
         s2 += cc;
-        j++;
+        j2++;
       }
-      let k2 = j + 1;
+      let k2 = j2 + 1;
       while (k2 < lineStart && (text[k2] === " " || text[k2] === "	" || text[k2] === "\n" || text[k2] === "\r")) {
         k2++;
       }
@@ -1171,7 +1194,7 @@ function ownerPathAt(text, lineStart) {
       const topNow2 = stack[stack.length - 1];
       if (topNow2 && topNow2.kind === "arr") topNow2.elems++;
       pendingKey = isKey ? s2 : null;
-      i3 = j + 1;
+      i4 = j2 + 1;
       continue;
     }
     if (c2 === "{" || c2 === "[") {
@@ -1179,33 +1202,33 @@ function ownerPathAt(text, lineStart) {
       const elemIndex = topNow2 && topNow2.kind === "arr" ? topNow2.elems++ : null;
       stack.push({ kind: c2 === "{" ? "obj" : "arr", key: pendingKey, elemIndex, elems: 0 });
       pendingKey = null;
-      i3++;
+      i4++;
       continue;
     }
     if (c2 === "}") {
       if (stack.length) stack.pop();
-      i3++;
+      i4++;
       continue;
     }
     if (c2 === "]") {
       if (stack.length) stack.pop();
-      i3++;
+      i4++;
       continue;
     }
     if (c2 === ",") {
       pendingKey = null;
-      i3++;
+      i4++;
       continue;
     }
     const topNow = stack[stack.length - 1];
     if (topNow && topNow.kind === "arr" && (c2 >= "0" && c2 <= "9" || c2 === "-" || c2 === "t" || c2 === "f" || c2 === "n")) {
       topNow.elems++;
-      let j = i3 + 1;
-      while (j < lineStart && text[j] !== "," && text[j] !== "]" && !/\s/.test(text[j])) j++;
-      i3 = j;
+      let j2 = i4 + 1;
+      while (j2 < lineStart && text[j2] !== "," && text[j2] !== "]" && !/\s/.test(text[j2])) j2++;
+      i4 = j2;
       continue;
     }
-    i3++;
+    i4++;
   }
   const top = stack[stack.length - 1];
   if (!top || top.kind !== "obj") return null;
@@ -1299,13 +1322,13 @@ function defaultLiteralForType(type) {
   }
 }
 function memberValueKey(text, stringOpen) {
-  let i3 = stringOpen - 1;
-  while (i3 >= 0 && (text[i3] === " " || text[i3] === "	")) i3--;
-  if (i3 < 0 || text[i3] !== ":") return null;
-  let j = i3 - 1;
-  while (j >= 0 && (text[j] === " " || text[j] === "	")) j--;
-  if (j < 0 || text[j] !== '"') return null;
-  let k2 = j - 1;
+  let i4 = stringOpen - 1;
+  while (i4 >= 0 && (text[i4] === " " || text[i4] === "	")) i4--;
+  if (i4 < 0 || text[i4] !== ":") return null;
+  let j2 = i4 - 1;
+  while (j2 >= 0 && (text[j2] === " " || text[j2] === "	")) j2--;
+  if (j2 < 0 || text[j2] !== '"') return null;
+  let k2 = j2 - 1;
   let esc = false;
   while (k2 >= 0) {
     const c2 = text[k2];
@@ -1323,7 +1346,7 @@ function memberValueKey(text, stringOpen) {
     k2--;
   }
   if (k2 < 0) return null;
-  return text.slice(k2 + 1, j).replace(/\\(["\\/bfnrt])/g, "$1");
+  return text.slice(k2 + 1, j2).replace(/\\(["\\/bfnrt])/g, "$1");
 }
 function valueSuggestContextAt(schema, text, pos, selected) {
   if (pos < 0) return null;
@@ -1398,10 +1421,10 @@ function computeFoldRanges(text) {
 }
 function findEntryAtLine(root, line) {
   if (root.type === "object" && root.members) {
-    for (let i3 = 0; i3 < root.members.length; i3++) {
-      const m2 = root.members[i3];
+    for (let i4 = 0; i4 < root.members.length; i4++) {
+      const m2 = root.members[i4];
       if (m2.keyLine === line || m2.value.line === line) {
-        return { parent: root, member: { key: m2.key, index: i3 }, node: m2.value, line: m2.keyLine };
+        return { parent: root, member: { key: m2.key, index: i4 }, node: m2.value, line: m2.keyLine };
       }
     }
     for (const m2 of root.members) {
@@ -1409,10 +1432,10 @@ function findEntryAtLine(root, line) {
       if (r2) return r2;
     }
   } else if (root.type === "array" && root.elements) {
-    for (let i3 = 0; i3 < root.elements.length; i3++) {
-      const el = root.elements[i3];
+    for (let i4 = 0; i4 < root.elements.length; i4++) {
+      const el = root.elements[i4];
       if (el.line === line) {
-        return { parent: root, index: i3, node: el, line };
+        return { parent: root, index: i4, node: el, line };
       }
     }
     for (const el of root.elements) {
@@ -1425,55 +1448,55 @@ function findEntryAtLine(root, line) {
 function tokenizeJsonFull(text) {
   const tokens = [];
   const n3 = text.length;
-  let i3 = 0;
-  while (i3 < n3) {
-    const c2 = text[i3];
+  let i4 = 0;
+  while (i4 < n3) {
+    const c2 = text[i4];
     if (c2 === " " || c2 === "	" || c2 === "\n" || c2 === "\r") {
-      let j = i3 + 1;
-      while (j < n3 && (text[j] === " " || text[j] === "	" || text[j] === "\n" || text[j] === "\r"))
-        j++;
-      tokens.push({ kind: "ws", start: i3, end: j, value: text.slice(i3, j) });
-      i3 = j;
+      let j2 = i4 + 1;
+      while (j2 < n3 && (text[j2] === " " || text[j2] === "	" || text[j2] === "\n" || text[j2] === "\r"))
+        j2++;
+      tokens.push({ kind: "ws", start: i4, end: j2, value: text.slice(i4, j2) });
+      i4 = j2;
       continue;
     }
     if (c2 === '"') {
-      let j = i3 + 1;
-      while (j < n3) {
-        const cc = text[j];
+      let j2 = i4 + 1;
+      while (j2 < n3) {
+        const cc = text[j2];
         if (cc === "\\") {
-          j += 2;
+          j2 += 2;
           continue;
         }
         if (cc === '"') {
-          j++;
+          j2++;
           break;
         }
-        j++;
+        j2++;
       }
-      tokens.push({ kind: "string", start: i3, end: j, value: text.slice(i3, j) });
-      i3 = j;
+      tokens.push({ kind: "string", start: i4, end: j2, value: text.slice(i4, j2) });
+      i4 = j2;
       continue;
     }
     if (c2 === "-" || c2 >= "0" && c2 <= "9") {
-      let j = i3 + 1;
-      while (j < n3 && /[0-9eE+\-.]/.test(text[j])) j++;
-      tokens.push({ kind: "number", start: i3, end: j, value: text.slice(i3, j) });
-      i3 = j;
+      let j2 = i4 + 1;
+      while (j2 < n3 && /[0-9eE+\-.]/.test(text[j2])) j2++;
+      tokens.push({ kind: "number", start: i4, end: j2, value: text.slice(i4, j2) });
+      i4 = j2;
       continue;
     }
     if ("{}[]:,".includes(c2)) {
-      tokens.push({ kind: "punct", start: i3, end: i3 + 1, value: c2 });
-      i3++;
+      tokens.push({ kind: "punct", start: i4, end: i4 + 1, value: c2 });
+      i4++;
       continue;
     }
-    if (text.startsWith("true", i3) || text.startsWith("false", i3) || text.startsWith("null", i3)) {
-      const word = text.startsWith("true", i3) ? "true" : text.startsWith("false", i3) ? "false" : "null";
-      tokens.push({ kind: "keyword", start: i3, end: i3 + word.length, value: word });
-      i3 += word.length;
+    if (text.startsWith("true", i4) || text.startsWith("false", i4) || text.startsWith("null", i4)) {
+      const word = text.startsWith("true", i4) ? "true" : text.startsWith("false", i4) ? "false" : "null";
+      tokens.push({ kind: "keyword", start: i4, end: i4 + word.length, value: word });
+      i4 += word.length;
       continue;
     }
-    tokens.push({ kind: "punct", start: i3, end: i3 + 1, value: c2 });
-    i3++;
+    tokens.push({ kind: "punct", start: i4, end: i4 + 1, value: c2 });
+    i4++;
   }
   return tokens;
 }
@@ -1507,74 +1530,74 @@ const JSON_SCOPE_CLASS = {
 };
 function tokenizeJsonText(text) {
   const tokens = [];
-  let i3 = 0;
+  let i4 = 0;
   const n3 = text.length;
-  while (i3 < n3) {
-    const ch = text[i3];
+  while (i4 < n3) {
+    const ch = text[i4];
     if (ch === " " || ch === "	" || ch === "\n" || ch === "\r") {
-      let j = i3 + 1;
-      while (j < n3 && /[ \t\n\r]/.test(text[j])) j++;
-      tokens.push({ text: text.slice(i3, j), scope: "plain" });
-      i3 = j;
+      let j2 = i4 + 1;
+      while (j2 < n3 && /[ \t\n\r]/.test(text[j2])) j2++;
+      tokens.push({ text: text.slice(i4, j2), scope: "plain" });
+      i4 = j2;
       continue;
     }
     if (ch === "{" || ch === "}" || ch === "[" || ch === "]" || ch === ":" || ch === ",") {
       tokens.push({ text: ch, scope: "punct" });
-      i3++;
+      i4++;
       continue;
     }
     if (ch === '"') {
-      let j = i3 + 1;
+      let j2 = i4 + 1;
       let escaped = false;
-      while (j < n3) {
-        const c2 = text[j];
+      while (j2 < n3) {
+        const c2 = text[j2];
         if (escaped) {
           escaped = false;
         } else if (c2 === "\\") {
           escaped = true;
         } else if (c2 === '"') {
-          j++;
+          j2++;
           break;
         }
-        j++;
+        j2++;
       }
-      const str = text.slice(i3, j);
-      const k2 = skipWhitespace(text, j);
+      const str = text.slice(i4, j2);
+      const k2 = skipWhitespace(text, j2);
       tokens.push({ text: str, scope: text[k2] === ":" ? "key" : "string" });
-      i3 = j;
+      i4 = j2;
       continue;
     }
     if (ch === "-" || ch >= "0" && ch <= "9") {
-      const match = NUMBER_RE.exec(text.slice(i3));
+      const match = NUMBER_RE.exec(text.slice(i4));
       if (match) {
         tokens.push({ text: match[0], scope: "number" });
-        i3 += match[0].length;
+        i4 += match[0].length;
         continue;
       }
     }
-    if (text.startsWith("true", i3)) {
+    if (text.startsWith("true", i4)) {
       tokens.push({ text: "true", scope: "literal" });
-      i3 += 4;
+      i4 += 4;
       continue;
     }
-    if (text.startsWith("false", i3)) {
+    if (text.startsWith("false", i4)) {
       tokens.push({ text: "false", scope: "literal" });
-      i3 += 5;
+      i4 += 5;
       continue;
     }
-    if (text.startsWith("null", i3)) {
+    if (text.startsWith("null", i4)) {
       tokens.push({ text: "null", scope: "literal" });
-      i3 += 4;
+      i4 += 4;
       continue;
     }
     tokens.push({ text: ch, scope: "plain" });
-    i3++;
+    i4++;
   }
   return tokens;
 }
-function skipWhitespace(text, i3) {
-  while (i3 < text.length && /[ \t\n\r]/.test(text[i3])) i3++;
-  return i3;
+function skipWhitespace(text, i4) {
+  while (i4 < text.length && /[ \t\n\r]/.test(text[i4])) i4++;
+  return i4;
 }
 function highlightJsonToHtml(text) {
   let out = "";
@@ -1634,8 +1657,8 @@ function renderMarkdown(md) {
     }
     fenceBody = [];
   };
-  for (let i3 = 0; i3 < lines.length; i3++) {
-    const line = lines[i3];
+  for (let i4 = 0; i4 < lines.length; i4++) {
+    const line = lines[i4];
     const trimmed = line.trim();
     const fenceOpen = trimmed.match(/^```(\S*)\s*$/);
     if (fenceOpen) {
@@ -1679,11 +1702,11 @@ function renderMarkdown(md) {
       closeList();
       flushPara();
       const quote = [];
-      while (i3 < lines.length && lines[i3].trim().startsWith(">")) {
-        quote.push(lines[i3].trim().replace(/^>\s?/, ""));
-        i3++;
+      while (i4 < lines.length && lines[i4].trim().startsWith(">")) {
+        quote.push(lines[i4].trim().replace(/^>\s?/, ""));
+        i4++;
       }
-      i3--;
+      i4--;
       out.push(`<blockquote>${inline(escapeHtml(quote.join(" ")))}</blockquote>`);
       continue;
     }
@@ -1942,9 +1965,9 @@ class Gutter {
       return;
     }
     let width = 0;
-    for (let i3 = 0; i3 <= lastHighlightable; i3++) {
-      if (((_b = (_a2 = this._columns[i3].column).visible) == null ? void 0 : _b.call(_a2)) === false) continue;
-      width += this._columns[i3].column.width();
+    for (let i4 = 0; i4 <= lastHighlightable; i4++) {
+      if (((_b = (_a2 = this._columns[i4].column).visible) == null ? void 0 : _b.call(_a2)) === false) continue;
+      width += this._columns[i4].column.width();
     }
     box.style.display = "";
     const gr = this.root.getBoundingClientRect();
@@ -2213,8 +2236,8 @@ function findWordBounds(model, lineNumber, column) {
   const lineLen = lineContent.length;
   if (lineLen === 0) return null;
   let allWhitespace = true;
-  for (let i3 = 0; i3 < lineLen; i3++) {
-    const ch2 = lineContent.charCodeAt(i3);
+  for (let i4 = 0; i4 < lineLen; i4++) {
+    const ch2 = lineContent.charCodeAt(i4);
     if (!isWhitespace(ch2)) {
       allWhitespace = false;
       break;
@@ -2228,16 +2251,16 @@ function findWordBounds(model, lineNumber, column) {
   }
   const ch = lineContent.charCodeAt(index);
   if (isWhitespace(ch)) {
-    for (let i3 = index - 1; i3 >= 0; i3--) {
-      const c2 = lineContent.charCodeAt(i3);
+    for (let i4 = index - 1; i4 >= 0; i4--) {
+      const c2 = lineContent.charCodeAt(i4);
       if (!isWhitespace(c2) && !isWordSeparator(c2)) {
-        return findWordBoundsAtPosition(lineContent, i3);
+        return findWordBoundsAtPosition(lineContent, i4);
       }
     }
-    for (let i3 = index + 1; i3 < lineLen; i3++) {
-      const c2 = lineContent.charCodeAt(i3);
+    for (let i4 = index + 1; i4 < lineLen; i4++) {
+      const c2 = lineContent.charCodeAt(i4);
       if (!isWhitespace(c2) && !isWordSeparator(c2)) {
-        return findWordBoundsAtPosition(lineContent, i3);
+        return findWordBoundsAtPosition(lineContent, i4);
       }
     }
     return null;
@@ -2248,10 +2271,10 @@ function findWordBounds(model, lineNumber, column) {
   return findWordBoundsAtPosition(lineContent, index);
 }
 function findLastWord(lineContent, lineLen) {
-  for (let i3 = lineLen - 1; i3 >= 0; i3--) {
-    const c2 = lineContent.charCodeAt(i3);
+  for (let i4 = lineLen - 1; i4 >= 0; i4--) {
+    const c2 = lineContent.charCodeAt(i4);
     if (!isWhitespace(c2) && !isWordSeparator(c2)) {
-      return findWordBoundsAtPosition(lineContent, i3);
+      return findWordBoundsAtPosition(lineContent, i4);
     }
   }
   return null;
@@ -2464,8 +2487,8 @@ class CursorController {
   get hasMultipleCursors() {
     return this._secondaryCursors.length > 0;
   }
-  setVisibleLineCount(count) {
-    this._visibleLineCount = count;
+  setVisibleLineCount(count2) {
+    this._visibleLineCount = count2;
   }
   set onDidChange(handler) {
     this._onDidChange = handler;
@@ -3024,12 +3047,12 @@ class CursorController {
     this._cursor.position = newPositions[0];
     this._cursor.selectionAnchor = this._cursor.position;
     this._cursor.goalColumn = this._cursor.position.column;
-    for (let i3 = 1; i3 < newPositions.length; i3++) {
-      const c2 = this._secondaryCursors[i3 - 1];
+    for (let i4 = 1; i4 < newPositions.length; i4++) {
+      const c2 = this._secondaryCursors[i4 - 1];
       if (c2) {
-        c2.position = newPositions[i3];
-        c2.selectionAnchor = newPositions[i3];
-        c2.goalColumn = newPositions[i3].column;
+        c2.position = newPositions[i4];
+        c2.selectionAnchor = newPositions[i4];
+        c2.goalColumn = newPositions[i4].column;
       }
     }
     this._emit("edit");
@@ -3086,11 +3109,11 @@ ${self}`;
     this._cursor.position = newPositions[0];
     this._cursor.selectionAnchor = this._cursor.position;
     this._cursor.goalColumn = this._cursor.position.column;
-    for (let i3 = 1; i3 < newPositions.length; i3++) {
-      const c2 = this._secondaryCursors[i3 - 1];
+    for (let i4 = 1; i4 < newPositions.length; i4++) {
+      const c2 = this._secondaryCursors[i4 - 1];
       if (c2) {
-        c2.position = newPositions[i3];
-        c2.selectionAnchor = newPositions[i3];
+        c2.position = newPositions[i4];
+        c2.selectionAnchor = newPositions[i4];
       }
     }
     this._emit("edit");
@@ -3146,13 +3169,13 @@ ${self}`;
     );
     this._cursor.selectionAnchor = this._cursor.position;
     this._cursor.goalColumn = this._cursor.position.column;
-    for (let i3 = 1; i3 < allCursors.length; i3++) {
-      const c2 = this._secondaryCursors[i3 - 1];
+    for (let i4 = 1; i4 < allCursors.length; i4++) {
+      const c2 = this._secondaryCursors[i4 - 1];
       if (c2) {
         c2.position = this._computeDeleteLeftPosition(
-          allCursors[i3].position,
-          this._getSelectionOrNullFor(allCursors[i3]),
-          joinColumns[i3]
+          allCursors[i4].position,
+          this._getSelectionOrNullFor(allCursors[i4]),
+          joinColumns[i4]
         );
         c2.selectionAnchor = c2.position;
       }
@@ -3200,10 +3223,10 @@ ${self}`;
     this._cursor.position = { ...allCursors[0].position };
     this._cursor.selectionAnchor = this._cursor.position;
     this._cursor.goalColumn = this._cursor.position.column;
-    for (let i3 = 1; i3 < allCursors.length; i3++) {
-      const c2 = this._secondaryCursors[i3 - 1];
+    for (let i4 = 1; i4 < allCursors.length; i4++) {
+      const c2 = this._secondaryCursors[i4 - 1];
       if (c2) {
-        c2.position = { ...allCursors[i3].position };
+        c2.position = { ...allCursors[i4].position };
         c2.selectionAnchor = c2.position;
       }
     }
@@ -3220,8 +3243,8 @@ ${self}`;
       };
       this._cursor.goalColumn = this._cursor.position.column;
       this._secondaryCursors = [];
-      for (let i3 = 1; i3 < result.length; i3++) {
-        const s2 = result[i3];
+      for (let i4 = 1; i4 < result.length; i4++) {
+        const s2 = result[i4];
         this._secondaryCursors.push({
           position: { lineNumber: s2.positionLineNumber, column: s2.positionColumn },
           selectionAnchor: {
@@ -3245,8 +3268,8 @@ ${self}`;
       };
       this._cursor.goalColumn = this._cursor.position.column;
       this._secondaryCursors = [];
-      for (let i3 = 1; i3 < result.length; i3++) {
-        const s2 = result[i3];
+      for (let i4 = 1; i4 < result.length; i4++) {
+        const s2 = result[i4];
         this._secondaryCursors.push({
           position: { lineNumber: s2.positionLineNumber, column: s2.positionColumn },
           selectionAnchor: {
@@ -3559,17 +3582,17 @@ var CharCode = /* @__PURE__ */ ((CharCode2) => {
 function createLineStartsFast(str) {
   const r2 = [0];
   let rLength = 1;
-  for (let i3 = 0, len = str.length; i3 < len; i3++) {
-    const chr = str.charCodeAt(i3);
+  for (let i4 = 0, len = str.length; i4 < len; i4++) {
+    const chr = str.charCodeAt(i4);
     if (chr === CharCode.CarriageReturn) {
-      if (i3 + 1 < len && str.charCodeAt(i3 + 1) === CharCode.LineFeed) {
-        r2[rLength++] = i3 + 2;
-        i3++;
+      if (i4 + 1 < len && str.charCodeAt(i4 + 1) === CharCode.LineFeed) {
+        r2[rLength++] = i4 + 2;
+        i4++;
       } else {
-        r2[rLength++] = i3 + 1;
+        r2[rLength++] = i4 + 1;
       }
     } else if (chr === CharCode.LineFeed) {
-      r2[rLength++] = i3 + 1;
+      r2[rLength++] = i4 + 1;
     }
   }
   return toCompactArray(r2);
@@ -3643,8 +3666,8 @@ class SearchCache {
     this._cache = [];
   }
   get(offset) {
-    for (let i3 = this._cache.length - 1; i3 >= 0; i3--) {
-      const entry = this._cache[i3];
+    for (let i4 = this._cache.length - 1; i4 >= 0; i4--) {
+      const entry = this._cache[i4];
       if (entry && entry.nodeStartOffset <= offset && entry.nodeStartOffset + entry.node.piece.length >= offset) {
         return entry;
       }
@@ -3652,8 +3675,8 @@ class SearchCache {
     return null;
   }
   getByLine(lineNumber) {
-    for (let i3 = this._cache.length - 1; i3 >= 0; i3--) {
-      const entry = this._cache[i3];
+    for (let i4 = this._cache.length - 1; i4 >= 0; i4--) {
+      const entry = this._cache[i4];
       if (entry && entry.nodeStartLineNumber && entry.nodeStartLineNumber <= lineNumber && entry.nodeStartLineNumber + entry.node.piece.lineFeedCnt >= lineNumber) {
         return entry;
       }
@@ -3708,23 +3731,23 @@ class PieceTreeBase {
     this._searchCache = new SearchCache(1);
     this._lastVisitedLine = null;
     let lastNode = null;
-    for (let i3 = 0, len = chunks.length; i3 < len; i3++) {
-      if (chunks[i3].buffer.length > 0) {
+    for (let i4 = 0, len = chunks.length; i4 < len; i4++) {
+      if (chunks[i4].buffer.length > 0) {
         const piece = new Piece(
-          i3 + 1,
+          i4 + 1,
           // bufferIndex (0 is change buffer, so initial buffers start at 1)
           { line: 0, column: 0 },
           {
-            line: chunks[i3].lineCount - 1,
-            column: this._getLineLength(chunks[i3], chunks[i3].lineCount - 1)
+            line: chunks[i4].lineCount - 1,
+            column: this._getLineLength(chunks[i4], chunks[i4].lineCount - 1)
           },
-          chunks[i3].lineCount - 1,
-          chunks[i3].buffer.length
+          chunks[i4].lineCount - 1,
+          chunks[i4].buffer.length
         );
         this._insertNode(piece, lastNode);
         lastNode = this.root;
-        this._lineCnt += chunks[i3].lineCount - 1;
-        this._length += chunks[i3].buffer.length;
+        this._lineCnt += chunks[i4].lineCount - 1;
+        this._length += chunks[i4].buffer.length;
       }
     }
     if (this.root !== SENTINEL) {
@@ -4099,11 +4122,11 @@ class PieceTreeBase {
    * Count the number of EOLs in a string.
    */
   _countEOLs(text) {
-    let count = 0;
-    for (let i3 = 0; i3 < text.length; i3++) {
-      if (text.charCodeAt(i3) === CharCode.LineFeed) count++;
+    let count2 = 0;
+    for (let i4 = 0; i4 < text.length; i4++) {
+      if (text.charCodeAt(i4) === CharCode.LineFeed) count2++;
     }
-    return count;
+    return count2;
   }
   /**
    * Extract text from the document given an offset and length.
@@ -4134,12 +4157,12 @@ class PieceTreeBase {
    */
   _recomputeLineStartsFrom(startOffset, appendedText, oldBuffer) {
     const r2 = [];
-    for (let i3 = 0; i3 < oldBuffer.lineStarts.length; i3++) {
-      r2.push(oldBuffer.lineStarts[i3]);
+    for (let i4 = 0; i4 < oldBuffer.lineStarts.length; i4++) {
+      r2.push(oldBuffer.lineStarts[i4]);
     }
-    for (let i3 = 0; i3 < appendedText.length; i3++) {
-      if (appendedText.charCodeAt(i3) === CharCode.LineFeed) {
-        r2.push(startOffset + i3 + 1);
+    for (let i4 = 0; i4 < appendedText.length; i4++) {
+      if (appendedText.charCodeAt(i4) === CharCode.LineFeed) {
+        r2.push(startOffset + i4 + 1);
       }
     }
     return createLineStartsFast(appendedText);
@@ -4212,8 +4235,8 @@ class PieceTreeBase {
           const offsetInPiece = offset - pieceStart;
           const text = this._getPieceText(piece, buffer);
           let nlCount = 0;
-          for (let i3 = 0; i3 < offsetInPiece && i3 < text.length; i3++) {
-            if (text.charCodeAt(i3) === CharCode.LineFeed) nlCount++;
+          for (let i4 = 0; i4 < offsetInPiece && i4 < text.length; i4++) {
+            if (text.charCodeAt(i4) === CharCode.LineFeed) nlCount++;
           }
           line += nlCount;
           return line;
@@ -4625,8 +4648,8 @@ class PieceTreeTextContentModel {
   undo() {
     const element = this._editStack.popUndo();
     if (!element) return null;
-    for (let i3 = element.changes.length - 1; i3 >= 0; i3--) {
-      const change = element.changes[i3];
+    for (let i4 = element.changes.length - 1; i4 >= 0; i4--) {
+      const change = element.changes[i4];
       if (change.modifiedText.length > 0) {
         this._pieceTree.delete(change.modifiedOffset, change.modifiedText.length);
       }
@@ -4701,14 +4724,14 @@ class PieceTreeTextContentModel {
     this._editStack.clear();
   }
 }
-var __defProp2 = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __decorateClass = (decorators, target, key, kind) => {
-  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc(target, key) : target;
-  for (var i3 = decorators.length - 1, decorator; i3 >= 0; i3--)
-    if (decorator = decorators[i3])
+var __defProp$3 = Object.defineProperty;
+var __getOwnPropDesc$1 = Object.getOwnPropertyDescriptor;
+var __decorateClass$3 = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$1(target, key) : target;
+  for (var i4 = decorators.length - 1, decorator; i4 >= 0; i4--)
+    if (decorator = decorators[i4])
       result = (kind ? decorator(target, key, result) : decorator(result)) || result;
-  if (kind && result) __defProp2(target, key, result);
+  if (kind && result) __defProp$3(target, key, result);
   return result;
 };
 const JSON_EDITOR_CHANGE = "json-editor-change";
@@ -4717,12 +4740,12 @@ function keyNameFromToken(value) {
   if (value.length < 2 || value[0] !== '"' || value[value.length - 1] !== '"') return null;
   const inner = value.slice(1, -1);
   let out = "";
-  for (let i3 = 0; i3 < inner.length; i3++) {
-    const c2 = inner[i3];
-    if (c2 === "\\" && i3 + 1 < inner.length) {
-      const n3 = inner[i3 + 1];
+  for (let i4 = 0; i4 < inner.length; i4++) {
+    const c2 = inner[i4];
+    if (c2 === "\\" && i4 + 1 < inner.length) {
+      const n3 = inner[i4 + 1];
       out += n3 === "n" ? "\n" : n3 === "t" ? "	" : n3 === "r" ? "\r" : n3;
-      i3++;
+      i4++;
     } else {
       out += c2;
     }
@@ -4772,8 +4795,8 @@ function markDefaultLines(node, path, faded, overrides, defaults) {
       markDefaultLines(m2.value, [...path, m2.key], faded, overrides, defaults);
     }
   } else if (node.type === "array" && node.elements) {
-    for (let i3 = 0; i3 < node.elements.length; i3++) {
-      markDefaultLines(node.elements[i3], [...path, i3], faded, overrides, defaults);
+    for (let i4 = 0; i4 < node.elements.length; i4++) {
+      markDefaultLines(node.elements[i4], [...path, i4], faded, overrides, defaults);
     }
   }
 }
@@ -4783,7 +4806,7 @@ function setJsonEditorDefaults(defaults) {
   Object.assign(jsonEditorDefaults, defaults);
   for (const editor of liveEditors) editor.applySharedDefaults();
 }
-let JsonEditorElement = class extends i$1 {
+let JsonEditorElement = class extends i$2 {
   constructor() {
     super(...arguments);
     this.value = void 0;
@@ -5155,15 +5178,15 @@ let JsonEditorElement = class extends i$1 {
     const hidden = /* @__PURE__ */ new Set();
     for (const f2 of this._folds) {
       if (!this._folded.has(f2.openLine)) continue;
-      for (let i3 = f2.openLine + 1; i3 <= f2.closeLine; i3++) hidden.add(i3);
+      for (let i4 = f2.openLine + 1; i4 <= f2.closeLine; i4++) hidden.add(i4);
     }
     this._hiddenLines = hidden;
     const vis = [];
     let visOff = 0;
-    for (let i3 = 0; i3 < lines.length; i3++) {
-      if (hidden.has(i3)) continue;
-      vis.push({ line: i3, text: lines[i3], start: visOff });
-      visOff += lines[i3].length + 1;
+    for (let i4 = 0; i4 < lines.length; i4++) {
+      if (hidden.has(i4)) continue;
+      vis.push({ line: i4, text: lines[i4], start: visOff });
+      visOff += lines[i4].length + 1;
     }
     this._visibleLines = vis;
     this._visibleText = vis.map((v2) => v2.text).join("\n");
@@ -5171,9 +5194,9 @@ let JsonEditorElement = class extends i$1 {
     this._resetTooltipState();
     const starts = [];
     let off = 0;
-    for (let i3 = 0; i3 < lines.length; i3++) {
+    for (let i4 = 0; i4 < lines.length; i4++) {
       starts.push(off);
-      off += lines[i3].length + (i3 < lines.length - 1 ? 1 : 0);
+      off += lines[i4].length + (i4 < lines.length - 1 ? 1 : 0);
     }
     this._fullLineStarts = starts;
     const visToFull = new Array(this._visibleText.length + 1);
@@ -5303,7 +5326,7 @@ let JsonEditorElement = class extends i$1 {
       this._gutterVisText = this._visibleText;
       this._gutterRowH = rowH;
       this._gutter.setRows(
-        this._visibleLines.map((v2, i3) => ({ key: v2.line, top: i3 * rowH, height: rowH })),
+        this._visibleLines.map((v2, i4) => ({ key: v2.line, top: i4 * rowH, height: rowH })),
         (key) => this._gutterData(key)
       );
       this._gutter.refresh();
@@ -5351,27 +5374,27 @@ let JsonEditorElement = class extends i$1 {
     const overlay = this.renderRoot.querySelector(".je-selection");
     if (!ta || !overlay) return;
     const ranges = this._allCarets().map((c2) => [c2.s, c2.e]);
-    const merged = [];
+    const merged2 = [];
     for (const r2 of ranges.sort((a2, b2) => a2[0] - b2[0])) {
-      const last = merged[merged.length - 1];
+      const last = merged2[merged2.length - 1];
       if (last && r2[0] <= last[1]) {
         last[1] = Math.max(last[1], r2[1]);
       } else {
-        merged.push([r2[0], r2[1]]);
+        merged2.push([r2[0], r2[1]]);
       }
     }
-    const key = merged.map((r2) => `${r2[0]}:${r2[1]}`).join("|");
+    const key = merged2.map((r2) => `${r2[0]}:${r2[1]}`).join("|");
     if (this._lastSelKey === key && this._lastVisText === this._visibleText) return;
     this._lastSelKey = key;
     this._lastVisText = this._visibleText;
     while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
     const rows = this.renderRoot.querySelectorAll(".je-lines .je-row");
     const rowH = this._rowH();
-    for (const [s2, e2] of merged) {
+    for (const [s2, e2] of merged2) {
       if (s2 === e2) continue;
       const segs = [];
-      this._visibleLines.forEach((v2, i3) => {
-        const rowEl = rows[i3];
+      this._visibleLines.forEach((v2, i4) => {
+        const rowEl = rows[i4];
         if (!rowEl) return;
         const lineStart = v2.start;
         const lineEnd = v2.start + v2.text.length;
@@ -5383,7 +5406,7 @@ let JsonEditorElement = class extends i$1 {
         const nodes = this._lineTextNodes(lineEl);
         const left = this._boundaryX(lineEl, nodes, Math.max(0, localStart));
         const right = this._boundaryX(lineEl, nodes, Math.min(v2.text.length, localEnd));
-        segs.push({ rowIndex: i3, left, right });
+        segs.push({ rowIndex: i4, left, right });
       });
       this._renderSegs(overlay, segs, rowH);
     }
@@ -5392,10 +5415,10 @@ let JsonEditorElement = class extends i$1 {
   _renderSegs(overlay, segs, rowH) {
     if (segs.length === 0) return;
     const W = 3;
-    for (let i3 = 0; i3 < segs.length; i3++) {
-      const seg = segs[i3];
-      const prev = i3 > 0 ? segs[i3 - 1] : null;
-      const next = i3 + 1 < segs.length ? segs[i3 + 1] : null;
+    for (let i4 = 0; i4 < segs.length; i4++) {
+      const seg = segs[i4];
+      const prev = i4 > 0 ? segs[i4 - 1] : null;
+      const next = i4 + 1 < segs.length ? segs[i4 + 1] : null;
       const lineNum = this._visibleLines[seg.rowIndex].line;
       const prevAdj = prev && this._visibleLines[prev.rowIndex].line === lineNum - 1;
       const nextAdj = next && this._visibleLines[next.rowIndex].line === lineNum + 1;
@@ -5524,8 +5547,8 @@ let JsonEditorElement = class extends i$1 {
     const { keyStarts, valueStarts } = this._classifyTokens(tokens);
     const meta = isFolded ? b`<span class="je-fold-meta">${this._foldMeta(fold)}</span>` : "";
     const openIdx = isFolded ? tokens.findIndex((t2) => t2.kind === "punct" && (t2.value === "{" || t2.value === "[")) : -1;
-    const content = tokens.map((t2, i3) => {
-      if (isFolded && openIdx >= 0 && i3 >= openIdx) return "";
+    const content = tokens.map((t2, i4) => {
+      if (isFolded && openIdx >= 0 && i4 >= openIdx) return "";
       const abs = v2.start + t2.start;
       const brace = !isFolded && this._braceMatch !== null && (this._braceMatch[0] === abs || this._braceMatch[1] === abs);
       return this._renderToken(t2, keyStarts, valueStarts, brace);
@@ -5595,10 +5618,10 @@ let JsonEditorElement = class extends i$1 {
     const keyStarts = /* @__PURE__ */ new Set();
     const valueStarts = /* @__PURE__ */ new Set();
     const nonWs = tokens.filter((t2) => t2.kind !== "ws");
-    for (let i3 = 0; i3 < nonWs.length; i3++) {
-      const t2 = nonWs[i3];
+    for (let i4 = 0; i4 < nonWs.length; i4++) {
+      const t2 = nonWs[i4];
       if (t2.kind === "string") {
-        const nxt = nonWs[i3 + 1];
+        const nxt = nonWs[i4 + 1];
         (nxt && nxt.kind === "punct" && nxt.value === ":" ? keyStarts : valueStarts).add(t2.start);
       } else if (t2.kind === "number" || t2.kind === "keyword") {
         valueStarts.add(t2.start);
@@ -5778,13 +5801,13 @@ let JsonEditorElement = class extends i$1 {
     const s2 = this._suggest;
     if (!s2) return A;
     const tipText = (((_a2 = s2.items[s2.selected]) == null ? void 0 : _a2.description) ?? "").replace(/^\s+/, "") || null;
-    const items = s2.items.map((it, i3) => {
-      const sel = i3 === s2.selected ? " je-suggest-item--sel" : "";
+    const items = s2.items.map((it, i4) => {
+      const sel = i4 === s2.selected ? " je-suggest-item--sel" : "";
       const mousedown = (e2) => {
         e2.preventDefault();
-        this._acceptSuggest(i3);
+        this._acceptSuggest(i4);
       };
-      const enter = () => this._selectSuggest(i3);
+      const enter = () => this._selectSuggest(i4);
       return b`<div class="je-suggest-item${sel}" role="option" data-key=${it.key} @mousedown=${mousedown} @mouseenter=${enter}>${it.label ?? it.key}</div>`;
     });
     const tip = tipText ? b`<div class="je-suggest-tip" role="tooltip" style="left:${s2.x + 188}px; top:${s2.tipTop}px">${tipText}</div>` : A;
@@ -5850,7 +5873,7 @@ let JsonEditorElement = class extends i$1 {
     const x2 = 10 + col * cw;
     const y3 = (rowIdx + 1) * rowH + 2;
     const prev = this._suggest;
-    const sameItems = prev !== null && prev.kind === kind && prev.items.length === items.length && prev.items.every((p2, i3) => p2.key === items[i3].key);
+    const sameItems = prev !== null && prev.kind === kind && prev.items.length === items.length && prev.items.every((p2, i4) => p2.key === items[i4].key);
     const selected = sameItems ? Math.min(prev.selected, items.length - 1) : 0;
     this._suggest = {
       x: x2,
@@ -5870,10 +5893,10 @@ let JsonEditorElement = class extends i$1 {
     this._suggest = { ...s2, selected, tipTop: s2.y + selected * SUGGEST_ITEM_H };
   }
   /** Highlight a suggestion on hover (also swaps the side tooltip). */
-  _selectSuggest(i3) {
+  _selectSuggest(i4) {
     const s2 = this._suggest;
-    if (!s2 || i3 === s2.selected) return;
-    this._suggest = { ...s2, selected: i3, tipTop: s2.y + i3 * SUGGEST_ITEM_H };
+    if (!s2 || i4 === s2.selected) return;
+    this._suggest = { ...s2, selected: i4, tipTop: s2.y + i4 * SUGGEST_ITEM_H };
   }
   /** Apply the highlighted (or given) suggestion: replace the quoted token
    *  with the key and park the caret after the closing quote. */
@@ -5994,9 +6017,9 @@ let JsonEditorElement = class extends i$1 {
   }
   _commonPrefix(a2, b2) {
     const n3 = Math.min(a2.length, b2.length);
-    let i3 = 0;
-    while (i3 < n3 && a2[i3] === b2[i3]) i3++;
-    return i3;
+    let i4 = 0;
+    while (i4 < n3 && a2[i4] === b2[i4]) i4++;
+    return i4;
   }
   /** True when the full-text region being edited spans any hidden (folded)
    *  line — an edit the user can only have made by crossing a fold. */
@@ -6044,14 +6067,14 @@ let JsonEditorElement = class extends i$1 {
   _pathToNode(root, target) {
     if (root === target) return [];
     if (root.type === "object" && root.members) {
-      for (let i3 = 0; i3 < root.members.length; i3++) {
-        const p2 = this._pathToNode(root.members[i3].value, target);
-        if (p2) return [root.members[i3].key, ...p2];
+      for (let i4 = 0; i4 < root.members.length; i4++) {
+        const p2 = this._pathToNode(root.members[i4].value, target);
+        if (p2) return [root.members[i4].key, ...p2];
       }
     } else if (root.type === "array" && root.elements) {
-      for (let i3 = 0; i3 < root.elements.length; i3++) {
-        const p2 = this._pathToNode(root.elements[i3], target);
-        if (p2) return [i3, ...p2];
+      for (let i4 = 0; i4 < root.elements.length; i4++) {
+        const p2 = this._pathToNode(root.elements[i4], target);
+        if (p2) return [i4, ...p2];
       }
     }
     return null;
@@ -6073,10 +6096,10 @@ let JsonEditorElement = class extends i$1 {
     const rowH = this._rowH();
     let first = -1;
     let last = -1;
-    for (let i3 = 0; i3 < this._visibleLines.length; i3++) {
-      if (this._dangerLines.has(this._visibleLines[i3].line)) {
-        if (first < 0) first = i3;
-        last = i3;
+    for (let i4 = 0; i4 < this._visibleLines.length; i4++) {
+      if (this._dangerLines.has(this._visibleLines[i4].line)) {
+        if (first < 0) first = i4;
+        last = i4;
       }
     }
     if (first < 0) return null;
@@ -6136,20 +6159,20 @@ let JsonEditorElement = class extends i$1 {
     const stack = [];
     const map = /* @__PURE__ */ new Map();
     let inStr = false;
-    for (let i3 = 0; i3 < text.length; i3++) {
-      const c2 = text[i3];
+    for (let i4 = 0; i4 < text.length; i4++) {
+      const c2 = text[i4];
       if (inStr) {
-        if (c2 === "\\") i3++;
+        if (c2 === "\\") i4++;
         else if (c2 === '"') inStr = false;
         continue;
       }
       if (c2 === '"') inStr = true;
-      else if (c2 === "{" || c2 === "[") stack.push(i3);
+      else if (c2 === "{" || c2 === "[") stack.push(i4);
       else if (c2 === "}" || c2 === "]") {
         const o2 = stack.pop();
         if (o2 !== void 0) {
-          map.set(o2, i3);
-          map.set(i3, o2);
+          map.set(o2, i4);
+          map.set(i4, o2);
         }
       }
     }
@@ -6351,8 +6374,8 @@ ${closeIndent}`;
     let depth = 0;
     let inStr = false;
     let escaped = false;
-    for (let i3 = 0; i3 < before.length; i3++) {
-      const c2 = before[i3];
+    for (let i4 = 0; i4 < before.length; i4++) {
+      const c2 = before[i4];
       if (inStr) {
         if (escaped) escaped = false;
         else if (c2 === "\\") escaped = true;
@@ -6431,9 +6454,9 @@ ${closeIndent}`;
     const lh = this._rowH();
     const cw = this._defaultCharW();
     const vis = this._visibleText;
-    for (let i3 = 0; i3 < all.length; i3++) {
-      const el = this._caretEls[i3];
-      const pos = all[i3].pos;
+    for (let i4 = 0; i4 < all.length; i4++) {
+      const el = this._caretEls[i4];
+      const pos = all[i4].pos;
       const lineIdx = vis.slice(0, pos).split("\n").length - 1;
       const lineStart = lineIdx > 0 ? vis.lastIndexOf("\n", pos - 1) + 1 : 0;
       const col = pos - lineStart;
@@ -6466,9 +6489,9 @@ ${closeIndent}`;
   // ── Multi-caret editing ─────────────────────────────────────────────────
   _toggleCaret(pos) {
     const ta = this._inputEl();
-    const i3 = this._carets.findIndex((c2) => c2.anchor === pos && c2.position === pos);
-    if (i3 >= 0) {
-      this._carets.splice(i3, 1);
+    const i4 = this._carets.findIndex((c2) => c2.anchor === pos && c2.position === pos);
+    if (i4 >= 0) {
+      this._carets.splice(i4, 1);
     } else {
       if (this._carets.length === 0 && ta) {
         this._primaryAnchor = ta.selectionStart;
@@ -6611,7 +6634,7 @@ ${closeIndent}`;
     const lines = this._visibleText.split("\n");
     let off = 0;
     const last = Math.max(0, position.lineNumber - 1);
-    for (let i3 = 0; i3 < last && i3 < lines.length; i3++) off += lines[i3].length + 1;
+    for (let i4 = 0; i4 < last && i4 < lines.length; i4++) off += lines[i4].length + 1;
     return off + Math.max(0, position.column - 1);
   }
   /** Apply a (visible-text) edit result across every caret, then rebuild. */
@@ -6724,8 +6747,8 @@ ${cli}`;
   _insideString(text, pos) {
     let inStr = false;
     let escaped = false;
-    for (let i3 = 0; i3 < pos; i3++) {
-      const c2 = text[i3];
+    for (let i4 = 0; i4 < pos; i4++) {
+      const c2 = text[i4];
       if (escaped) escaped = false;
       else if (c2 === "\\") escaped = true;
       else if (c2 === '"') inStr = !inStr;
@@ -6745,13 +6768,13 @@ ${cli}`;
     const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
     const col = caret - lineStart;
     let lineIdx = 0;
-    for (let i3 = 0; i3 < caret; i3++) if (value[i3] === "\n") lineIdx++;
+    for (let i4 = 0; i4 < caret; i4++) if (value[i4] === "\n") lineIdx++;
     const units = [];
     let last = 0;
-    for (let i3 = 0; i3 < value.length; i3++) {
-      if (value[i3] === "\n") {
-        units.push(value.slice(last, i3 + 1));
-        last = i3 + 1;
+    for (let i4 = 0; i4 < value.length; i4++) {
+      if (value[i4] === "\n") {
+        units.push(value.slice(last, i4 + 1));
+        last = i4 + 1;
       }
     }
     if (last < value.length) units.push(value.slice(last));
@@ -6763,7 +6786,7 @@ ${cli}`;
     const newVal = units.join("");
     ta.value = newVal;
     let movedStart = 0;
-    for (let i3 = 0; i3 < target; i3++) movedStart += units[i3].length;
+    for (let i4 = 0; i4 < target; i4++) movedStart += units[i4].length;
     const movedLen = units[target].endsWith("\n") ? Math.max(0, units[target].length - 1) : units[target].length;
     ta.setSelectionRange(
       movedStart + Math.min(col, movedLen),
@@ -6772,7 +6795,7 @@ ${cli}`;
     this._afterEdit(ta);
   }
 };
-JsonEditorElement.styles = i$4`
+JsonEditorElement.styles = i$5`
     ${r$5(GUTTER_DEFAULT_CSS)}
     :host {
       display: block;
@@ -7258,45 +7281,2490 @@ JsonEditorElement.styles = i$4`
       border-radius: 2px;
     }
   `;
-__decorateClass([
+__decorateClass$3([
   n2({ attribute: false })
 ], JsonEditorElement.prototype, "value", 2);
-__decorateClass([
+__decorateClass$3([
   n2({ type: Boolean, attribute: "readonly" })
 ], JsonEditorElement.prototype, "readonly", 2);
-__decorateClass([
+__decorateClass$3([
   n2({ type: Number, attribute: "row-height" })
 ], JsonEditorElement.prototype, "rowHeight", 2);
-__decorateClass([
+__decorateClass$3([
   n2({ type: Number, attribute: "font-size" })
 ], JsonEditorElement.prototype, "fontSize", 2);
-__decorateClass([
+__decorateClass$3([
   n2({ attribute: false })
 ], JsonEditorElement.prototype, "schema", 2);
-__decorateClass([
+__decorateClass$3([
   n2({ attribute: false })
 ], JsonEditorElement.prototype, "resolveResource", 2);
-__decorateClass([
+__decorateClass$3([
   n2({ attribute: false })
 ], JsonEditorElement.prototype, "defaults", 2);
-__decorateClass([
+__decorateClass$3([
   n2({ type: Boolean, attribute: "show-defaults" })
 ], JsonEditorElement.prototype, "showDefaults", 2);
-__decorateClass([
+__decorateClass$3([
   n2({ attribute: false })
 ], JsonEditorElement.prototype, "explicitPaths", 2);
-__decorateClass([
+__decorateClass$3([
   r$1()
 ], JsonEditorElement.prototype, "_text", 2);
-__decorateClass([
+__decorateClass$3([
   r$1()
 ], JsonEditorElement.prototype, "_hoverLine", 2);
-__decorateClass([
+__decorateClass$3([
   r$1()
 ], JsonEditorElement.prototype, "_suggest", 2);
-JsonEditorElement = __decorateClass([
-  t$1("json-editor")
+JsonEditorElement = __decorateClass$3([
+  t$2("json-editor")
 ], JsonEditorElement);
+/**
+ * @license
+ * Copyright 2017 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+const u = (e2, s2, t2) => {
+  const r2 = /* @__PURE__ */ new Map();
+  for (let l2 = s2; l2 <= t2; l2++) r2.set(e2[l2], l2);
+  return r2;
+}, c = e$1(class extends i$1 {
+  constructor(e2) {
+    if (super(e2), e2.type !== t$1.CHILD) throw Error("repeat() can only be used in text expressions");
+  }
+  dt(e2, s2, t2) {
+    let r2;
+    void 0 === t2 ? t2 = s2 : void 0 !== s2 && (r2 = s2);
+    const l2 = [], o2 = [];
+    let i4 = 0;
+    for (const s3 of e2) l2[i4] = r2 ? r2(s3, i4) : i4, o2[i4] = t2(s3, i4), i4++;
+    return { values: o2, keys: l2 };
+  }
+  render(e2, s2, t2) {
+    return this.dt(e2, s2, t2).values;
+  }
+  update(s2, [t2, r2, c2]) {
+    const d2 = M(s2), { values: p$12, keys: a2 } = this.dt(t2, r2, c2);
+    if (!Array.isArray(d2)) return this.ut = a2, p$12;
+    const h$12 = this.ut ?? (this.ut = []), v$12 = [];
+    let m2, y3, x2 = 0, j2 = d2.length - 1, k2 = 0, w = p$12.length - 1;
+    for (; x2 <= j2 && k2 <= w; ) if (null === d2[x2]) x2++;
+    else if (null === d2[j2]) j2--;
+    else if (h$12[x2] === a2[k2]) v$12[k2] = u$1(d2[x2], p$12[k2]), x2++, k2++;
+    else if (h$12[j2] === a2[w]) v$12[w] = u$1(d2[j2], p$12[w]), j2--, w--;
+    else if (h$12[x2] === a2[w]) v$12[w] = u$1(d2[x2], p$12[w]), v(s2, v$12[w + 1], d2[x2]), x2++, w--;
+    else if (h$12[j2] === a2[k2]) v$12[k2] = u$1(d2[j2], p$12[k2]), v(s2, d2[x2], d2[j2]), j2--, k2++;
+    else if (void 0 === m2 && (m2 = u(a2, k2, w), y3 = u(h$12, x2, j2)), m2.has(h$12[x2])) if (m2.has(h$12[j2])) {
+      const e2 = y3.get(a2[k2]), t3 = void 0 !== e2 ? d2[e2] : null;
+      if (null === t3) {
+        const e3 = v(s2, d2[x2]);
+        u$1(e3, p$12[k2]), v$12[k2] = e3;
+      } else v$12[k2] = u$1(t3, p$12[k2]), v(s2, d2[x2], t3), d2[e2] = null;
+      k2++;
+    } else h(d2[j2]), j2--;
+    else h(d2[x2]), x2++;
+    for (; k2 <= w; ) {
+      const e2 = v(s2, v$12[w + 1]);
+      u$1(e2, p$12[k2]), v$12[k2++] = e2;
+    }
+    for (; x2 <= j2; ) {
+      const e2 = d2[x2++];
+      null !== e2 && h(e2);
+    }
+    return this.ut = a2, p(s2, v$12), E;
+  }
+});
+/**
+ * @license
+ * Copyright 2017 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+class e extends i$1 {
+  constructor(i4) {
+    if (super(i4), this.it = A, i4.type !== t$1.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
+  }
+  render(r2) {
+    if (r2 === A || null == r2) return this._t = void 0, this.it = r2;
+    if (r2 === E) return r2;
+    if ("string" != typeof r2) throw Error(this.constructor.directiveName + "() called with a non-string value");
+    if (r2 === this.it) return this._t;
+    this.it = r2;
+    const s2 = [r2];
+    return s2.raw = s2, this._t = { _$litType$: this.constructor.resultType, strings: s2, values: [] };
+  }
+}
+e.directiveName = "unsafeHTML", e.resultType = 1;
+const o = e$1(e);
+var __defProp$2 = Object.defineProperty;
+var __decorateClass$2 = (decorators, target, key, kind) => {
+  var result = void 0;
+  for (var i4 = decorators.length - 1, decorator; i4 >= 0; i4--)
+    if (decorator = decorators[i4])
+      result = decorator(target, key, result) || result;
+  if (result) __defProp$2(target, key, result);
+  return result;
+};
+const _Openp41geToggle = class _Openp41geToggle extends i$2 {
+  constructor() {
+    super(...arguments);
+    this.checked = false;
+    this.onLabel = "On";
+    this.offLabel = "Off";
+    this.label = "";
+    this.disabled = false;
+  }
+  _onChange(e2) {
+    const checked = e2.target.checked;
+    this.checked = checked;
+    this.dispatchEvent(
+      new CustomEvent("change", {
+        detail: { checked },
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+  render() {
+    return b`
+      <label class="toggle">
+        <input
+          type="checkbox"
+          .checked=${this.checked}
+          ?disabled=${this.disabled}
+          aria-label=${this.label || "toggle"}
+          @change=${this._onChange}
+        />
+        <span class="track"></span>
+        <span class="label">${this.checked ? this.onLabel : this.offLabel}</span>
+      </label>
+    `;
+  }
+};
+_Openp41geToggle.styles = i$5`
+    :host {
+      display: inline-block;
+    }
+    :host([disabled]) .toggle {
+      opacity: 0.5;
+      cursor: default;
+      pointer-events: none;
+    }
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .track {
+      width: 34px;
+      height: 18px;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.18);
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .toggle input:checked + .track {
+      background: var(--accent, #007acc);
+    }
+    .track::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      transition: transform 0.15s;
+    }
+    .toggle input:checked + .track::after {
+      transform: translateX(16px);
+    }
+    .label {
+      min-width: 28px;
+      color: var(--text-primary, #e0e0e0);
+    }
+  `;
+let Openp41geToggle = _Openp41geToggle;
+__decorateClass$2([
+  n2({ type: Boolean, reflect: true })
+], Openp41geToggle.prototype, "checked");
+__decorateClass$2([
+  n2({ type: String })
+], Openp41geToggle.prototype, "onLabel");
+__decorateClass$2([
+  n2({ type: String })
+], Openp41geToggle.prototype, "offLabel");
+__decorateClass$2([
+  n2({ type: String })
+], Openp41geToggle.prototype, "label");
+__decorateClass$2([
+  n2({ type: Boolean, reflect: true })
+], Openp41geToggle.prototype, "disabled");
+if (!customElements.get("openp41ge-toggle")) {
+  customElements.define("openp41ge-toggle", Openp41geToggle);
+}
+var __defProp$1 = Object.defineProperty;
+var __decorateClass$1 = (decorators, target, key, kind) => {
+  var result = void 0;
+  for (var i4 = decorators.length - 1, decorator; i4 >= 0; i4--)
+    if (decorator = decorators[i4])
+      result = decorator(target, key, result) || result;
+  if (result) __defProp$1(target, key, result);
+  return result;
+};
+const LIST_MAX_HEIGHT = 240;
+const CHEVRON = b`<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
+  <path d="M480-345 240-585l56-56 184 184 184-184 56 56-240 240Z" />
+</svg>`;
+const _Openp41geSelect = class _Openp41geSelect extends i$2 {
+  constructor() {
+    super(...arguments);
+    this.options = [];
+    this.value = "";
+    this.placeholder = "";
+    this.label = "";
+    this.disabled = false;
+    this.alignTo = "";
+    this._open = false;
+    this._active = -1;
+    this._place = {};
+    this._onOutside = (e2) => {
+      if (!e2.composedPath().includes(this)) this._close();
+    };
+    this._onScroll = (e2) => {
+      if (!e2.composedPath().includes(this)) this._close();
+    };
+    this._onResize = () => this._close();
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._unlisten();
+  }
+  get _chosen() {
+    return this.options.findIndex((o2) => o2.value === this.value);
+  }
+  _openList() {
+    if (this.disabled || this._open || this.options.length === 0) return;
+    const box = (this.alignTo && this.closest(this.alignTo) || this).getBoundingClientRect();
+    const below = window.innerHeight - box.bottom;
+    const above = box.top > below && below < LIST_MAX_HEIGHT;
+    this._place = {
+      left: `${box.left}px`,
+      width: `${box.width}px`,
+      ...above ? { bottom: `${window.innerHeight - box.top + 2}px` } : { top: `${box.bottom + 2}px` }
+    };
+    this._active = Math.max(0, this._chosen);
+    this._open = true;
+    document.addEventListener("pointerdown", this._onOutside, true);
+    window.addEventListener("scroll", this._onScroll, true);
+    window.addEventListener("resize", this._onResize);
+  }
+  _close() {
+    if (!this._open) return;
+    this._open = false;
+    this._unlisten();
+  }
+  _unlisten() {
+    document.removeEventListener("pointerdown", this._onOutside, true);
+    window.removeEventListener("scroll", this._onScroll, true);
+    window.removeEventListener("resize", this._onResize);
+  }
+  _choose(i4) {
+    const option = this.options[i4];
+    this._close();
+    if (!option) return;
+    this.value = option.value;
+    this.dispatchEvent(
+      new CustomEvent("change", {
+        detail: { value: option.value },
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+  _onKeydown(e2) {
+    if (this.disabled) return;
+    if (!this._open) {
+      if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e2.key)) {
+        e2.preventDefault();
+        this._openList();
+      }
+      return;
+    }
+    const last = this.options.length - 1;
+    switch (e2.key) {
+      case "ArrowDown":
+        e2.preventDefault();
+        this._active = Math.min(last, this._active + 1);
+        break;
+      case "ArrowUp":
+        e2.preventDefault();
+        this._active = Math.max(0, this._active - 1);
+        break;
+      case "Home":
+        e2.preventDefault();
+        this._active = 0;
+        break;
+      case "End":
+        e2.preventDefault();
+        this._active = last;
+        break;
+      case "Enter":
+      case " ":
+        e2.preventDefault();
+        this._choose(this._active);
+        break;
+      case "Escape":
+        e2.preventDefault();
+        this._close();
+        break;
+      case "Tab":
+        this._close();
+        break;
+    }
+  }
+  updated() {
+    var _a2;
+    if (!this._open) return;
+    const active = this.renderRoot.querySelector(".option.active");
+    (_a2 = active == null ? void 0 : active.scrollIntoView) == null ? void 0 : _a2.call(active, { block: "nearest" });
+  }
+  render() {
+    const chosen = this.options[this._chosen];
+    return b`
+      <button
+        type="button"
+        class="trigger"
+        part="trigger"
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded=${this._open ? "true" : "false"}
+        aria-label=${this.label || A}
+        ?disabled=${this.disabled}
+        @click=${() => this._open ? this._close() : this._openList()}
+        @keydown=${this._onKeydown}
+      >
+        ${chosen ? b`<span class="text">${chosen.label}</span>` : b`<span class="text placeholder">${this.placeholder}</span>`}
+        <span class="chevron">${CHEVRON}</span>
+      </button>
+      ${this._open ? b`<ul
+              class="list"
+              role="listbox"
+              aria-label=${this.label || A}
+              style=${Object.entries(this._place).map(([k2, v2]) => `${k2}:${v2}`).join(";")}
+            >
+              ${this.options.map(
+      (o2, i4) => b`<li
+                    class="option ${i4 === this._active ? "active" : ""}"
+                    role="option"
+                    aria-selected=${o2.value === this.value ? "true" : "false"}
+                    @pointerenter=${() => this._active = i4}
+                    @click=${() => this._choose(i4)}
+                  >
+                    ${o2.label}
+                  </li>`
+    )}
+            </ul>` : A}
+    `;
+  }
+};
+_Openp41geSelect.styles = i$5`
+    :host {
+      display: block;
+      min-width: 0;
+    }
+    .trigger {
+      box-sizing: border-box;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: var(--select-padding, 5px 8px);
+      border: none;
+      border-radius: 4px;
+      background: var(--select-bg, transparent);
+      color: var(--text-primary, #ddd);
+      font: inherit;
+      font-size: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .trigger:focus {
+      outline: none;
+    }
+    .trigger:focus-visible {
+      box-shadow: inset 0 0 0 1px var(--accent, #569cd6);
+    }
+    :host([disabled]) .trigger {
+      cursor: default;
+      opacity: 0.6;
+    }
+    .text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .placeholder {
+      color: var(--text-secondary, #999);
+    }
+    .chevron {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      color: var(--text-secondary, #999);
+    }
+    .list {
+      position: fixed;
+      z-index: 10000;
+      box-sizing: border-box;
+      max-height: ${LIST_MAX_HEIGHT}px;
+      overflow-y: auto;
+      margin: 0;
+      padding: 4px 0;
+      border: 1px solid var(--border-color, #3a3a3a);
+      border-radius: 8px;
+      background: var(--bg-tertiary, #2a2a2a);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      list-style: none;
+    }
+    .option {
+      padding: 6px 7px;
+      color: var(--text-primary, #ddd);
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .option.active {
+      background: color-mix(in srgb, var(--text-primary, #ddd) 10%, transparent);
+    }
+    .option[aria-selected="true"] {
+      color: var(--accent, #569cd6);
+    }
+  `;
+let Openp41geSelect = _Openp41geSelect;
+__decorateClass$1([
+  n2({ attribute: false })
+], Openp41geSelect.prototype, "options");
+__decorateClass$1([
+  n2({ type: String })
+], Openp41geSelect.prototype, "value");
+__decorateClass$1([
+  n2({ type: String })
+], Openp41geSelect.prototype, "placeholder");
+__decorateClass$1([
+  n2({ type: String })
+], Openp41geSelect.prototype, "label");
+__decorateClass$1([
+  n2({ type: Boolean, reflect: true })
+], Openp41geSelect.prototype, "disabled");
+__decorateClass$1([
+  n2({ type: String, attribute: "align-to" })
+], Openp41geSelect.prototype, "alignTo");
+__decorateClass$1([
+  r$1()
+], Openp41geSelect.prototype, "_open");
+__decorateClass$1([
+  r$1()
+], Openp41geSelect.prototype, "_active");
+if (!customElements.get("openp41ge-select")) {
+  customElements.define("openp41ge-select", Openp41geSelect);
+}
+const HEIGHT = 3;
+const MAX_WIDTH = 50;
+class FocusLineLayer {
+  constructor(_doc) {
+    this._doc = _doc;
+    this._target = null;
+    this._owner = null;
+    this._watched = [];
+    this._resize = null;
+    this._covers = /* @__PURE__ */ new Map();
+    this._update = () => this.update();
+    const el = _doc.createElement("div");
+    el.className = "tab-focus-line";
+    Object.assign(el.style, {
+      position: "fixed",
+      height: `${HEIGHT}px`,
+      borderRadius: `${HEIGHT / 2}px`,
+      background: "#4a9eff",
+      pointerEvents: "none",
+      zIndex: "100",
+      display: "none"
+    });
+    this.element = el;
+    this._windowFocused = _doc.hasFocus();
+    const view = _doc.defaultView;
+    view == null ? void 0 : view.addEventListener("focus", () => {
+      this._windowFocused = true;
+      this.update();
+    });
+    view == null ? void 0 : view.addEventListener("blur", () => {
+      this._windowFocused = false;
+      this.update();
+    });
+  }
+  /** The tab the line is over (null: none). */
+  get target() {
+    return this._target;
+  }
+  /** Show the line over `tab`, for `owner` (the tab bar). */
+  show(tab, owner) {
+    if (this._target !== tab) {
+      this._unwatch();
+      this._target = tab;
+      this._watch(tab);
+    }
+    this._owner = owner;
+    if (!this.element.isConnected) this._doc.body.appendChild(this.element);
+    this.update();
+  }
+  /** Hide the line, if `owner` is showing it. */
+  hide(owner) {
+    if (this._owner !== owner) return;
+    this._unwatch();
+    this._target = null;
+    this._owner = null;
+    this.element.style.display = "none";
+  }
+  /** `owner` covers `area` (its tab, if the line's is in it, is hidden). */
+  cover(owner, area) {
+    this._covers.set(owner, area);
+    this.update();
+  }
+  /** `owner` no longer covers anything. */
+  uncover(owner) {
+    if (this._covers.delete(owner)) this.update();
+  }
+  /** Whether a covered area holds `tab` (across shadow roots). */
+  _covered(tab) {
+    if (this._covers.size === 0) return false;
+    const areas = new Set(this._covers.values());
+    for (let el = tab; el; el = parentOf(el)) if (areas.has(el)) return true;
+    return false;
+  }
+  /** Place the line over its tab again. */
+  update() {
+    const tab = this._target;
+    if (!tab || !tab.isConnected || !this._windowFocused || this._covered(tab)) {
+      this.element.style.display = "none";
+      return;
+    }
+    const r2 = tab.getBoundingClientRect();
+    const width = Math.min(r2.width / 2, MAX_WIDTH);
+    let left = r2.left + (r2.width - width) / 2;
+    let right = left + width;
+    for (const el of this._watched) {
+      if (el.scrollWidth <= el.clientWidth) continue;
+      const c2 = el.getBoundingClientRect();
+      left = Math.max(left, c2.left);
+      right = Math.min(right, c2.right);
+    }
+    const s2 = this.element.style;
+    if (right <= left) {
+      s2.display = "none";
+      return;
+    }
+    s2.display = "block";
+    s2.left = `${left}px`;
+    s2.width = `${right - left}px`;
+    s2.top = `${r2.top - HEIGHT / 2}px`;
+  }
+  /** Follow the tab: scrolling in any ancestor (scroll does not bubble), the
+   *  window, and size changes of the tab and its ancestors. */
+  _watch(tab) {
+    var _a2;
+    const view = this._doc.defaultView;
+    const RO = view == null ? void 0 : view.ResizeObserver;
+    this._resize = RO ? new RO(this._update) : null;
+    for (let el = tab; el; el = parentOf(el)) {
+      this._watched.push(el);
+      el.addEventListener("scroll", this._update, { passive: true });
+      (_a2 = this._resize) == null ? void 0 : _a2.observe(el);
+    }
+    view == null ? void 0 : view.addEventListener("resize", this._update);
+  }
+  _unwatch() {
+    var _a2, _b;
+    for (const el of this._watched) el.removeEventListener("scroll", this._update);
+    this._watched = [];
+    (_a2 = this._resize) == null ? void 0 : _a2.disconnect();
+    this._resize = null;
+    (_b = this._doc.defaultView) == null ? void 0 : _b.removeEventListener("resize", this._update);
+  }
+}
+function parentOf(el) {
+  if (el.parentElement) return el.parentElement;
+  const root = el.getRootNode();
+  return root instanceof ShadowRoot ? root.host : null;
+}
+const layers = /* @__PURE__ */ new WeakMap();
+function focusLineLayer(doc = document) {
+  let layer = layers.get(doc);
+  if (!layer) {
+    layer = new FocusLineLayer(doc);
+    layers.set(doc, layer);
+  }
+  return layer;
+}
+const asSchema = (s2) => s2 !== null && typeof s2 === "object" && !Array.isArray(s2) ? s2 : {};
+const hasProperties = (s2) => s2.properties !== null && typeof s2.properties === "object";
+function listItemKind(items) {
+  if (Array.isArray(items.enum)) return { kind: "enum", integer: false, options: items.enum };
+  switch (items.type) {
+    case "string":
+      return { kind: "string", integer: false };
+    case "number":
+      return { kind: "number", integer: false };
+    case "integer":
+      return { kind: "number", integer: true };
+    case "boolean":
+      return { kind: "boolean", integer: false };
+    default:
+      return null;
+  }
+}
+const isNullableString = (s2) => Array.isArray(s2.type) && s2.type.length === 2 && s2.type.includes("string") && s2.type.includes("null");
+const isMap = (s2) => s2.type === "object" && !hasProperties(s2) && s2.additionalProperties !== null && typeof s2.additionalProperties === "object" && !Array.isArray(s2.additionalProperties);
+const isObject = (v2) => v2 !== null && typeof v2 === "object" && !Array.isArray(v2);
+function merged(base, user) {
+  if (user === void 0) return base;
+  if (!isObject(base) || !isObject(user)) return user;
+  const out = { ...base };
+  for (const [k2, v2] of Object.entries(user)) out[k2] = merged(base[k2], v2);
+  return out;
+}
+function blankValue(s2) {
+  if (Array.isArray(s2.enum)) return s2.enum[0] ?? null;
+  if (isNullableString(s2)) return "";
+  switch (s2.type) {
+    case "object":
+      return {};
+    case "array":
+      return [];
+    case "string":
+      return "";
+    case "number":
+    case "integer":
+      return 0;
+    case "boolean":
+      return false;
+    default:
+      return null;
+  }
+}
+function fieldKind(s2) {
+  if (Array.isArray(s2.enum)) return "enum";
+  if (typeof s2["x-keysOf"] === "string" && (s2.type === "string" || isNullableString(s2))) {
+    return "enum";
+  }
+  if (isNullableString(s2)) return s2.secret === true ? "secret" : "string";
+  if (isMap(s2)) return "map";
+  switch (s2.type) {
+    case "boolean":
+      return "boolean";
+    case "number":
+    case "integer":
+      return "number";
+    case "string":
+      return s2.secret === true ? "secret" : "string";
+    case "array": {
+      const items = asSchema(s2.items);
+      if (listItemKind(items)) return "list";
+      if (items.type === "object" && hasProperties(items)) return "objects";
+      return "unsupported";
+    }
+    case "object":
+      return hasProperties(s2) ? "group" : "unsupported";
+    default:
+      return "unsupported";
+  }
+}
+function objectFields(schema, base, ctx, shown) {
+  const properties = asSchema(schema.properties);
+  const required = new Set(Array.isArray(schema.required) ? schema.required : []);
+  const built = Object.entries(properties).map(
+    ([name, sub]) => field(name, asSchema(sub), [...base, name], required.has(name), ctx, shown)
+  );
+  const fields = built.map((f2) => {
+    const keysOf = f2.keysOf;
+    const map = built.find((m2) => m2.kind === "map" && m2.name === keysOf);
+    if (keysOf !== void 0) {
+      const keys = map && isObject(map.value) ? Object.keys(map.value) : [];
+      const extra = typeof f2.value === "string" && !keys.includes(f2.value) ? [f2.value] : [];
+      return { ...f2, options: [...keys, ...extra] };
+    }
+    const marker = built.find((k2) => k2.keysOf === f2.name);
+    return f2.kind === "map" && marker ? { ...f2, marked: { key: marker.value, path: marker.path, label: marker.label } } : f2;
+  });
+  const first = (f2) => f2.required && !f2.hasDefault;
+  return [...fields.filter(first), ...fields.filter((f2) => !first(f2))];
+}
+function field(name, s2, path, required, ctx, shown) {
+  const kind = fieldKind(s2);
+  const key = pathKey(path);
+  const userValue = shown ? getAt(shown.item, [name]) : getAt(ctx.user, path);
+  const set = shown ? shown.set && userValue !== void 0 : userValue !== void 0;
+  const defaultValue = shown ? void 0 : getAt(ctx.defaults, path);
+  const hasDefault = s2.default !== void 0 || defaultValue !== void 0;
+  const value = kind === "map" ? merged(defaultValue, userValue) : shown ? userValue : set ? userValue : defaultValue;
+  const base = {
+    kind,
+    path,
+    key,
+    name,
+    label: typeof s2.title === "string" && s2.title ? s2.title : name,
+    description: typeof s2.description === "string" ? s2.description : null,
+    value,
+    set,
+    hasDefault,
+    required,
+    error: ctx.errors.get(key) ?? null,
+    ...isNullableString(s2) ? { nullable: true } : {}
+  };
+  switch (kind) {
+    case "number":
+      return {
+        ...base,
+        integer: s2.type === "integer",
+        ...typeof s2.minimum === "number" ? { minimum: s2.minimum } : {},
+        ...typeof s2.maximum === "number" ? { maximum: s2.maximum } : {}
+      };
+    case "enum":
+      return typeof s2["x-keysOf"] === "string" && !Array.isArray(s2.enum) ? { ...base, keysOf: s2["x-keysOf"], options: [] } : { ...base, options: s2.enum };
+    case "map": {
+      const valueSchema = asSchema(s2.additionalProperties);
+      const entries = isObject(value) ? Object.keys(value) : [];
+      return {
+        ...base,
+        objectValues: valueSchema.type === "object" && hasProperties(valueSchema),
+        ...hasProperties(valueSchema) ? { entryProperties: Object.keys(asSchema(valueSchema.properties)).length } : {},
+        newEntry: blankValue(valueSchema),
+        defaultKeys: isObject(defaultValue) ? Object.keys(defaultValue) : [],
+        // In a list item there are no per-entry defaults: the item's values
+        // are what it shows.
+        entries: entries.map(
+          (key2) => field(key2, valueSchema, [...path, key2], false, ctx, shown && { item: value, set })
+        )
+      };
+    }
+    case "list":
+      return { ...base, item: listItemKind(asSchema(s2.items)) };
+    case "group":
+      return { ...base, fields: objectFields(s2, path, ctx, shown && { item: userValue, set }) };
+    case "objects": {
+      const list = Array.isArray(value) ? value : [];
+      const itemSchema = asSchema(s2.items);
+      return {
+        ...base,
+        items: list.map((item, i4) => objectFields(itemSchema, [...path, i4], ctx, { item, set }))
+      };
+    }
+    default:
+      return base;
+  }
+}
+function formFields(schema, value, defaults, errors = []) {
+  return objectFields(asSchema(schema), [], {
+    user: value ?? {},
+    defaults: defaults ?? {},
+    errors: new Map(errors.map((e2) => [e2.path, e2.message]))
+  });
+}
+function setFieldValue(user, defaults, path, newValue) {
+  const out = isObject(user) ? cloneDeep(user) : {};
+  let cur = out;
+  for (let i4 = 0; i4 < path.length - 1; i4++) {
+    const seg = path[i4];
+    const nextIsIndex = typeof path[i4 + 1] === "number";
+    let next = cur[seg];
+    if (nextIsIndex && !Array.isArray(next)) {
+      const fallback = getAt(defaults, path.slice(0, i4 + 1));
+      next = Array.isArray(fallback) ? cloneDeep(fallback) : [];
+    } else if (!nextIsIndex && !isObject(next)) {
+      next = {};
+    }
+    cur[seg] = next;
+    cur = next;
+  }
+  cur[path[path.length - 1]] = newValue;
+  return out;
+}
+function resetField(user, path, maps = []) {
+  const mapKeys = new Set(maps.map(pathKey));
+  const out = isObject(user) ? cloneDeep(user) : {};
+  if (getAt(out, path) === void 0) return out;
+  const parents = [out];
+  for (const seg of path.slice(0, -1)) {
+    parents.push(parents[parents.length - 1][seg]);
+  }
+  for (let i4 = path.length - 1; i4 >= 0; i4--) {
+    const parent = parents[i4];
+    const seg = path[i4];
+    if (Array.isArray(parent)) {
+      if (i4 === path.length - 1) parent.splice(seg, 1);
+      break;
+    }
+    if (i4 < path.length - 1) {
+      const child = parent[seg];
+      if (!isObject(child) || Object.keys(child).length > 0) break;
+      if (mapKeys.has(pathKey(path.slice(0, i4)))) break;
+    }
+    delete parent[seg];
+  }
+  return out;
+}
+var __defProp2 = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __decorateClass = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc(target, key) : target;
+  for (var i4 = decorators.length - 1, decorator; i4 >= 0; i4--)
+    if (decorator = decorators[i4])
+      result = (kind ? decorator(target, key, result) : decorator(result)) || result;
+  if (kind && result) __defProp2(target, key, result);
+  return result;
+};
+const JSON_FORM_CHANGE = "json-form-change";
+const UP_ICON = b`<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
+  <path d="M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z" />
+</svg>`;
+const DOWN_ICON = b`<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
+  <path d="M440-800v487L216-537l-56 57 320 320 320-320-56-57-224 224v-487h-80Z" />
+</svg>`;
+const REMOVE_ICON = b`<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
+  <path
+    d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"
+  />
+</svg>`;
+const RESET_ICON = b`<svg viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
+  <path
+    d="M440-122q-121-15-200.5-105.5T160-440q0-66 26-126.5T260-674l57 57q-38 34-57.5 79T240-440q0 88 56 155.5T440-203v81Zm80 0v-81q87-16 143.5-83T720-440q0-100-70-170t-170-70h-3l44 44-56 56-140-140 140-140 56 56-44 44h3q134 0 227 93t93 227q0 121-79.5 211.5T520-122Z"
+  />
+</svg>`;
+const JSON_ICON = b`<svg
+  viewBox="0 0 16 16"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  <path
+    d="M6 3.5C5 3.5 4.5 4 4.5 5v1c0 .8-.4 1.2-1.5 1.5 1.1.3 1.5.7 1.5 1.5v1c0 1 .5 1.5 1.5 1.5"
+  />
+  <path
+    d="M10 3.5c1 0 1.5.5 1.5 1.5v1c0 .8.4 1.2 1.5 1.5-1.1.3-1.5.7-1.5 1.5v1c0 1-.5 1.5-1.5 1.5"
+  />
+</svg>`;
+const ROW_KINDS = ["boolean", "number", "enum", "string", "secret"];
+const CARD_KINDS = ["group", "list", "objects", "map"];
+const count = (n3, one, many) => `${n3} ${n3 === 1 ? one : many}`;
+const ITEM_NOUNS = {
+  string: ["string", "strings"],
+  number: ["number", "numbers"],
+  boolean: ["boolean", "booleans"],
+  enum: ["value", "values"]
+};
+function errorCount(f2) {
+  let n3 = f2.error ? 1 : 0;
+  for (const child of f2.fields ?? []) n3 += errorCount(child);
+  for (const entry of f2.entries ?? []) n3 += errorCount(entry);
+  for (const item of f2.items ?? []) for (const child of item) n3 += errorCount(child);
+  return n3;
+}
+const idFor = (key) => `jf-${key.replace(/[^A-Za-z0-9_-]/g, "-")}`;
+function newListItem(kind) {
+  var _a2;
+  switch (kind.kind) {
+    case "boolean":
+      return false;
+    case "number":
+      return 0;
+    case "enum":
+      return ((_a2 = kind.options) == null ? void 0 : _a2[0]) ?? null;
+    default:
+      return "";
+  }
+}
+function itemTitle(fields, index) {
+  for (const f2 of fields) {
+    if ((f2.kind === "string" || f2.kind === "enum") && typeof f2.value === "string" && f2.value) {
+      return f2.value;
+    }
+  }
+  return `Item ${index + 1}`;
+}
+let JsonFormElement = class extends i$2 {
+  constructor() {
+    super(...arguments);
+    this.schema = null;
+    this.value = void 0;
+    this.defaults = null;
+    this.errors = [];
+    this.readonly = false;
+    this.drawerArea = null;
+    this._value = {};
+    this._drawers = [];
+    this._jsonViews = /* @__PURE__ */ new Set();
+    this._newKeys = /* @__PURE__ */ new Map();
+    this._drafts = /* @__PURE__ */ new Map();
+    this._focusNext = null;
+    this._maps = [];
+    this._targets = /* @__PURE__ */ new Map();
+    this._shown = 0;
+    this._areaObserver = null;
+    this._onWindowResize = () => this.requestUpdate();
+  }
+  /** Whether a drawer is open (the host holds its own shortcuts meanwhile). */
+  get drawersOpen() {
+    return this._drawers.length > 0;
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._watchArea(false);
+  }
+  /** While a drawer is open over `drawerArea`: re-place the drawers when it
+   *  or the window changes size, and cover it (its tab's focus line hides). */
+  _watchArea(on) {
+    var _a2;
+    if (!on || !this.drawerArea) {
+      (_a2 = this._areaObserver) == null ? void 0 : _a2.disconnect();
+      this._areaObserver = null;
+      window.removeEventListener("resize", this._onWindowResize);
+      focusLineLayer().uncover(this);
+      return;
+    }
+    focusLineLayer().cover(this, this.drawerArea);
+    if (this._areaObserver) return;
+    window.addEventListener("resize", this._onWindowResize);
+    if (typeof ResizeObserver === "undefined") return;
+    this._areaObserver = new ResizeObserver(() => this.requestUpdate());
+    this._areaObserver.observe(this.drawerArea);
+  }
+  willUpdate(changed) {
+    const open = new Set(this._drawers);
+    if ([...this._jsonViews].some((k2) => !open.has(k2))) {
+      this._jsonViews = new Set([...this._jsonViews].filter((k2) => open.has(k2)));
+    }
+    if (changed.has("value")) {
+      const v2 = this.value;
+      this._value = v2 !== null && typeof v2 === "object" && !Array.isArray(v2) ? cloneDeep(v2) : {};
+    }
+    this._dropEmptyDrafts(open);
+  }
+  /** A new item whose drawer has closed with nothing entered is removed. */
+  _dropEmptyDrafts(open) {
+    for (const [key, { list, index }] of this._drafts) {
+      if (open.has(key)) continue;
+      this._drafts.delete(key);
+      const items = getAt(this._value, list);
+      const item = Array.isArray(items) ? items[index] : void 0;
+      const empty = item !== null && typeof item === "object" && !Array.isArray(item) && Object.keys(item).length === 0;
+      if (!empty || !Array.isArray(items)) continue;
+      const rest = items.filter((_2, i4) => i4 !== index);
+      if (rest.length === 0) this._reset(list);
+      else this._set(list, rest);
+    }
+  }
+  // ── Edits ─────────────────────────────────────────────────────────────
+  _commit(next) {
+    this._value = next;
+    this.dispatchEvent(
+      new CustomEvent(JSON_FORM_CHANGE, {
+        detail: { value: cloneDeep(next) },
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+  _set(path, v2) {
+    this._commit(setFieldValue(this._value, this.defaults, path, v2));
+  }
+  _reset(path) {
+    this._commit(resetField(this._value, path, this._maps));
+  }
+  /** Set a list (of values or objects) to `list`. */
+  _setList(f2, list) {
+    this._set(f2.path, list);
+  }
+  // ── Drawers ───────────────────────────────────────────────────────────
+  /** Open `key`'s drawer in front of the drawer holding its card (or of none,
+   *  for a card on the form). */
+  _openFrom(card, key) {
+    var _a2;
+    const holder = (_a2 = card.closest(".jf-drawer")) == null ? void 0 : _a2.dataset.drawer;
+    this._openAfter(holder ?? null, key);
+  }
+  /** Open `key`'s drawer in front of `parent`'s (null: as the first drawer). */
+  _openAfter(parent, key) {
+    const at2 = parent === null ? -1 : this._drawers.indexOf(parent);
+    this._drawers = [...this._drawers.slice(0, at2 + 1), key];
+  }
+  /** Keep the first `n` drawers. */
+  _closeTo(n3) {
+    if (n3 < this._drawers.length) this._drawers = this._drawers.slice(0, n3);
+  }
+  /** A renamed map entry's drawers follow it. */
+  _renameDrawers(from, to) {
+    const follow = (k2) => k2 === from || k2.startsWith(`${from}.`) || k2.startsWith(`${from}[`) ? to + k2.slice(from.length) : k2;
+    this._drawers = this._drawers.map(follow);
+    this._jsonViews = new Set([...this._jsonViews].map(follow));
+  }
+  /** Show `key`'s drawer as JSON or as the form. */
+  _setView(key, json) {
+    const views = new Set(this._jsonViews);
+    if (json) views.add(key);
+    else views.delete(key);
+    this._jsonViews = views;
+  }
+  updated(changed) {
+    var _a2;
+    if (this._focusNext) {
+      const id = this._focusNext;
+      this._focusNext = null;
+      const target = this.renderRoot.querySelector(`#${id}`);
+      target == null ? void 0 : target.focus();
+      if (target instanceof HTMLInputElement && target.type === "text") {
+        const end = target.value.length;
+        target.setSelectionRange(end, end);
+      }
+    }
+    if (changed.has("drawerArea")) this._watchArea(false);
+    this._watchArea(this._drawers.length > 0);
+    if (this._shown < this._drawers.length) {
+      this._drawers = this._drawers.slice(0, this._shown);
+      return;
+    }
+    const key = "_drawers";
+    if (!changed.has(key)) return;
+    const before = changed.get(key) ?? [];
+    if (this._drawers.length > before.length) {
+      (_a2 = this.renderRoot.querySelector(".jf-drawer--front")) == null ? void 0 : _a2.focus({ preventScroll: true });
+    } else if (this._drawers.length < before.length) {
+      const closed = before[this._drawers.length];
+      const card = [...this.renderRoot.querySelectorAll(".jf-sub")].find(
+        (c2) => c2.dataset.key === closed
+      );
+      card == null ? void 0 : card.focus({ preventScroll: true });
+    }
+  }
+  // ── Render ────────────────────────────────────────────────────────────
+  render() {
+    const fields = formFields(this.schema, this._value, this.defaults, this.errors);
+    this._maps = [];
+    const walk = (fs) => {
+      for (const f2 of fs) {
+        if (f2.kind === "map") this._maps.push(f2.path);
+        walk(f2.fields ?? []);
+        walk(f2.entries ?? []);
+        for (const item of f2.items ?? []) walk(item);
+      }
+    };
+    walk(fields);
+    this._targets = /* @__PURE__ */ new Map();
+    const form = fields.map((f2) => this._field(f2));
+    const open = [];
+    for (const key of this._drawers) {
+      const target = this._targets.get(key);
+      if (!target) break;
+      const form2 = target.body();
+      open.push({
+        key,
+        target,
+        body: this._jsonViews.has(key) ? this._drawerJson(target.path) : form2
+      });
+    }
+    this._shown = open.length;
+    return b`
+      <div class="jf-scroll"><div class="jf">${form}</div></div>
+      ${open.length ? this._layer(open) : A}
+    `;
+  }
+  /** The drawers over the form: one mask, one shadow, then the drawers. The
+   *  front one is 80% wide, the one behind it 90%, older ones hidden. */
+  _layer(open) {
+    var _a2;
+    const front = open.length - 1;
+    const place = (i4) => i4 === front ? "front" : i4 === front - 1 ? "back" : "hidden";
+    const area = (_a2 = this.drawerArea) == null ? void 0 : _a2.getBoundingClientRect();
+    const placed = area ? `left:${area.left}px;top:${area.top}px;width:${area.width}px;height:${area.height}px` : "";
+    return b`<div class="jf-layer ${area ? "jf-layer--area" : ""}" style=${placed}>
+      <div class="jf-mask" @click=${() => this._closeTo(0)}></div>
+      <div class="jf-drawer-shadow jf-drawer--${open.length > 1 ? "back" : "front"}"></div>
+      ${c(
+      open,
+      (d2) => d2.key,
+      (d2, i4) => b`<section
+            class="jf-drawer jf-drawer--${place(i4)}"
+            data-drawer=${d2.key}
+            role="dialog"
+            aria-label=${d2.target.label}
+            tabindex="-1"
+            @click=${{
+        // Behind the front drawer only its strip shows: a click there
+        // goes back to it, and does not reach what it hits. Decided as
+        // the click comes in (capture): a real click lets the form
+        // re-render between listeners, so by the time it bubbles out of
+        // a card that opened a drawer, this drawer is already behind.
+        capture: true,
+        handleEvent: (e2) => {
+          if (i4 !== front - 1) return;
+          e2.stopPropagation();
+          this._closeTo(i4 + 1);
+        }
+      }}
+            @keydown=${(e2) => {
+        if (e2.defaultPrevented) return;
+        if (e2.key === "Tab") this._keepTabIn(e2);
+        if (e2.key !== "Escape") return;
+        e2.preventDefault();
+        e2.stopPropagation();
+        this._closeTo(i4);
+      }}
+          >
+            <header class="jf-drawer-head">
+              <div class="jf-drawer-heading">
+                <span class="jf-drawer-title">${d2.target.label}</span>
+              </div>
+              <button
+                type="button"
+                class="jf-drawer-close"
+                aria-label="Close ${d2.target.label}"
+                title="Close"
+                @click=${(e2) => {
+        e2.stopPropagation();
+        this._closeTo(i4);
+      }}
+              >
+                ${REMOVE_ICON}
+              </button>
+            </header>
+            <div class="jf-drawer-body ${this._jsonViews.has(d2.key) ? "jf-drawer-body--json" : ""}">
+              ${d2.body}
+            </div>
+            <footer class="jf-drawer-foot">
+              <span class="jf-foot-spacer"></span>
+              ${this._jsonToggle(d2.key)}
+            </footer>
+          </section>`
+    )}
+    </div>`;
+  }
+  /** The bottom bar's JSON view toggle: on, the drawer shows its value as
+   *  JSON; off (the default), the form. */
+  _jsonToggle(key) {
+    const on = this._jsonViews.has(key);
+    return b`<button
+      type="button"
+      class="jf-foot-btn ${on ? "jf-foot-btn--on" : ""}"
+      aria-label="JSON view"
+      aria-pressed=${on ? "true" : "false"}
+      title="JSON view"
+      @click=${() => this._setView(key, !on)}
+    >
+      ${JSON_ICON}
+    </button>`;
+  }
+  /** A drawer's JSON view: its value with the defaults shown (as the
+   *  Settings tab's JSON view with Show defaults); an edit stores only what
+   *  differs from them, and values the user pinned to a default. */
+  _drawerJson(path) {
+    const user = getAt(this._value, path);
+    const defaults = getAt(this.defaults, path);
+    const pinned = pinnedPaths(user, defaults);
+    const shown = defaults === void 0 ? user : user === void 0 ? defaults : mergeDefaults(user, defaults);
+    const store = (value) => {
+      const kept = defaults === void 0 ? value : stripDefaults(value, defaults, pinned);
+      const nothingOwn = kept === void 0 || defaults !== void 0 && kept !== null && typeof kept === "object" && !Array.isArray(kept) && Object.keys(kept).length === 0;
+      if (nothingOwn) this._reset(path);
+      else this._set(path, kept);
+    };
+    return b`<json-editor
+      class="jf-drawer-json"
+      .value=${cloneDeep(shown ?? {})}
+      .defaults=${defaults ?? null}
+      .showDefaults=${true}
+      .explicitPaths=${[...pinned]}
+      .schema=${schemaAtPath(this.schema, path)}
+      ?readonly=${this.readonly}
+      @json-editor-change=${(e2) => {
+      e2.stopPropagation();
+      store(e2.detail.value);
+    }}
+      @json-editor-overwrite=${(e2) => {
+      var _a2, _b;
+      e2.stopPropagation();
+      if (!((_b = (_a2 = e2.detail) == null ? void 0 : _a2.path) == null ? void 0 : _b.length)) return;
+      const next = cloneDeep(user ?? {});
+      setAt(next, e2.detail.path, e2.detail.value);
+      this._set(path, next);
+    }}
+    ></json-editor>`;
+  }
+  /** Tab from the front drawer's last control goes to its first (Shift+Tab
+   *  the other way): a drawer blocks the rest of its area. */
+  _keepTabIn(e2) {
+    var _a2;
+    const drawer = e2.currentTarget;
+    const controls = [
+      ...drawer.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), [tabindex="0"]'
+      )
+    ];
+    if (controls.length === 0) return;
+    const at2 = controls.indexOf((_a2 = this.shadowRoot) == null ? void 0 : _a2.activeElement);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (e2.shiftKey && at2 <= 0) {
+      e2.preventDefault();
+      last.focus();
+    } else if (!e2.shiftKey && (at2 === -1 || at2 === controls.length - 1)) {
+      e2.preventDefault();
+      first.focus();
+    }
+  }
+  /** A card that opens `key`'s drawer: its title, description and what it
+   *  holds, with its own actions (Reset, Remove…) at the right. */
+  _card(key, show, target) {
+    this._targets.set(key, target);
+    const open = (e2) => this._openFrom(e2.currentTarget, key);
+    return b`<div
+      class="jf-sub"
+      data-key=${key}
+      role="button"
+      tabindex="0"
+      aria-haspopup="dialog"
+      @click=${open}
+      @keydown=${(e2) => {
+      if (e2.target === e2.currentTarget && (e2.key === "Enter" || e2.key === " ")) {
+        e2.preventDefault();
+        open(e2);
+      }
+    }}
+    >
+      <div class="jf-sub-main">
+        <div class="jf-sub-headline">
+          <span class="jf-sub-title">${show.title}</span>
+          ${show.required ? b`<span class="jf-required">Required</span>` : A}
+        </div>
+        ${show.description ? b`<div class="jf-description">
+                ${o(renderMarkdown(show.description))}
+              </div>` : A}
+        <div class="jf-meta">
+          ${show.meta.join(" · ")}
+          ${show.errors ? b`<span class="jf-meta-error">· ${count(show.errors, "error", "errors")}</span>` : A}
+        </div>
+        ${show.error ? b`<div class="jf-error" role="alert">${show.error}</div>` : A}
+      </div>
+      ${show.actions && show.actions !== A ? b`<span
+              class="jf-sub-actions"
+              @click=${(e2) => e2.stopPropagation()}
+              @keydown=${(e2) => e2.stopPropagation()}
+            >
+              ${show.actions}
+            </span>` : A}
+      <span class="jf-chev" aria-hidden="true">›</span>
+    </div>`;
+  }
+  /** What an object's fields hold: how many, how many set, how many default. */
+  _fieldsMeta(fields) {
+    const set = fields.filter((f2) => f2.set).length;
+    const byDefault = fields.filter((f2) => !f2.set && f2.hasDefault).length;
+    return [
+      count(fields.length, "property", "properties"),
+      `${set} set`,
+      ...byDefault ? [`${byDefault} default`] : []
+    ];
+  }
+  /** What an object or array setting holds. */
+  _meta(f2) {
+    var _a2, _b, _c;
+    const fromDefaults = !f2.set && f2.hasDefault ? ["default"] : [];
+    const length = Array.isArray(f2.value) ? f2.value.length : 0;
+    switch (f2.kind) {
+      case "group":
+        return this._fieldsMeta(f2.fields ?? []);
+      case "list": {
+        const [one, many] = ITEM_NOUNS[((_a2 = f2.item) == null ? void 0 : _a2.kind) ?? ""] ?? ["value", "values"];
+        return [count(length, one, many), ...fromDefaults];
+      }
+      case "objects":
+        return [count(length, "object", "objects"), ...fromDefaults];
+      default: {
+        const fromDefaultKeys = ((_b = f2.defaultKeys) == null ? void 0 : _b.length) ?? 0;
+        return [
+          count(((_c = f2.entries) == null ? void 0 : _c.length) ?? 0, "entry", "entries"),
+          ...fromDefaultKeys ? [`${fromDefaultKeys} default`] : []
+        ];
+      }
+    }
+  }
+  /** An object or array setting: its card, and what its drawer shows. */
+  _fieldCard(f2) {
+    const body = () => {
+      const content = f2.kind === "group" ? b`<div class="jf">${(f2.fields ?? []).map((child) => this._field(child))}</div>` : f2.kind === "list" ? this._list(f2) : f2.kind === "objects" ? this._objects(f2) : this._map(f2);
+      return b`${this._description(f2)}${content}`;
+    };
+    return this._card(
+      f2.key,
+      {
+        title: f2.label,
+        description: f2.description,
+        required: f2.required,
+        meta: this._meta(f2),
+        errors: errorCount(f2),
+        error: f2.error,
+        actions: this._resetButton(f2)
+      },
+      { label: f2.label, path: f2.path, body }
+    );
+  }
+  _field(f2) {
+    if (CARD_KINDS.includes(f2.kind)) return this._fieldCard(f2);
+    const id = idFor(f2.key);
+    const faded = !f2.set && f2.hasDefault;
+    const labelled = !["list", "objects", "map", "unsupported"].includes(f2.kind);
+    const reset = this._resetButton(f2);
+    const inRow = ROW_KINDS.includes(f2.kind);
+    return b`
+      <div class="jf-field ${faded ? "jf-default" : ""}" data-key=${f2.key}>
+        <div class="jf-head">
+          ${labelled ? b`<label class="jf-label" for=${id}>${f2.label}</label>` : b`<span class="jf-label" id=${id}>${f2.label}</span>`}
+          ${f2.required ? b`<span class="jf-required">Required</span>` : A}
+          ${inRow ? A : reset}
+        </div>
+        ${this._description(f2)}
+        ${inRow ? b`<div class="jf-row ${f2.kind === "boolean" ? "" : "jf-input-card"}">
+                ${this._control(f2, id)}${reset}
+              </div>` : this._control(f2, id)}
+        ${f2.error ? b`<div class="jf-error" role="alert">${f2.error}</div>` : A}
+      </div>
+    `;
+  }
+  /** Reset: on every setting with a default (greyed out while unset), and
+   *  on a set one without (it clears it). */
+  _resetButton(f2) {
+    if (this.readonly || f2.kind === "unsupported" || !(f2.hasDefault || f2.set)) return A;
+    return b`<button
+      type="button"
+      class="jf-icon-btn jf-reset"
+      aria-label="Reset ${f2.label}"
+      title=${f2.hasDefault ? "Use the default" : "Clear"}
+      ?disabled=${!f2.set}
+      @click=${() => this._reset(f2.path)}
+    >
+      ${RESET_ICON}
+    </button>`;
+  }
+  _description(f2) {
+    return f2.description ? b`<div class="jf-description">${o(renderMarkdown(f2.description))}</div>` : A;
+  }
+  _control(f2, id) {
+    const placeholder = f2.hasDefault ? "" : "Not set";
+    switch (f2.kind) {
+      case "boolean":
+        return b`<openp41ge-toggle
+          id=${id}
+          .checked=${f2.value === true}
+          .label=${f2.label}
+          ?disabled=${this.readonly}
+          @change=${(e2) => this._set(f2.path, e2.detail.checked)}
+        ></openp41ge-toggle>`;
+      case "number":
+        return this._numberInput(
+          id,
+          f2.value,
+          f2,
+          (v2) => v2 === void 0 ? this._reset(f2.path) : this._set(f2.path, v2)
+        );
+      case "enum":
+        return this._select(
+          id,
+          f2.value,
+          f2.options ?? [],
+          !f2.set && !f2.hasDefault,
+          (v2) => v2 === void 0 ? this._reset(f2.path) : this._set(f2.path, v2)
+        );
+      case "string":
+      case "secret":
+        return b`<input
+          class="jf-input"
+          id=${id}
+          type=${f2.kind === "secret" ? "password" : "text"}
+          autocomplete=${f2.kind === "secret" ? "off" : A}
+          spellcheck="false"
+          placeholder=${f2.nullable ? "null" : placeholder}
+          .value=${typeof f2.value === "string" ? f2.value : ""}
+          ?disabled=${this.readonly}
+          @input=${(e2) => {
+          const text = e2.target.value;
+          if (text === "" && f2.nullable) this._set(f2.path, null);
+          else if (text === "" && !f2.hasDefault) this._reset(f2.path);
+          else this._set(f2.path, text);
+        }}
+        />`;
+      case "list":
+        return this._list(f2);
+      case "objects":
+        return this._objects(f2);
+      case "map":
+        return this._map(f2);
+      default:
+        return b`
+          <p class="jf-note">Edit this in the JSON view.</p>
+          ${f2.value === void 0 ? A : b`<pre class="jf-json">${JSON.stringify(f2.value, null, 2)}</pre>`}
+        `;
+    }
+  }
+  _numberInput(id, value, limits, onChange) {
+    return b`<input
+      class="jf-input jf-number"
+      id=${id}
+      type="number"
+      min=${limits.minimum ?? A}
+      max=${limits.maximum ?? A}
+      step=${limits.integer ? "1" : "any"}
+      placeholder=${limits.hasDefault === false ? "Not set" : ""}
+      .value=${typeof value === "number" ? String(value) : ""}
+      ?disabled=${this.readonly}
+      @input=${(e2) => {
+      const text = e2.target.value;
+      if (text === "") return onChange(void 0);
+      const n3 = Number(text);
+      if (!Number.isNaN(n3)) onChange(n3);
+    }}
+    />`;
+  }
+  _select(id, value, options, withEmpty, onChange, placeholder = "Not set", label = null) {
+    const selected = options.findIndex((o2) => JSON.stringify(o2) === JSON.stringify(value));
+    const choices = [
+      ...withEmpty ? [{ value: "", label: "Not set" }] : [],
+      ...options.map((o2, i4) => ({
+        value: String(i4),
+        label: typeof o2 === "string" ? o2 : JSON.stringify(o2)
+      }))
+    ];
+    return b`<openp41ge-select
+      class="jf-input jf-select"
+      id=${id}
+      .options=${choices}
+      .value=${selected < 0 ? "" : String(selected)}
+      placeholder=${placeholder}
+      label=${label ?? A}
+      align-to=".jf-input-card"
+      ?disabled=${this.readonly}
+      @change=${(e2) => {
+      e2.stopPropagation();
+      const idx = e2.detail.value;
+      onChange(idx === "" ? void 0 : options[Number(idx)]);
+    }}
+    ></openp41ge-select>`;
+  }
+  /** A list of values: one control per item, with Remove, and an empty row
+   *  last: what is entered there is a new item (and a new empty row follows). */
+  _list(f2) {
+    const list = Array.isArray(f2.value) ? f2.value : [];
+    const kind = f2.item;
+    const edit = (i4, v2) => {
+      const next = [...list];
+      next[i4] = v2;
+      this._setList(f2, next);
+    };
+    return b`
+      <div class="jf-list" role="group" aria-label=${f2.label}>
+        ${list.map((item, i4) => {
+      const id = idFor(`${f2.key}[${i4}]`);
+      const control = kind.kind === "boolean" ? b`<openp41ge-toggle
+                  id=${id}
+                  .checked=${item === true}
+                  .label=${`${f2.label} item ${i4 + 1}`}
+                  ?disabled=${this.readonly}
+                  @change=${(e2) => edit(i4, e2.detail.checked)}
+                ></openp41ge-toggle>` : kind.kind === "number" ? this._numberInput(id, item, { integer: kind.integer }, (v2) => edit(i4, v2 ?? 0)) : kind.kind === "enum" ? this._select(id, item, kind.options ?? [], false, (v2) => edit(i4, v2)) : b`<input
+                      class="jf-input"
+                      id=${id}
+                      type="text"
+                      spellcheck="false"
+                      aria-label=${`${f2.label} item ${i4 + 1}`}
+                      .value=${typeof item === "string" ? item : ""}
+                      ?disabled=${this.readonly}
+                      @input=${(e2) => edit(i4, e2.target.value)}
+                    />`;
+      return b`<div class="jf-list-item">
+            ${control}
+            <button
+              type="button"
+              class="jf-icon-btn jf-x"
+              aria-label="Remove item ${i4 + 1} of ${f2.label}"
+              title="Remove"
+              ?disabled=${this.readonly}
+              @click=${() => this._setList(
+        f2,
+        list.filter((_2, j2) => j2 !== i4)
+      )}
+            >
+              ${REMOVE_ICON}
+            </button>
+          </div>`;
+    })}
+        ${this.readonly ? A : this._newListRow(f2, list)}
+      </div>
+    `;
+  }
+  /** A list's empty last row: entering a value there adds it as an item,
+   *  and the typing carries on in that item. */
+  _newListRow(f2, list) {
+    const kind = f2.item;
+    const label = `New item of ${f2.label}`;
+    const add = (v2) => {
+      this._focusNext = idFor(`${f2.key}[${list.length}]`);
+      this._setList(f2, [...list, v2]);
+    };
+    const id = idFor(`${f2.key}[new]`);
+    const control = kind.kind === "boolean" ? b`<button
+            type="button"
+            class="jf-input jf-new-btn"
+            aria-label=${label}
+            @click=${() => add(newListItem(kind))}
+          >
+            New item
+          </button>` : kind.kind === "enum" ? this._select(id, void 0, kind.options ?? [], false, add, "New item", label) : b`<input
+              class="jf-input ${kind.kind === "number" ? "jf-number" : ""}"
+              id=${id}
+              type=${kind.kind === "number" ? "number" : "text"}
+              step=${kind.kind === "number" ? kind.integer ? "1" : "any" : A}
+              spellcheck="false"
+              placeholder="New item"
+              aria-label=${label}
+              .value=${l("")}
+              @input=${(e2) => {
+      const text = e2.target.value;
+      if (text === "") return;
+      if (kind.kind !== "number") return add(text);
+      const n3 = Number(text);
+      if (!Number.isNaN(n3)) add(n3);
+    }}
+            />`;
+    return b`<div class="jf-list-item jf-new">${control}</div>`;
+  }
+  /** A list of objects: a card per item (it opens the item's drawer), with
+   *  move and remove, and an empty card last: it opens a drawer for a new
+   *  item (removed again if left empty). */
+  _objects(f2) {
+    const list = Array.isArray(f2.value) ? f2.value : [];
+    const items = f2.items ?? [];
+    const move = (i4, d2) => {
+      const next = [...list];
+      [next[i4], next[i4 + d2]] = [next[i4 + d2], next[i4]];
+      this._setList(f2, next);
+    };
+    const remove = (i4) => this._setList(
+      f2,
+      list.filter((_2, j2) => j2 !== i4)
+    );
+    const add = () => {
+      const key = `${f2.key}[${list.length}]`;
+      this._drafts.set(key, { list: f2.path, index: list.length });
+      this._openAfter(f2.key, key);
+      this._setList(f2, [...list, {}]);
+    };
+    return b`
+      <div class="jf-subs" role="group" aria-label=${f2.label}>
+        ${items.map((fields, i4) => {
+      const n3 = i4 + 1;
+      const title = itemTitle(fields, i4);
+      return this._card(
+        `${f2.key}[${i4}]`,
+        {
+          title,
+          meta: this._fieldsMeta(fields),
+          errors: fields.reduce((sum, child) => sum + errorCount(child), 0),
+          actions: b`
+                <button
+                  type="button"
+                  class="jf-icon-btn"
+                  aria-label="Move item ${n3} of ${f2.label} up"
+                  title="Move up"
+                  ?disabled=${this.readonly || i4 === 0}
+                  @click=${() => move(i4, -1)}
+                >
+                  ${UP_ICON}
+                </button>
+                <button
+                  type="button"
+                  class="jf-icon-btn"
+                  aria-label="Move item ${n3} of ${f2.label} down"
+                  title="Move down"
+                  ?disabled=${this.readonly || i4 === items.length - 1}
+                  @click=${() => move(i4, 1)}
+                >
+                  ${DOWN_ICON}
+                </button>
+                <button
+                  type="button"
+                  class="jf-icon-btn jf-x"
+                  aria-label="Remove item ${n3} of ${f2.label}"
+                  title="Remove"
+                  ?disabled=${this.readonly}
+                  @click=${() => remove(i4)}
+                >
+                  ${REMOVE_ICON}
+                </button>
+              `
+        },
+        {
+          label: title,
+          path: [...f2.path, i4],
+          body: () => b`<div class="jf">${fields.map((child) => this._field(child))}</div>`
+        }
+      );
+    })}
+        ${this.readonly ? A : b`<div
+                class="jf-sub jf-new"
+                role="button"
+                tabindex="0"
+                aria-haspopup="dialog"
+                aria-label="New item of ${f2.label}"
+                @click=${add}
+                @keydown=${(e2) => {
+      if (e2.key === "Enter" || e2.key === " ") {
+        e2.preventDefault();
+        add();
+      }
+    }}
+              >
+                <div class="jf-sub-main"><span class="jf-sub-title">New item</span></div>
+                <span class="jf-chev" aria-hidden="true">›</span>
+              </div>`}
+      </div>
+    `;
+  }
+  /** A map: a card per object entry (it opens the entry's drawer, with its
+   *  key) or a row per value, and an empty row last that takes a new key:
+   *  Enter, or leaving it, adds the entry (a taken key is marked, not added). */
+  _map(f2) {
+    const entries = f2.entries ?? [];
+    const keys = entries.map((e2) => e2.name);
+    const fromDefaults = new Set(f2.defaultKeys ?? []);
+    const userMap = () => {
+      const v2 = getAt(this._value, f2.path);
+      return v2 !== null && typeof v2 === "object" && !Array.isArray(v2) ? v2 : {};
+    };
+    const newKey = this._newKeys.get(f2.key) ?? "";
+    const taken = keys.includes(newKey.trim());
+    const canAdd = newKey.trim() !== "" && !taken;
+    const setNewKey = (text) => {
+      const next = new Map(this._newKeys);
+      next.set(f2.key, text);
+      this._newKeys = next;
+    };
+    const add = () => {
+      if (!canAdd) return;
+      const key = newKey.trim();
+      setNewKey("");
+      if (f2.objectValues) this._openAfter(f2.key, `${f2.key}.${key}`);
+      else this._focusNext = idFor(`${f2.key}.${key}`);
+      this._set([...f2.path, key], cloneDeep(f2.newEntry ?? null));
+    };
+    const remove = (key) => {
+      const { [key]: _removed, ...rest } = userMap();
+      if (Object.keys(rest).length === 0) this._reset(f2.path);
+      else this._set(f2.path, rest);
+    };
+    const rename = (from, input) => {
+      const to = input.value.trim();
+      if (!to || to === from || keys.includes(to)) {
+        input.value = from;
+        return;
+      }
+      const map = Object.fromEntries(
+        Object.entries(userMap()).map(([k2, v2]) => [k2 === from ? to : k2, v2])
+      );
+      let next = setFieldValue(this._value, this.defaults, f2.path, map);
+      if (f2.marked && f2.marked.key === from) {
+        next = setFieldValue(next, this.defaults, f2.marked.path, to);
+      }
+      this._renameDrawers(`${f2.key}.${from}`, `${f2.key}.${to}`);
+      this._commit(next);
+    };
+    const removeButton = (key) => b`<button
+        type="button"
+        class="jf-icon-btn jf-x"
+        aria-label="Remove ${key} from ${f2.label}"
+        title=${fromDefaults.has(key) ? "A default entry: it cannot be removed" : "Remove"}
+        ?disabled=${this.readonly || fromDefaults.has(key)}
+        @click=${() => remove(key)}
+      >
+        ${REMOVE_ICON}
+      </button>`;
+    const marked = f2.marked;
+    const markActions = (key) => {
+      if (!marked) return A;
+      return marked.key === key ? b`<span class="jf-pill">Default</span>` : b`<button
+            type="button"
+            class="jf-add jf-make"
+            aria-label="Make ${key} the ${marked.label.toLowerCase()}"
+            ?disabled=${this.readonly}
+            @click=${() => this._set(marked.path, key)}
+          >
+            Make default
+          </button>`;
+    };
+    const card = (e2) => {
+      const locked = this.readonly || fromDefaults.has(e2.name);
+      const fields = e2.fields ?? [e2];
+      return this._card(
+        e2.key,
+        {
+          title: e2.name,
+          meta: this._fieldsMeta(fields),
+          errors: errorCount(e2),
+          actions: b`${markActions(e2.name)} ${removeButton(e2.name)}`
+        },
+        {
+          label: e2.name,
+          path: e2.path,
+          body: () => b`<div class="jf">
+              <div class="jf-field">
+                <label class="jf-label" for=${idFor(`${e2.key}.__key`)}>Key</label>
+                <input
+                  class="jf-input"
+                  id=${idFor(`${e2.key}.__key`)}
+                  type="text"
+                  spellcheck="false"
+                  aria-label="Key of ${e2.name}"
+                  title=${fromDefaults.has(e2.name) ? "A default entry: it cannot be renamed" : ""}
+                  .value=${l(e2.name)}
+                  ?disabled=${locked}
+                  @change=${(ev) => rename(e2.name, ev.target)}
+                />
+              </div>
+              ${fields.map((child) => this._field(child))}
+            </div>`
+        }
+      );
+    };
+    const row = (e2) => b`<div class="jf-map-row ${e2.error ? "jf-map-row--error" : ""}" data-key=${e2.key}>
+        <span class="jf-map-key">${e2.name}</span>
+        ${this._control(e2, idFor(e2.key))} ${markActions(e2.name)} ${removeButton(e2.name)}
+        ${e2.error ? b`<div class="jf-error" role="alert">${e2.error}</div>` : A}
+      </div>`;
+    const addRow = this.readonly ? A : b`<div class="jf-map-add jf-new">
+          <input
+            class="jf-input"
+            type="text"
+            spellcheck="false"
+            placeholder="New key"
+            aria-label="New key for ${f2.label}"
+            aria-invalid=${taken ? "true" : "false"}
+            title=${taken ? "That key is taken" : ""}
+            .value=${l(newKey)}
+            @input=${(e2) => setNewKey(e2.target.value)}
+            @keydown=${(e2) => {
+      if (e2.key === "Enter") add();
+    }}
+            @change=${add}
+          />
+        </div>`;
+    const addCard = this.readonly ? A : b`<div
+          class="jf-sub jf-new jf-new-card"
+          @click=${(e2) => {
+      var _a2;
+      return (_a2 = e2.currentTarget.querySelector("input")) == null ? void 0 : _a2.focus();
+    }}
+        >
+          <div class="jf-sub-main">
+            <input
+              class="jf-new-key"
+              type="text"
+              spellcheck="false"
+              placeholder="New key"
+              aria-label="New key for ${f2.label}"
+              aria-invalid=${taken ? "true" : "false"}
+              .value=${l(newKey)}
+              @input=${(e2) => setNewKey(e2.target.value)}
+              @keydown=${(e2) => {
+      if (e2.key === "Enter") add();
+    }}
+              @change=${add}
+            />
+            <div class="jf-meta">
+              ${count(f2.entryProperties ?? 0, "property", "properties")} · 0 set
+              ${taken ? b`<span class="jf-meta-error">· That key is taken</span>` : A}
+            </div>
+          </div>
+          <span
+            class="jf-chev"
+            role="button"
+            aria-label="Add ${newKey.trim() || "the new key"} to ${f2.label}"
+            aria-disabled=${canAdd ? "false" : "true"}
+            @click=${(e2) => {
+      e2.stopPropagation();
+      add();
+    }}
+            >›</span
+          >
+        </div>`;
+    return f2.objectValues ? b`<div class="jf-subs" role="group" aria-label=${f2.label}>
+          ${entries.map(card)} ${addCard}
+        </div>` : b`<div class="jf-card" role="group" aria-label=${f2.label}>
+          ${entries.map(row)} ${addRow}
+        </div>`;
+  }
+};
+JsonFormElement.styles = i$5`
+    :host {
+      display: block;
+      position: relative;
+      color: var(--text-primary, #ddd);
+      font-family: var(--font-ui, system-ui, sans-serif);
+      font-size: 12px;
+    }
+    /* The form scrolls itself, so the drawers cover what is in view. */
+    .jf-scroll {
+      box-sizing: border-box;
+      height: 100%;
+      overflow: auto;
+      padding: var(--jf-padding, 0);
+    }
+    .jf {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .jf-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .jf-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 20px;
+    }
+    .jf-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary, #ddd);
+    }
+    .jf-required {
+      padding: 0 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: color-mix(in srgb, var(--accent, #569cd6) 16%, transparent);
+      color: var(--accent, #569cd6);
+    }
+    /* Reset sits at the right: of the head, or of the control's row. */
+    .jf-reset {
+      margin-left: auto;
+    }
+    .jf-description {
+      color: var(--text-secondary, #999);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .jf-description p {
+      margin: 0;
+    }
+    .jf-description code {
+      font-family: var(--font-mono, ui-monospace, monospace);
+    }
+    /* A description is help text: its headings and code blocks stay small. */
+    .jf-description :is(h1, h2, h3, h4, h5, h6) {
+      margin: 6px 0 2px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary, #ddd);
+    }
+    .jf-description pre {
+      margin: 4px 0;
+      padding: 6px 8px;
+      overflow: auto;
+      border-radius: 4px;
+      background: var(--jf-input-bg, var(--bg-secondary, #2a2a2a));
+      font-family: var(--font-mono, ui-monospace, monospace);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .jf-description p + p {
+      margin-top: 4px;
+    }
+    /* Inputs are cards, as in the workspace editor: full width, a
+       background, no outline. */
+    .jf-input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 5px 8px;
+      border: none;
+      border-radius: 4px;
+      background: var(--jf-input-bg, var(--bg-tertiary, #2a2a2a));
+      color: var(--text-primary, #ddd);
+      font: inherit;
+      font-size: 12px;
+    }
+    .jf-input:focus {
+      outline: none;
+      background: var(
+        --jf-input-focus-bg,
+        color-mix(in srgb, var(--bg-tertiary, #2a2a2a) 92%, #fff)
+      );
+    }
+    .jf-input:disabled {
+      opacity: 0.6;
+    }
+    /* The toolkit's dropdown: its trigger pads itself. */
+    .jf-select {
+      padding: 0;
+    }
+    .jf-select:focus-within {
+      background: var(
+        --jf-input-focus-bg,
+        color-mix(in srgb, var(--bg-tertiary, #2a2a2a) 92%, #fff)
+      );
+    }
+    .jf-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .jf-row > .jf-input {
+      flex: 1;
+      min-width: 0;
+    }
+    /* An input with Reset: the card holds both, Reset inside at its right. */
+    .jf-input-card {
+      gap: 0;
+      padding-right: 4px;
+      border-radius: 4px;
+      background: var(--jf-input-bg, var(--bg-tertiary, #2a2a2a));
+    }
+    .jf-input-card:focus-within {
+      background: var(
+        --jf-input-focus-bg,
+        color-mix(in srgb, var(--bg-tertiary, #2a2a2a) 92%, #fff)
+      );
+    }
+    .jf-input-card > .jf-input,
+    .jf-input-card > .jf-input:focus {
+      background: transparent;
+    }
+    .jf-input-card > .jf-reset {
+      background: transparent;
+    }
+    /* An unset field shows its default, faded. */
+    .jf-default > .jf-row > .jf-input:not(.jf-select),
+    .jf-default > .jf-row > .jf-select::part(trigger),
+    .jf-default > .jf-row > openp41ge-toggle {
+      opacity: 0.55;
+    }
+    .jf-default > .jf-row > .jf-input:focus {
+      opacity: 1;
+    }
+    .jf-error {
+      color: var(--jf-error, #f44747);
+      font-size: 11px;
+    }
+    .jf-note {
+      margin: 0;
+      color: var(--text-secondary, #999);
+      font-size: 11px;
+      font-style: italic;
+    }
+    .jf-json {
+      margin: 0;
+      padding: 6px 8px;
+      overflow: auto;
+      border-radius: 4px;
+      background: var(--jf-input-bg, var(--bg-tertiary, #2a2a2a));
+      font-family: var(--font-mono, ui-monospace, monospace);
+      font-size: 11px;
+      color: var(--text-secondary, #999);
+    }
+    .jf-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .jf-list-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .jf-list-item .jf-input {
+      flex: 1;
+    }
+    .jf-icon-btn {
+      flex-shrink: 0;
+      box-sizing: border-box;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 4px;
+      background: var(--jf-button-bg, #3a3a3a);
+      color: var(--text-secondary, #999);
+      cursor: pointer;
+    }
+    .jf-icon-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    .jf-icon-btn:hover:not([disabled]) {
+      background: color-mix(in srgb, var(--accent, #569cd6) 22%, #2a2a2a);
+      color: var(--accent, #569cd6);
+    }
+    .jf-x:hover:not([disabled]) {
+      background: #4a2f2f;
+      color: var(--jf-error, #f44747);
+    }
+    .jf-icon-btn[disabled] {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .jf-add {
+      align-self: flex-start;
+      padding: 3px 8px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-secondary, #999);
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .jf-add:hover:not([disabled]) {
+      background: var(--jf-hover, rgba(255, 255, 255, 0.06));
+      color: var(--text-primary, #ddd);
+    }
+    .jf-add[disabled] {
+      opacity: 0.35;
+      cursor: default;
+    }
+    /* A map's rows of values. */
+    .jf-card {
+      border: 1px solid var(--divider, #333);
+      border-radius: 6px;
+      background: var(--jf-card-bg, var(--bg-secondary, #161616));
+      overflow: hidden;
+    }
+    /* An object or array: a card that opens its drawer. */
+    .jf-subs {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .jf-sub {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: var(--jf-input-bg, var(--bg-tertiary, #2a2a2a));
+      cursor: pointer;
+      user-select: none;
+    }
+    .jf-sub:hover {
+      background: var(
+        --jf-input-focus-bg,
+        color-mix(in srgb, var(--bg-tertiary, #2a2a2a) 92%, #fff)
+      );
+    }
+    /* Reset on a card is drawn like Reset in an input's card. */
+    .jf-sub-actions > .jf-reset {
+      background: transparent;
+    }
+    .jf-sub:focus-visible {
+      outline: 1px solid var(--accent, #569cd6);
+      outline-offset: -1px;
+    }
+    .jf-sub-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .jf-sub-headline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .jf-sub-title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .jf-meta {
+      color: var(--text-secondary, #999);
+      font-size: 11px;
+    }
+    .jf-meta-error {
+      color: var(--jf-error, #f44747);
+    }
+    .jf-sub-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: default;
+    }
+    .jf-chev {
+      flex-shrink: 0;
+      width: 14px;
+      text-align: center;
+      font-size: 16px;
+      color: var(--text-secondary, #999);
+    }
+    /* The drawers: over the form, sliding in from the right. One mask and
+       one shadow for the whole stack; the drawers cast none. */
+    .jf-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      overflow: hidden;
+    }
+    /* Over the host's area (its cell, tab bar included), placed from its box. */
+    .jf-layer--area {
+      position: fixed;
+      inset: auto;
+      z-index: 100;
+    }
+    .jf-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      animation: jf-fade 0.18s ease-out;
+    }
+    /* It runs past the top and bottom (the layer clips it): a blur ending
+       at the area's edge would fade there and round the drawers' corners. */
+    .jf-drawer-shadow {
+      position: absolute;
+      top: -24px;
+      right: 0;
+      bottom: -24px;
+      box-shadow: -2px 0 12px rgba(0, 0, 0, 0.45);
+      transition: width 0.18s ease-out;
+      animation: jf-slide 0.18s ease-out;
+    }
+    .jf-drawer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border-divider, var(--divider, #2d2d2d));
+      background: var(--bg-primary, #1e1e1e);
+      color: var(--text-primary, #d4d4d4);
+      transition: width 0.18s ease-out;
+      animation: jf-slide 0.18s ease-out;
+    }
+    .jf-drawer:focus {
+      outline: none;
+    }
+    .jf-drawer--front {
+      width: 80%;
+    }
+    .jf-drawer--back {
+      width: 90%;
+    }
+    /* Hidden only once the drawer in front has widened over it, so it does
+       not vanish in front of the user (showing it again is immediate). */
+    .jf-drawer--hidden {
+      width: 90%;
+      visibility: hidden;
+      transition:
+        width 0.18s ease-out,
+        visibility 0s 0.18s;
+    }
+    /* Behind the front drawer only a strip shows: it goes back. */
+    .jf-drawer.jf-drawer--back {
+      cursor: pointer;
+    }
+    @keyframes jf-slide {
+      from {
+        transform: translateX(100%);
+      }
+      to {
+        transform: translateX(0);
+      }
+    }
+    @keyframes jf-fade {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    .jf-drawer-head {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      /* As tall as the tab bar it covers. */
+      height: 35px;
+      box-sizing: border-box;
+      padding-left: 16px;
+      border-bottom: 1px solid var(--border-divider, var(--divider, #2d2d2d));
+      background: var(--bg-surface, #161616);
+    }
+    /* One line: the drawer's name. */
+    .jf-drawer-heading {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+    .jf-drawer-title {
+      font-weight: 600;
+    }
+    .jf-drawer-close {
+      flex-shrink: 0;
+      align-self: stretch;
+      width: 35px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: none;
+      border-left: 1px solid var(--border-divider, var(--divider, #2d2d2d));
+      background: transparent;
+      color: var(--text-secondary, #999);
+      cursor: pointer;
+    }
+    .jf-drawer-close svg {
+      width: 16px;
+      height: 16px;
+    }
+    .jf-drawer-close:hover {
+      color: var(--text-primary, #ddd);
+      background: var(--jf-hover, rgba(255, 255, 255, 0.06));
+    }
+    .jf-drawer-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+    }
+    /* The JSON view: the editor fills the drawer. */
+    .jf-drawer-body--json {
+      padding: 0;
+      overflow: hidden;
+    }
+    .jf-drawer-json {
+      flex: 1;
+      min-height: 0;
+    }
+    /* The bottom bar: as the Settings tab's. */
+    .jf-drawer-foot {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      height: 34px;
+      box-sizing: border-box;
+      border-top: 1px solid var(--divider, #333);
+      background: var(--bg-surface, #161616);
+    }
+    .jf-foot-spacer {
+      flex: 1;
+    }
+    .jf-foot-btn {
+      height: 100%;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: none;
+      border-left: 1px solid var(--border-divider, #2d2d2d);
+      border-radius: 0;
+      background: transparent;
+      color: var(--text-secondary, #999);
+      cursor: pointer;
+    }
+    .jf-foot-btn:hover {
+      background: var(--bg-active, #37373d);
+      color: var(--text-primary, #ddd);
+    }
+    .jf-foot-btn--on {
+      color: var(--accent, #569cd6);
+    }
+    .jf-foot-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    /* The corner button: 8px in from the window's rounded corner (the grid
+       and a sidebar publish --grid-edge-right-pad where one is). */
+    .jf-foot-btn:last-child {
+      box-sizing: content-box;
+      padding-right: var(--grid-edge-right-pad, 0px);
+    }
+    /* Maps: the Add row takes the new key. */
+    .jf-map-add {
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+    }
+    .jf-subs > .jf-map-add {
+      padding: 0;
+    }
+    /* The empty last row (a new item or key): drawn faint until used. Its
+       dashed edge is an outline, so it is exactly a card's size. */
+    .jf-sub.jf-new {
+      background: transparent;
+      outline: 1px dashed var(--divider, #333);
+      outline-offset: -1px;
+    }
+    .jf-sub.jf-new-card {
+      cursor: text;
+    }
+    /* A map's new key, typed on the card's title line. */
+    .jf-new-key {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 0;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text-primary, #ddd);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: inherit;
+    }
+    .jf-new-key::placeholder {
+      font-weight: 400;
+      color: var(--text-secondary, #999);
+    }
+    .jf-new-card .jf-chev {
+      cursor: pointer;
+    }
+    .jf-chev[aria-disabled="true"] {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .jf-sub.jf-new:hover {
+      background: var(--jf-hover, rgba(255, 255, 255, 0.04));
+    }
+    .jf-sub.jf-new .jf-sub-title {
+      font-weight: 400;
+      color: var(--text-secondary, #999);
+    }
+    .jf-new-btn {
+      text-align: left;
+      color: var(--text-secondary, #999);
+      cursor: pointer;
+    }
+    .jf-new .jf-input[aria-invalid="true"] {
+      box-shadow: inset 0 0 0 1px var(--jf-error, #f44747);
+    }
+    .jf-map-add .jf-input {
+      flex: 1;
+    }
+    .jf-map-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+    }
+    .jf-card > .jf-map-row + .jf-map-row,
+    .jf-card > .jf-map-row + .jf-map-add {
+      border-top: 1px solid var(--divider, #2a2a2a);
+    }
+    .jf-map-key {
+      flex: 0 0 30%;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+    .jf-map-row > .jf-input {
+      flex: 1;
+      width: auto;
+    }
+    .jf-map-row > .jf-error {
+      flex-basis: 100%;
+    }
+    .jf-pill {
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--accent, #569cd6) 22%, transparent);
+      color: var(--accent, #569cd6);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .jf-make {
+      padding: 1px 6px;
+      font-size: 11px;
+    }
+  `;
+__decorateClass([
+  n2({ attribute: false })
+], JsonFormElement.prototype, "schema", 2);
+__decorateClass([
+  n2({ attribute: false })
+], JsonFormElement.prototype, "value", 2);
+__decorateClass([
+  n2({ attribute: false })
+], JsonFormElement.prototype, "defaults", 2);
+__decorateClass([
+  n2({ attribute: false })
+], JsonFormElement.prototype, "errors", 2);
+__decorateClass([
+  n2({ type: Boolean, reflect: true })
+], JsonFormElement.prototype, "readonly", 2);
+__decorateClass([
+  n2({ attribute: false })
+], JsonFormElement.prototype, "drawerArea", 2);
+__decorateClass([
+  r$1()
+], JsonFormElement.prototype, "_value", 2);
+__decorateClass([
+  r$1()
+], JsonFormElement.prototype, "_drawers", 2);
+__decorateClass([
+  r$1()
+], JsonFormElement.prototype, "_jsonViews", 2);
+__decorateClass([
+  r$1()
+], JsonFormElement.prototype, "_newKeys", 2);
+JsonFormElement = __decorateClass([
+  t$2("json-form")
+], JsonFormElement);
 const CONFIG_TYPES = ["object", "array", "string", "number", "integer", "boolean", "null"];
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -7332,6 +9800,10 @@ function checkSchema(schema, path) {
     if (!isPlainObject(schema.properties)) fail("properties must be an object");
     for (const [key, sub] of Object.entries(schema.properties)) {
       if (!isPlainObject(sub)) fail(`${at(path, key)} must be a schema`);
+      const keysOf = sub["x-keysOf"];
+      if (keysOf !== void 0 && (typeof keysOf !== "string" || !(keysOf in schema.properties))) {
+        fail(`${at(path, key)}: x-keysOf must name a sibling property`);
+      }
       checkSchema(sub, at(path, key));
     }
   }
@@ -7399,7 +9871,7 @@ function configErrors(schema, value, path = "") {
     }
   }
   if (Array.isArray(value) && schema.items) {
-    value.forEach((item, i3) => errors.push(...configErrors(schema.items, item, `${path}[${i3}]`)));
+    value.forEach((item, i4) => errors.push(...configErrors(schema.items, item, `${path}[${i4}]`)));
   }
   if (isPlainObject(value)) {
     const properties = schema.properties ?? {};
@@ -7416,6 +9888,16 @@ function configErrors(schema, value, path = "") {
         errors.push(...configErrors(schema.additionalProperties, item, at(path, key)));
       }
     }
+    for (const [name, sub] of Object.entries(properties)) {
+      const map = sub["x-keysOf"] === void 0 ? void 0 : value[sub["x-keysOf"]];
+      const v2 = value[name];
+      if (typeof v2 === "string" && isPlainObject(map) && !(v2 in map)) {
+        const keys = Object.keys(map).map((k2) => JSON.stringify(k2));
+        errors.push(
+          `${at(path, name)}: must be one of the keys of ${sub["x-keysOf"]} (${keys.join(", ")})`
+        );
+      }
+    }
   }
   return errors;
 }
@@ -7430,7 +9912,9 @@ function mergeConfig(defaults, overrides) {
 export {
   JSON_EDITOR_CHANGE,
   JSON_EDITOR_OVERWRITE,
+  JSON_FORM_CHANGE,
   JsonEditorElement,
+  JsonFormElement,
   cloneDeep,
   configDefaults,
   configErrors,

@@ -128,8 +128,8 @@ needn't keep them in `config`. Its pages are an origin of their own with
 the web's storage (`localStorage`, IndexedDB, …), as Chrome's extension
 pages are, and a `"role": "settings"` page can keep settings however it
 likes. `config` is what the browser offers: declared there, settings are
-stored, merged and checked by the browser, and get its settings page (the
-JSON view, and the form view later) with no page of the extension's own.
+stored, merged and checked by the browser, and get its settings page (a
+Form view and a JSON view) with no page of the extension's own.
 Without `config`, an extension's scripts get `{}` and the browser's
 settings page is Not Found. (Decided 2026-10-14, after asking what Chrome
 does: it doesn't block storage in extension pages either.)
@@ -217,10 +217,10 @@ From the code repo (`~/Repository/openp41ge/code`):
   browser's `app/ui/shared/theme.css` defines.
 - **Config logic** (`openp41ge-sdk/src/config.ts`): `configDefaults`,
   `configErrors`, `mergeConfig`, `validateConfigSchema`.
-- **Form view:** doesn't exist yet. The workspace editor's form is written
-  by hand for its two fields. A generic schema form (`<json-form>`) belongs
-  next to `<json-editor>` in `openp41ge-sdk-uikit`, so the code editor can
-  use it for its own extension config too.
+- **Form view:** `<json-form>`, a form built from a config schema, next to
+  `<json-editor>` in `openp41ge-sdk-uikit` (built in the code repo,
+  2026-10-14, which uses it for its own extension config too), in the same
+  bundle.
 
 These packages are private and use pnpm workspace dependencies, so the
 browser can't install them. Instead:
@@ -627,8 +627,7 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
   scripts see anything. The Extensions page gets them as set or not.
 - **Editing:** the browser's settings page has a Secrets section: a masked
   field per secret ("Set" or "Not set"), Save and Clear; the JSON view
-  leaves them out and keeps them on save. The form view (step 7) will take
-  this over.
+  leaves them out and keeps them on save, and so does the Form view.
 - **Tests** (in memory): a secret in `config.json` moves out; saving from the
   JSON view keeps the secret out of `config.json`; the Secrets section sets
   and clears one, and content scripts never get it. The real Keychain is
@@ -703,12 +702,15 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
    what was built**).
 6. ~~**Settings page, JSON view** with `<json-editor>`~~ (done 2026-10-14;
    see **Step 6: what was built**).
-7. **Settings page, form view:** a generic `<json-form>` in
-   `openp41ge-sdk-uikit` (code repo), added to the bundle. Handed to an
-   agent in the code repo (other work was under way there):
-   `plans/2026-10-14-json-form-for-code-repo.md`. The browser's part once
-   it's committed: add it to `scripts/uikit/entry.js`, run
-   `scripts/update-uikit`, and add the Form view to the settings page.
+7. ~~**Settings page, form view**~~ (done 2026-10-15): `<json-form>` was
+   built in the code repo's `openp41ge-sdk-uikit` (handed to an agent there,
+   as other work was under way), and copied into the bundle from its commit
+   (`scripts/uikit/entry.js`, `scripts/update-uikit`). The settings page
+   opens in the Form view (a field per setting, defaults faded, Reset, the
+   schema's problems under their fields, objects and lists in drawers over
+   the page); a JSON view toggle switches to `<json-editor>`, "Show default
+   values" with it. Both edit the same staged values; secrets keep their own
+   section.
 8. ~~**Feature hosts:** messages between tabs and pages~~ (done
    2026-10-14; see **Step 8: what was built**).
 9. ~~**The YouTube pop-out as an extension**~~ (done 2026-10-14, in
@@ -734,8 +736,7 @@ Shorts pop-out is the repo's first extension, `extensions/youtube-popout`.
 13. ~~**Updates** from GitHub~~ (done 2026-10-14; see **Step 13: what was
     built**).
 
-All thirteen steps are done except step 7, the form view, handed to the
-code repo (`plans/2026-10-14-json-form-for-code-repo.md`).
+All thirteen steps are done.
 
 Each step comes with smoke tests on local fixture pages and fixture
 extensions (no live sites, no live GitHub), run in CI. Settings merging

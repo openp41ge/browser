@@ -35,6 +35,10 @@ var openp41geConfig = (function(exports) {
       if (!isPlainObject(schema.properties)) fail("properties must be an object");
       for (const [key, sub] of Object.entries(schema.properties)) {
         if (!isPlainObject(sub)) fail(`${at(path, key)} must be a schema`);
+        const keysOf = sub["x-keysOf"];
+        if (keysOf !== void 0 && (typeof keysOf !== "string" || !(keysOf in schema.properties))) {
+          fail(`${at(path, key)}: x-keysOf must name a sibling property`);
+        }
         checkSchema(sub, at(path, key));
       }
     }
@@ -117,6 +121,16 @@ var openp41geConfig = (function(exports) {
           errors.push(`${at(path, key)}: is not allowed`);
         } else if (isPlainObject(schema.additionalProperties)) {
           errors.push(...configErrors(schema.additionalProperties, item, at(path, key)));
+        }
+      }
+      for (const [name, sub] of Object.entries(properties)) {
+        const map = sub["x-keysOf"] === void 0 ? void 0 : value[sub["x-keysOf"]];
+        const v = value[name];
+        if (typeof v === "string" && isPlainObject(map) && !(v in map)) {
+          const keys = Object.keys(map).map((k) => JSON.stringify(k));
+          errors.push(
+            `${at(path, name)}: must be one of the keys of ${sub["x-keysOf"]} (${keys.join(", ")})`
+          );
         }
       }
     }

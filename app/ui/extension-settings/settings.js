@@ -7,10 +7,14 @@
 // any of its pages can. See plans/2026-10-14-extension-system.md, "Editing
 // settings".
 //
-// The JSON view: the code editor's <json-editor> on the user's values (only
-// what they set), with the schema (key tooltips and suggestions) and, with
-// "Show default values", the defaults shown faded, as the code editor's
-// config editor does. Edits are staged until Save (or Cmd-S); a refusal is
+// Two views of the same staged values, as the code editor's config editor
+// has. It opens in the Form view: the code editor's <json-form>, a field per
+// setting from the schema (defaults faded until set, Reset, the schema's
+// problems with the values under their fields; objects and lists open in
+// drawers over the page). The "JSON view" toggle switches to <json-editor>
+// on the user's values (only what they set), with the schema (key tooltips
+// and suggestions) and, with "Show default values", the defaults shown
+// faded. Edits are staged until Save (or Cmd-S); a refusal is
 // shown and the edits kept. While nothing is staged, a change made elsewhere
 // (another of the extension's pages) is shown. Secret settings are left out
 // of this view, and kept as stored when saving: they have a section of their
@@ -19,7 +23,17 @@
 // no value) and the stored values left out because they don't fit the
 // schema.
 
-import { cloneDeep, configDefaults, mergeDefaults, pinnedPaths, setAt, sortJsonKeys, stripDefaults } from './shared/uikit.js';
+import {
+  cloneDeep,
+  configDefaults,
+  configErrors,
+  mergeConfig,
+  mergeDefaults,
+  pinnedPaths,
+  setAt,
+  sortJsonKeys,
+  stripDefaults,
+} from './shared/uikit.js';
 
 const api = window.openp41ge;
 const $ = (id) => document.getElementById(id);
@@ -63,13 +77,32 @@ function start() {
   let staged = cloneDeep(saved);
   let pinned = pinnedPaths(staged, defaults);
   let showDefaults = false;
+  let jsonView = false;
   let saving = false;
 
+  const form = document.createElement('json-form');
+  form.schema = shownSchema;
+  form.defaults = defaults;
+  // Its drawers cover the whole page.
+  form.drawerArea = document.body;
   const editor = document.createElement('json-editor');
   editor.schema = shownSchema;
   editor.defaults = defaults;
-  $('editor-area').append(editor);
+  $('editor-area').append(form, editor);
   $('bar').hidden = false;
+
+  // The schema's problems with the staged values over the defaults (what
+  // Save checks), by path (`a.b[0]`).
+  const formErrors = () => {
+    try {
+      return configErrors(shownSchema, mergeConfig(defaults, staged)).map((message) => {
+        const at = message.indexOf(': ');
+        return { path: at > 0 ? message.slice(0, at) : '', message };
+      });
+    } catch {
+      return [];
+    }
+  };
 
   const dirty = () => JSON.stringify(sortJsonKeys(staged)) !== JSON.stringify(sortJsonKeys(saved));
   const status = (text, error = false) => {
@@ -77,9 +110,17 @@ function start() {
     $('status').classList.toggle('error', error);
   };
   const render = () => {
-    editor.value = showDefaults ? mergeDefaults(staged, defaults) : staged;
-    editor.showDefaults = showDefaults;
-    editor.explicitPaths = [...pinned];
+    form.hidden = jsonView;
+    editor.hidden = !jsonView;
+    $('show-defaults-toggle').hidden = !jsonView;
+    if (jsonView) {
+      editor.value = showDefaults ? mergeDefaults(staged, defaults) : staged;
+      editor.showDefaults = showDefaults;
+      editor.explicitPaths = [...pinned];
+    } else {
+      form.value = staged;
+      form.errors = formErrors();
+    }
     buttons();
   };
   const buttons = () => {
@@ -99,6 +140,12 @@ function start() {
     buttons();
   };
 
+  form.addEventListener('json-form-change', (event) => {
+    const value = event.detail.value;
+    stage(value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+    form.errors = formErrors();
+    status('');
+  });
   editor.addEventListener('json-editor-change', (event) => {
     const value = event.detail.value;
     const values = showDefaults ? (stripDefaults(value, defaults, pinned) ?? {}) : value;
@@ -144,7 +191,13 @@ function start() {
     showDefaults = event.target.checked;
     render();
   });
+  $('json-view').addEventListener('change', (event) => {
+    jsonView = event.target.checked;
+    render();
+  });
   document.addEventListener('keydown', (event) => {
+    // An open drawer holds the page, Save included.
+    if (!jsonView && form.drawersOpen) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
       event.preventDefault();
       save();

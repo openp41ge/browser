@@ -15,4 +15,5 @@ export {
   sortJsonKeys,
   stripDefaults,
 } from "openp41ge-sdk-uikit/json-editor";
+export { JsonFormElement, JSON_FORM_CHANGE } from "openp41ge-sdk-uikit/json-form";
 export { validateConfigSchema, configDefaults, configErrors, mergeConfig } from "openp41ge-sdk/config";
